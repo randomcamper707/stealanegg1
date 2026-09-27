@@ -1660,15 +1660,40 @@ function Builders.Morph()
 local MorphTabs=Instance.new("Frame"); MorphTabs.Position=UDim2.fromOffset(12,72); MorphTabs.Size=UDim2.new(1,-24,0,38); MorphTabs.BackgroundTransparency=1; MorphTabs.Parent=Morph
 local myAvatarBtn=button(MorphTabs,"MY AVATAR",UDim2.fromOffset(0,0),UDim2.new(.5,-5,0,36),false)
 local playersBtn=button(MorphTabs,"PLAYERS",UDim2.new(.5,5,0,0),UDim2.new(.5,-5,0,36),true)
-local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(13,121); preview.Size=UDim2.fromOffset(92,92); preview.BackgroundColor3=C.card2; preview.BorderSizePixel=0; preview.Image="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"; preview.Parent=Morph; corner(preview,12)
+local ownPreview="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"
+local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(13,121); preview.Size=UDim2.fromOffset(92,92); preview.BackgroundColor3=C.card2; preview.BorderSizePixel=0; preview.Image=ownPreview; preview.Parent=Morph; corner(preview,12)
 local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(118,121),UDim2.new(1,-130,0,22),10); morphLabel.TextColor3=C.muted; morphLabel.Font=Enum.Font.GothamBold
 local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(118,148),UDim2.new(1,-130,0,48),"")
 local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(13,222),UDim2.new(.62,-18,0,43),false)
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,222),UDim2.new(.38,-13,0,43),true)
 local morphStatus=label(Morph,"Visual morph only: movement remains under your control.",UDim2.fromOffset(13,270),UDim2.new(1,-26,0,24),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
-myAvatarBtn.MouseButton1Click:Connect(function() morphInput.Text=P.Name; preview.Image="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"; myAvatarBtn.BackgroundColor3=C.purple; playersBtn.BackgroundColor3=C.card2 end)
-playersBtn.MouseButton1Click:Connect(function() morphInput.Text=""; myAvatarBtn.BackgroundColor3=C.card2; playersBtn.BackgroundColor3=C.purple end)
-morphInput.FocusLost:Connect(function() local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$",""); if u~="" then local id; if pcall(function() id=Players:GetUserIdFromNameAsync(u) end) then preview.Image="rbxthumb://type=AvatarHeadShot&id="..id.."&w=150&h=150" end end end)
+local previewRequest=0
+local function selectOwnAvatar()
+    previewRequest=previewRequest+1
+    morphInput.Text=P.Name
+    preview.Image=ownPreview
+    myAvatarBtn.BackgroundColor3=C.purple
+    playersBtn.BackgroundColor3=C.card2
+end
+myAvatarBtn.MouseButton1Click:Connect(selectOwnAvatar)
+playersBtn.MouseButton1Click:Connect(function()
+    previewRequest=previewRequest+1
+    morphInput.Text=""
+    preview.Image=ownPreview
+    myAvatarBtn.BackgroundColor3=C.card2
+    playersBtn.BackgroundColor3=C.purple
+end)
+morphInput.FocusLost:Connect(function()
+    local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$","")
+    previewRequest=previewRequest+1
+    local request=previewRequest
+    if u=="" then return end
+    local id
+    local ok=pcall(function() id=Players:GetUserIdFromNameAsync(u) end)
+    if ok and request==previewRequest then
+        preview.Image="rbxthumb://type=AvatarHeadShot&id="..id.."&w=150&h=150"
+    end
+end)
 morphBtn.MouseButton1Click:Connect(function()
     local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$","")
     if u=="" then morphStatus.Text="Enter a Roblox username."; morphStatus.TextColor3=C.orange; return end
@@ -1676,7 +1701,12 @@ morphBtn.MouseButton1Click:Connect(function()
     local ok,msg=doMorph(u); morphStatus.Text=msg; morphStatus.TextColor3=ok and C.green or C.red
     morphBtn.Text="MORPH"
 end)
-resetMorphBtn.MouseButton1Click:Connect(function() resetMorph(); morphStatus.Text="Original appearance restored."; morphStatus.TextColor3=C.green end)
+resetMorphBtn.MouseButton1Click:Connect(function()
+    resetMorph()
+    selectOwnAvatar()
+    morphStatus.Text="Original appearance restored."
+    morphStatus.TextColor3=C.green
+end)
 
 end
 Builders.Morph()
