@@ -1447,9 +1447,8 @@ Nav.Position=UDim2.fromOffset(11,70)
 Nav.Size=UDim2.new(1,-22,0,34)
 Nav.BackgroundTransparency=1
 Nav.Parent=Main
-local HomeBtn=button(Nav,"Home",UDim2.fromOffset(0,0),UDim2.fromOffset(70,31),true)
-local BackBtn=button(Nav,"Back",UDim2.fromOffset(76,0),UDim2.fromOffset(70,31),true)
-local PageTitle=label(Nav,"Home",UDim2.fromOffset(156,0),UDim2.new(1,-156,0,31),13)
+local BackBtn=button(Nav,"Back",UDim2.fromOffset(0,0),UDim2.fromOffset(70,31),true)
+local PageTitle=label(Nav,"",UDim2.fromOffset(80,0),UDim2.new(1,-80,0,31),13)
 PageTitle.Font=Enum.Font.GothamBold
 
 local AdminHost=Instance.new("Frame")
@@ -1489,9 +1488,11 @@ local function showAdminPage(name,push)
     end
     for n,p in pairs(AdminPages) do p.Visible=(n==name) end
     PageTitle.Text=name
+    Nav.Visible=(name~="Home")
+    AdminHost.Position=UDim2.fromOffset(11,name=="Home" and 70 or 112)
+    AdminHost.Size=UDim2.new(1,-22,1,name=="Home" and -81 or -123)
 end
 
-HomeBtn.MouseButton1Click:Connect(function() PageStack={}; showAdminPage("Home",false) end)
 BackBtn.MouseButton1Click:Connect(function()
     local n=table.remove(PageStack)
     if n then showAdminPage(n,false) else showAdminPage("Home",false) end
@@ -1529,6 +1530,7 @@ hstatus.TextColor3=C.muted
 end
 Builders.Home()
 Builders.Home=nil
+showAdminPage("Home",false)
 
 -- shared slider helper
 local function intSlider(parent,y,minv,maxv,step,initial,title,onChange)
