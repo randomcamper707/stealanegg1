@@ -502,9 +502,16 @@ end
 
 -- Character tag.
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
+local TagAdornee=nil
+local function setTagAdornee(part)
+    TagAdornee=part
+    local head=P.Character and P.Character:FindFirstChild("Head")
+    local tag=head and head:FindFirstChild("SAE_Tag")
+    if tag and tag:IsA("BillboardGui") then tag.Adornee=part or head end
+end
 local function applyTag()
     local ch=P.Character; if not ch then return end; local h=ch:FindFirstChildOfClass("Humanoid"); local head=ch:FindFirstChild("Head"); if h then h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None; h.NameDisplayDistance=0; h.HealthDisplayDistance=0 end; if not head then return end
-    local o=head:FindFirstChild("SAE_Tag"); if o then o:Destroy() end; local g=Instance.new("BillboardGui"); g.Name="SAE_Tag"; g.Size=UDim2.fromOffset(235,76); g.StudsOffset=Vector3.new(0,3.8,0); g.AlwaysOnTop=true; g.Parent=head
+    local o=head:FindFirstChild("SAE_Tag"); if o then o:Destroy() end; local g=Instance.new("BillboardGui"); g.Name="SAE_Tag"; g.Size=UDim2.fromOffset(235,76); g.StudsOffsetWorldSpace=Vector3.new(0,2.2,0); g.Adornee=TagAdornee or head; g.AlwaysOnTop=true; g.Parent=head
     local a=label(g,"["..Role.."]",UDim2.new(),UDim2.new(1,0,0,27),20); a.Font=Enum.Font.GothamBlack; a.TextXAlignment=Enum.TextXAlignment.Center; a.TextStrokeTransparency=0; a.TextColor3=Role=="OWNER" and C.red or C.purple2
     local b=label(g,Display,UDim2.fromOffset(0,29),UDim2.new(1,0,0,22),18); b.Font=Enum.Font.GothamBold; b.TextXAlignment=Enum.TextXAlignment.Center; b.TextStrokeTransparency=.1
     local c=label(g,"@"..Username:gsub("^@",""),UDim2.fromOffset(0,52),UDim2.new(1,0,0,18),14); c.TextXAlignment=Enum.TextXAlignment.Center; c.TextColor3=Color3.fromRGB(215,215,220)
@@ -566,6 +573,7 @@ local function resetMorph()
         MorphVisibilityBound=false
     end
     if MorphDescConn then MorphDescConn:Disconnect(); MorphDescConn=nil end
+    setTagAdornee(nil)
     if MorphShell then MorphShell:Destroy(); MorphShell=nil end
     MorphAnim=nil
     restoreChar()
@@ -905,6 +913,7 @@ local function doMorph(user)
         end
     end)
     hideChar(character)
+    setTagAdornee(model:FindFirstChild("Head"))
     return true,"Morphed into @"..user.." (local appearance)"
 end
 
