@@ -671,7 +671,9 @@ local function doMorph(user)
         local direction=r.CFrame.LookVector
         local horizontal=Vector3.new(direction.X,0,direction.Z)
         if horizontal.Magnitude>.001 then forward=horizontal.Unit end
-        model:PivotTo(CFrame.lookAt(r.Position,r.Position+forward))
+        -- Move only the anchored root. Pivoting the whole model every frame
+        -- fights the Animator and makes the body and accessories jitter.
+        root.CFrame=CFrame.lookAt(r.Position,r.Position+forward)
         local v=r.AssemblyLinearVelocity
         animate(MorphAnim,Vector3.new(v.X,0,v.Z).Magnitude)
     end)
