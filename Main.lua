@@ -159,36 +159,40 @@ end
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
--- Soft UI starlight behind the controls. The labels do not capture input.
-local StarLayer=Instance.new("Frame")
-StarLayer.Name="Starlight"
-StarLayer.Size=UDim2.fromScale(1,1)
-StarLayer.BackgroundTransparency=1
-StarLayer.ClipsDescendants=true
-StarLayer.Active=false
-StarLayer.Parent=Main
-local starRandom=Random.new()
-for i=1,16 do
-    local star=Instance.new("TextLabel")
-    star.Name="Star"..i
-    star.BackgroundTransparency=1
-    star.Active=false
-    star.Text=(i%4==0) and "✦" or "✧"
-    star.Font=Enum.Font.GothamBold
-    star.TextSize=starRandom:NextInteger(9,16)
-    star.TextColor3=(i%3==0) and C.blue or C.purple2
-    star.TextTransparency=starRandom:NextNumber(.75,.92)
-    star.Size=UDim2.fromOffset(20,20)
-    star.Position=UDim2.new(starRandom:NextNumber(.03,.93),0,starRandom:NextNumber(.13,.94),0)
-    star.Parent=StarLayer
+-- Rounded white flakes drift down the admin panel without covering its controls.
+local SnowLayer=Instance.new("Frame")
+SnowLayer.Name="Snowfall"
+SnowLayer.Size=UDim2.fromScale(1,1)
+SnowLayer.BackgroundTransparency=1
+SnowLayer.ClipsDescendants=true
+SnowLayer.Active=false
+SnowLayer.Parent=Main
+local snowRandom=Random.new()
+for i=1,28 do
+    local diameter=snowRandom:NextInteger(3,7)
+    local flake=Instance.new("Frame")
+    flake.Name="Flake"..i
+    flake.Size=UDim2.fromOffset(diameter,diameter)
+    flake.BackgroundColor3=Color3.new(1,1,1)
+    flake.BackgroundTransparency=snowRandom:NextNumber(.25,.65)
+    flake.BorderSizePixel=0
+    flake.Active=false
+    corner(flake,diameter)
+    flake.Parent=SnowLayer
+    local x=snowRandom:NextNumber(.02,.96)
+    flake.Position=UDim2.new(x,0,snowRandom:NextNumber(-.05,1),0)
     task.spawn(function()
-        task.wait(starRandom:NextNumber(0,2))
-        while star.Parent and Gui.Parent do
-            local tw=TweenService:Create(star,TweenInfo.new(starRandom:NextNumber(1.4,2.6),Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{TextTransparency=starRandom:NextNumber(.45,.65),Rotation=star.Rotation+20})
-            tw:Play(); tw.Completed:Wait()
-            if not star.Parent then break end
-            tw=TweenService:Create(star,TweenInfo.new(starRandom:NextNumber(1.4,2.6),Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{TextTransparency=starRandom:NextNumber(.82,.96),Rotation=star.Rotation+20})
-            tw:Play(); tw.Completed:Wait()
+        while flake.Parent and Gui.Parent do
+            local drift=snowRandom:NextNumber(-.12,.12)
+            local fall=TweenService:Create(flake,TweenInfo.new(snowRandom:NextNumber(4.5,8),Enum.EasingStyle.Linear),{
+                Position=UDim2.new(math.clamp(x+drift,.01,.98),0,1.04,0)
+            })
+            fall:Play()
+            fall.Completed:Wait()
+            if not flake.Parent or not Gui.Parent then break end
+            x=snowRandom:NextNumber(.02,.96)
+            flake.Position=UDim2.new(x,0,-.04,0)
+            flake.BackgroundTransparency=snowRandom:NextNumber(.25,.65)
         end
     end)
 end
