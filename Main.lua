@@ -573,18 +573,24 @@ local function applyTag()
     layout.FillDirection=Enum.FillDirection.Horizontal
     layout.HorizontalAlignment=Enum.HorizontalAlignment.Center
     layout.VerticalAlignment=Enum.VerticalAlignment.Center
+    layout.SortOrder=Enum.SortOrder.LayoutOrder
     layout.Padding=UDim.new(0,3)
     layout.Parent=nameRow
     local nameWidth=math.min(205,TextService:GetTextSize(Display,18,Enum.Font.GothamBold,Vector2.new(1000,22)).X+2)
     local b=label(nameRow,Display,UDim2.new(),UDim2.fromOffset(nameWidth,22),18)
+    b.LayoutOrder=1
     b.Font=Enum.Font.GothamBold
     b.TextTruncate=Enum.TextTruncate.AtEnd
     b.TextStrokeTransparency=.1
-    verified(nameRow,18)
+    local badge=verified(nameRow,18)
+    badge.LayoutOrder=2
 
     local c=label(g,"@"..Username:gsub("^@",""),UDim2.fromOffset(0,52),UDim2.new(1,0,0,18),14)
     c.TextXAlignment=Enum.TextXAlignment.Center
-    c.TextColor3=Color3.fromRGB(215,215,220)
+    c.Font=Enum.Font.GothamBold
+    c.TextColor3=Color3.fromRGB(242,242,247)
+    c.TextStrokeColor3=Color3.new(0,0,0)
+    c.TextStrokeTransparency=.1
 end
 
 -- Client-side appearance. Keep the real character and its controls untouched.
