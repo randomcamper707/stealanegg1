@@ -158,6 +158,7 @@ end
 
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
+Main.BackgroundTransparency=.12
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",710,410,UDim2.new(.5,0,.5,0)); Console.Visible=false
@@ -1447,7 +1448,10 @@ Nav.Position=UDim2.fromOffset(11,70)
 Nav.Size=UDim2.new(1,-22,0,34)
 Nav.BackgroundTransparency=1
 Nav.Parent=Main
-local BackBtn=button(Nav,"Back",UDim2.fromOffset(0,0),UDim2.fromOffset(70,31),true)
+local BackBtn=button(Nav,"Back",UDim2.fromOffset(0,0),UDim2.fromOffset(68,29),true)
+BackBtn.BackgroundColor3=C.purple
+BackBtn.BackgroundTransparency=.76
+local backOutline=stroke(BackBtn,.68); backOutline.Color=C.purple2
 local PageTitle=label(Nav,"",UDim2.fromOffset(80,0),UDim2.new(1,-80,0,31),13)
 PageTitle.Font=Enum.Font.GothamBold
 
@@ -1489,8 +1493,9 @@ local function showAdminPage(name,push)
     for n,p in pairs(AdminPages) do p.Visible=(n==name) end
     PageTitle.Text=name
     Nav.Visible=(name~="Home")
+    Main.Size=UDim2.fromOffset(name=="Home" and 344 or 380,name=="Home" and 260 or 500)
     AdminHost.Position=UDim2.fromOffset(11,name=="Home" and 70 or 112)
-    AdminHost.Size=UDim2.new(1,-22,1,name=="Home" and -81 or -123)
+    AdminHost.Size=UDim2.new(1,-22,1,name=="Home" and -80 or -123)
 end
 
 BackBtn.MouseButton1Click:Connect(function()
@@ -1518,14 +1523,15 @@ local homeItems={
 for i,item in ipairs(homeItems) do
     local row=math.floor((i-1)/2)
     local col=(i-1)%2
-    local b=button(HomePage,item[1],UDim2.new(col*.5,col==0 and 0 or 5,0,row*70+8),UDim2.new(.5,-5,0,58),true)
-    b.TextSize=12
+    local b=button(HomePage,item[1],UDim2.new(col*.5,4,0,row*54+8),UDim2.new(.5,-8,0,44),true)
+    b.TextSize=11
+    b.BackgroundColor3=C.purple
+    b.BackgroundTransparency=.76
+    local outline=stroke(b,.72); outline.Color=C.purple2
+    b.MouseEnter:Connect(function() b.BackgroundTransparency=.63; outline.Transparency=.48 end)
+    b.MouseLeave:Connect(function() b.BackgroundTransparency=.76; outline.Transparency=.72 end)
     b.MouseButton1Click:Connect(function() showAdminPage(item[2],true) end)
 end
-local hdesc=label(HomePage,"Choose what you want to do.",UDim2.new(0,4,1,-56),UDim2.new(1,-8,0,22),10)
-hdesc.TextColor3=C.muted
-local hstatus=label(HomePage,"v7 ready - portable for any LocalPlayer account",UDim2.new(0,4,1,-30),UDim2.new(1,-8,0,22),9)
-hstatus.TextColor3=C.muted
 
 end
 Builders.Home()
