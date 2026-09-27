@@ -19,9 +19,27 @@ for _,guiName in ipairs({"SAE_BOOT_V9","SAE_BOOT_V8","SAE_BOOT_V7","SAE_BOOT_V6"
     local old = PG:FindFirstChild(guiName)
     if old then old:Destroy() end
 end
-for _,n in ipairs({"SAE_LocalEggs","SAE_LocalNPCs","SAE_SafeZoneMarker","SAE_MorphShell"}) do
+for _,n in ipairs({"SAE_LocalEggs","SAE_LocalNPCs","SAE_SafeZoneMarker"}) do
     local x = workspace:FindFirstChild(n)
     if x then x:Destroy() end
+end
+-- Earlier versions placed the morph under CurrentCamera. Remove every stale
+-- display rig and undo the local invisibility they left on the real character.
+local hadStaleMorph=false
+while true do
+    local old=workspace:FindFirstChild("SAE_MorphShell",true)
+    if not old then break end
+    old:Destroy()
+    hadStaleMorph=true
+end
+if hadStaleMorph and P.Character then
+    for _,part in ipairs(P.Character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.LocalTransparencyModifier=0
+        elseif (part:IsA("Decal") or part:IsA("Texture")) and part.Transparency==1 then
+            part.Transparency=0
+        end
+    end
 end
 
 local CFG = {
