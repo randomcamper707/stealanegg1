@@ -223,6 +223,30 @@ local function animations(h)
     local it,rt; pcall(function() it=a:LoadAnimation(idle); rt=a:LoadAnimation(run) end); if it then it.Looped=true; it:Play(.1) end; if rt then rt.Looped=true end
     return {idle=it,run=rt,moving=false}
 end
+local function cosmeticAnimations(model,rigType)
+    local controller=Instance.new("AnimationController")
+    controller.Name="SAE_CosmeticAnimator"
+    controller.Parent=model
+    local animator=Instance.new("Animator")
+    animator.Parent=controller
+    local idle=Instance.new("Animation")
+    local run=Instance.new("Animation")
+    if rigType==Enum.HumanoidRigType.R15 then
+        idle.AnimationId="rbxassetid://507766666"
+        run.AnimationId="rbxassetid://507767714"
+    else
+        idle.AnimationId="rbxassetid://180435571"
+        run.AnimationId="rbxassetid://180426354"
+    end
+    local idleTrack,runTrack
+    pcall(function()
+        idleTrack=animator:LoadAnimation(idle)
+        runTrack=animator:LoadAnimation(run)
+    end)
+    if idleTrack then idleTrack.Looped=true; idleTrack:Play(.1) end
+    if runTrack then runTrack.Looped=true end
+    return {idle=idleTrack,run=runTrack,moving=false}
+end
 local function animate(st,speed)
     if not st then return end
     if speed>1.2 then
@@ -661,25 +685,27 @@ local function doMorph(user)
     local flat=Vector3.new(look.X,0,look.Z)
     local forward=flat.Magnitude>.001 and flat.Unit or Vector3.new(0,0,-1)
     model:PivotTo(CFrame.lookAt(realRoot.Position,realRoot.Position+forward))
-    model.Parent=workspace
+    -- Keep the cosmetic model out of the normal Workspace character list.
+    local camera=workspace.CurrentCamera
+    if not camera then model:Destroy(); return false,"Camera unavailable." end
+    model.Parent=camera
     local rigOk,assembled=pcall(function() return repairAvatarRig(model,root,humanoid) end)
     if not rigOk or not assembled or P.Character~=character then
         model:Destroy()
         return false,"Avatar parts could not be attached; your appearance was kept."
     end
-    -- Align the visible avatar's feet with the real rig's feet.
-    local verticalOffset=avatarFootOffset(model,root)-avatarFootOffset(character,realRoot)
+    -- A bounded foot adjustment avoids lifting the visual rig far above the player.
+    local verticalOffset=math.clamp(avatarFootOffset(model,root)-avatarFootOffset(character,realRoot),-4,4)
     root.Anchored=true
-    humanoid.AutoRotate=false
-    humanoid.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
-    humanoid.NameDisplayDistance=0
-    humanoid.HealthDisplayDistance=0
-    pcall(function() humanoid.EvaluateStateMachine=false end)
+    -- The extra Humanoid is not a player. Remove its physics/controller
+    -- behavior after the avatar has been built and use an AnimationController.
+    local rigType=humanoid.RigType
+    humanoid:Destroy()
 
     resetMorph()
     model.Name="SAE_MorphShell"
     MorphShell=model
-    MorphAnim=animations(humanoid)
+    MorphAnim=cosmeticAnimations(model,rigType)
     local realHumanoid=character:FindFirstChildOfClass("Humanoid")
     MorphConn=RunService.RenderStepped:Connect(function()
         if MorphShell~=model or not model.Parent then return end
