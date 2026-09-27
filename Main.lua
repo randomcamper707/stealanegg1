@@ -790,24 +790,36 @@ local function doMorph(user)
     humanoid.NameDisplayDistance=0
     humanoid.HealthDisplayDistance=0
 
-    -- The real character sets the movement and jump height. Place this
-    -- cosmetic rig at its own standing height so short avatars touch the floor.
-    local function standingRootHeight(rig,rigRoot,rigHumanoid)
-        local height=rigRoot.Size.Y/2+rigHumanoid.HipHeight
-        if rigHumanoid.RigType==Enum.HumanoidRigType.R6 then
-            local leg=rig:FindFirstChild("Left Leg")
-            if leg and leg:IsA("BasePart") then height=height+leg.Size.Y end
+    -- HipHeight can stay the same even when an avatar's visible legs are
+    -- shorter. Measure the actual leg bounds after the first copied pose.
+    local function legBottom(rig,rigType)
+        local names
+        if rigType==Enum.HumanoidRigType.R15 then
+            names={"LeftFoot","RightFoot","LeftLowerLeg","RightLowerLeg","LeftUpperLeg","RightUpperLeg"}
+        else
+            names={"Left Leg","Right Leg"}
         end
-        return height
+        local lowest
+        for _,name in ipairs(names) do
+            local part=rig:FindFirstChild(name)
+            if part and part:IsA("BasePart") and part.Transparency<.95 then
+                local cf,size=part.CFrame,part.Size
+                local extent=(math.abs(cf.XVector.Y)*size.X
+                    +math.abs(cf.YVector.Y)*size.Y
+                    +math.abs(cf.ZVector.Y)*size.Z)/2
+                local bottom=cf.Position.Y-extent
+                lowest=lowest and math.min(lowest,bottom) or bottom
+            end
+        end
+        return lowest
     end
-    local visualHeightOffset=standingRootHeight(model,root,humanoid)
-        -standingRootHeight(character,realRoot,realHumanoid)
+    local visualHeightOffset=nil
 
     local function copyPose()
         for _,pair in ipairs(bodyPairs) do
             if not pair.visual.Parent or not pair.real.Parent then return false end
         end
-        root.CFrame=realRoot.CFrame+Vector3.new(0,visualHeightOffset,0)
+        root.CFrame=realRoot.CFrame+Vector3.new(0,visualHeightOffset or 0,0)
         for _,edge in ipairs(orderedPose) do
             -- Recover the live joint pose from the real character, then apply
             -- that pose around the target avatar's shoulder/neck/hip offsets.
@@ -818,6 +830,28 @@ local function doMorph(user)
             else
                 edge.part0.CFrame=edge.part1.CFrame*edge.c1*motion:Inverse()*edge.c0:Inverse()
             end
+        end
+        if visualHeightOffset==nil then
+            local visualBottom=legBottom(model,humanoid.RigType)
+            local realBottom=legBottom(character,realHumanoid.RigType)
+            local floorY
+            if realHumanoid.FloorMaterial~=Enum.Material.Air then
+                local params=RaycastParams.new()
+                params.FilterType=Enum.RaycastFilterType.Exclude
+                params.FilterDescendantsInstances={character,model,EggFolder,NPCFolder}
+                params.RespectCanCollide=true
+                local hit=workspace:Raycast(realRoot.Position,Vector3.new(0,-12,0),params)
+                if hit then floorY=hit.Position.Y end
+            end
+            if visualBottom and (floorY or realBottom) then
+                visualHeightOffset=(floorY or realBottom)-visualBottom+.02
+            else
+                -- A rig without visible leg parts still gets a safe height.
+                visualHeightOffset=(root.Size.Y-realRoot.Size.Y)/2
+                    +humanoid.HipHeight-realHumanoid.HipHeight
+            end
+            local shift=Vector3.new(0,visualHeightOffset,0)
+            for _,pair in ipairs(bodyPairs) do pair.visual.CFrame=pair.visual.CFrame+shift end
         end
         for _,info in ipairs(accessories) do
             info.handle.CFrame=info.body.CFrame*info.offset
