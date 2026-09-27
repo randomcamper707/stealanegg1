@@ -509,6 +509,7 @@ local function countBatch(tag)
 end
 
 -- Character tag.
+local CoownerColor=Color3.fromRGB(112,43,180)
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
 local TagAdornee=nil
 local TagShineTween=nil
@@ -546,8 +547,8 @@ local function applyTag()
     a.TextXAlignment=Enum.TextXAlignment.Center
     a.TextStrokeTransparency=0
     a.TextStrokeColor3=Color3.new(0,0,0)
-    a.TextColor3=Role=="OWNER" and Color3.fromRGB(235,18,35) or C.purple2
-    if Role=="OWNER" then
+    a.TextColor3=Role=="OWNER" and Color3.fromRGB(235,18,35) or (Role=="CO-OWNER" and CoownerColor or C.purple2)
+    if Role=="OWNER" or Role=="CO-OWNER" then
         -- Keep the dark outline separate from the moving color highlight.
         local shine=label(g,roleText,a.Position,a.Size,20)
         shine.Font=a.Font
@@ -555,7 +556,13 @@ local function applyTag()
         shine.TextColor3=C.white
         shine.TextStrokeTransparency=1
         local gradient=Instance.new("UIGradient")
-        gradient.Color=ColorSequence.new({
+        gradient.Color=Role=="CO-OWNER" and ColorSequence.new({
+            ColorSequenceKeypoint.new(0,CoownerColor),
+            ColorSequenceKeypoint.new(.42,Color3.fromRGB(145,66,205)),
+            ColorSequenceKeypoint.new(.5,Color3.fromRGB(225,202,255)),
+            ColorSequenceKeypoint.new(.58,Color3.fromRGB(145,66,205)),
+            ColorSequenceKeypoint.new(1,CoownerColor)
+        }) or ColorSequence.new({
             ColorSequenceKeypoint.new(0,Color3.fromRGB(225,18,33)),
             ColorSequenceKeypoint.new(.42,Color3.fromRGB(255,36,48)),
             ColorSequenceKeypoint.new(.5,Color3.fromRGB(255,220,220)),
@@ -600,13 +607,14 @@ local function applyTag()
     c.TextStrokeTransparency=.1
 end
 
--- Both role selectors control the same overhead tag and reflect its state.
+-- Role buttons control the overhead tag and reflect its selected state.
 local RoleSelectors={}
 local function setRole(role)
     Role=role
     applyTag()
     for _,selector in ipairs(RoleSelectors) do
         selector.owner.BackgroundColor3=role=="OWNER" and C.red or C.card2
+        selector.coowner.BackgroundColor3=role=="CO-OWNER" and CoownerColor or C.card2
         selector.admin.BackgroundColor3=role=="ADMIN" and C.purple or C.card2
         if selector.status then
             selector.status.Text=role.." tag applied."
@@ -614,11 +622,13 @@ local function setRole(role)
         end
     end
 end
-local function addRoleSelector(owner,admin,status)
-    table.insert(RoleSelectors,{owner=owner,admin=admin,status=status})
+local function addRoleSelector(owner,coowner,admin,status)
+    table.insert(RoleSelectors,{owner=owner,coowner=coowner,admin=admin,status=status})
     owner.BackgroundColor3=Role=="OWNER" and C.red or C.card2
+    coowner.BackgroundColor3=Role=="CO-OWNER" and CoownerColor or C.card2
     admin.BackgroundColor3=Role=="ADMIN" and C.purple or C.card2
     owner.MouseButton1Click:Connect(function() setRole("OWNER") end)
+    coowner.MouseButton1Click:Connect(function() setRole("CO-OWNER") end)
     admin.MouseButton1Click:Connect(function() setRole("ADMIN") end)
 end
 
@@ -1803,9 +1813,10 @@ local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(102,101),
 local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(12,158),UDim2.new(.62,-18,0,37),false)
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,158),UDim2.new(.38,-12,0,37),true)
 local roleLabel=label(Morph,"OVERHEAD ROLE",UDim2.fromOffset(12,203),UDim2.new(1,-24,0,16),9); roleLabel.TextColor3=C.muted; roleLabel.Font=Enum.Font.GothamBold
-local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(.5,-15,0,30),true)
-local morphAdminRole=button(Morph,"ADMIN",UDim2.new(.5,3,0,224),UDim2.new(.5,-15,0,30),true)
-addRoleSelector(morphOwnerRole,morphAdminRole)
+local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true)
+local morphCoownerRole=button(Morph,"CO-OWNER",UDim2.new(1/3,6,0,224),UDim2.new(1/3,-12,0,30),true)
+local morphAdminRole=button(Morph,"ADMIN",UDim2.new(2/3,0,0,224),UDim2.new(1/3,-12,0,30),true)
+addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole)
 local morphStatus=label(Morph,"Visual morph only.",UDim2.fromOffset(12,262),UDim2.new(1,-24,0,18),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
 local previewRequest=0
 local function selectOwnAvatar()
