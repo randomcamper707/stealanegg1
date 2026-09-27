@@ -512,6 +512,9 @@ end
 
 -- Client-side appearance. Keep the real character and its controls untouched.
 local MorphShell=nil; local MorphConn=nil; local MorphAnim=nil; local Hidden={}
+local MorphDescConn=nil
+local MorphVisibilityBound=false
+local MorphVisibilityStep="SAE_MorphVisibility_"..P.UserId
 local function restoreChar()
     for o,v in pairs(Hidden) do
         if o and o.Parent then
@@ -523,16 +526,46 @@ local function restoreChar()
     end
     Hidden={}
 end
-local function hideChar()
-    restoreChar()
-    local ch=P.Character; if not ch then return end
-    for _,o in ipairs(ch:GetDescendants()) do
-        if o:IsA("BasePart") then Hidden[o]=o.LocalTransparencyModifier; o.LocalTransparencyModifier=1
-        elseif o:IsA("Decal") or o:IsA("Texture") then Hidden[o]=o.Transparency; o.Transparency=1 end
+local function keepHidden(o)
+    if o:IsA("BasePart") then
+        if Hidden[o]==nil then Hidden[o]=o.LocalTransparencyModifier end
+        o.LocalTransparencyModifier=1
+    elseif o:IsA("Decal") or o:IsA("Texture") then
+        if Hidden[o]==nil then Hidden[o]=o.Transparency end
+        o.Transparency=1
     end
+end
+local function hideChar(ch)
+    restoreChar()
+    for _,o in ipairs(ch:GetDescendants()) do keepHidden(o) end
+    MorphDescConn=ch.DescendantAdded:Connect(function(o)
+        if not MorphShell or P.Character~=ch then return end
+        keepHidden(o)
+        for _,child in ipairs(o:GetDescendants()) do keepHidden(child) end
+    end)
+    -- Other local scripts may make the real body visible again during
+    -- interactions. Reapply the cosmetic hiding after render updates.
+    RunService:BindToRenderStep(MorphVisibilityStep,Enum.RenderPriority.Last.Value+1,function()
+        if not MorphShell or P.Character~=ch then return end
+        for o in pairs(Hidden) do
+            if o.Parent and o:IsDescendantOf(ch) then
+                if o:IsA("BasePart") then
+                    if o.LocalTransparencyModifier~=1 then o.LocalTransparencyModifier=1 end
+                elseif o:IsA("Decal") or o:IsA("Texture") then
+                    if o.Transparency~=1 then o.Transparency=1 end
+                end
+            end
+        end
+    end)
+    MorphVisibilityBound=true
 end
 local function resetMorph()
     if MorphConn then MorphConn:Disconnect(); MorphConn=nil end
+    if MorphVisibilityBound then
+        RunService:UnbindFromRenderStep(MorphVisibilityStep)
+        MorphVisibilityBound=false
+    end
+    if MorphDescConn then MorphDescConn:Disconnect(); MorphDescConn=nil end
     if MorphShell then MorphShell:Destroy(); MorphShell=nil end
     MorphAnim=nil
     restoreChar()
@@ -871,7 +904,7 @@ local function doMorph(user)
             resetMorph()
         end
     end)
-    hideChar()
+    hideChar(character)
     return true,"Morphed into @"..user.." (local appearance)"
 end
 
