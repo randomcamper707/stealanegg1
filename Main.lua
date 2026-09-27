@@ -158,7 +158,7 @@ end
 
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
-local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,238,UDim2.new(.74,0,.28,0))
+local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",710,410,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
@@ -591,6 +591,28 @@ local function applyTag()
     c.TextColor3=Color3.fromRGB(242,242,247)
     c.TextStrokeColor3=Color3.new(0,0,0)
     c.TextStrokeTransparency=.1
+end
+
+-- Both role selectors control the same overhead tag and reflect its state.
+local RoleSelectors={}
+local function setRole(role)
+    Role=role
+    applyTag()
+    for _,selector in ipairs(RoleSelectors) do
+        selector.owner.BackgroundColor3=role=="OWNER" and C.red or C.card2
+        selector.admin.BackgroundColor3=role=="ADMIN" and C.purple or C.card2
+        if selector.status then
+            selector.status.Text=role.." tag applied."
+            selector.status.TextColor3=C.green
+        end
+    end
+end
+local function addRoleSelector(owner,admin,status)
+    table.insert(RoleSelectors,{owner=owner,admin=admin,status=status})
+    owner.BackgroundColor3=Role=="OWNER" and C.red or C.card2
+    admin.BackgroundColor3=Role=="ADMIN" and C.purple or C.card2
+    owner.MouseButton1Click:Connect(function() setRole("OWNER") end)
+    admin.MouseButton1Click:Connect(function() setRole("ADMIN") end)
 end
 
 -- Client-side appearance. Keep the real character and its controls untouched.
@@ -1762,10 +1784,8 @@ function Builders.Appearance()
 section(AppearancePage,"OVERHEAD ROLE",8)
 local ownerRole=button(AppearancePage,"OWNER",UDim2.fromOffset(5,38),UDim2.new(.5,-8,0,42),true)
 local adminRole=button(AppearancePage,"ADMIN",UDim2.new(.5,3,0,38),UDim2.new(.5,-8,0,42),true)
-ownerRole.BackgroundColor3=C.red
 local appearanceStatus=label(AppearancePage,"OWNER is red. ADMIN is purple.",UDim2.fromOffset(7,94),UDim2.new(1,-14,0,45),10); appearanceStatus.TextWrapped=true; appearanceStatus.TextColor3=C.muted
-ownerRole.MouseButton1Click:Connect(function() Role="OWNER"; ownerRole.BackgroundColor3=C.red; adminRole.BackgroundColor3=C.card2; applyTag(); appearanceStatus.Text="OWNER tag applied."; appearanceStatus.TextColor3=C.green end)
-adminRole.MouseButton1Click:Connect(function() Role="ADMIN"; ownerRole.BackgroundColor3=C.card2; adminRole.BackgroundColor3=C.purple; applyTag(); appearanceStatus.Text="ADMIN tag applied."; appearanceStatus.TextColor3=C.green end)
+addRoleSelector(ownerRole,adminRole,appearanceStatus)
 
 showAdminPage("Home",false)
 
@@ -1776,12 +1796,16 @@ Builders.Appearance=nil
 function Builders.Morph()
 -- Compact morph controls; Reset returns both the character and this preview to the player's account.
 local ownPreview="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"
-local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(12,76); preview.Size=UDim2.fromOffset(82,82); preview.BackgroundColor3=C.card2; preview.BorderSizePixel=0; preview.Image=ownPreview; preview.Parent=Morph; corner(preview,10)
-local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(106,78),UDim2.new(1,-118,0,18),10); morphLabel.TextColor3=C.muted; morphLabel.Font=Enum.Font.GothamBold
-local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(106,104),UDim2.new(1,-118,0,45),"")
-local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(12,166),UDim2.new(.62,-18,0,39),false)
-local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,166),UDim2.new(.38,-12,0,39),true)
-local morphStatus=label(Morph,"Visual morph only.",UDim2.fromOffset(12,211),UDim2.new(1,-24,0,18),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(12,73); preview.Size=UDim2.fromOffset(78,78); preview.BackgroundColor3=C.card2; preview.BorderSizePixel=0; preview.Image=ownPreview; preview.Parent=Morph; corner(preview,10)
+local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(102,76),UDim2.new(1,-114,0,18),10); morphLabel.TextColor3=C.muted; morphLabel.Font=Enum.Font.GothamBold
+local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(102,101),UDim2.new(1,-114,0,43),"")
+local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(12,158),UDim2.new(.62,-18,0,37),false)
+local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,158),UDim2.new(.38,-12,0,37),true)
+local roleLabel=label(Morph,"OVERHEAD ROLE",UDim2.fromOffset(12,203),UDim2.new(1,-24,0,16),9); roleLabel.TextColor3=C.muted; roleLabel.Font=Enum.Font.GothamBold
+local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(.5,-15,0,30),true)
+local morphAdminRole=button(Morph,"ADMIN",UDim2.new(.5,3,0,224),UDim2.new(.5,-15,0,30),true)
+addRoleSelector(morphOwnerRole,morphAdminRole)
+local morphStatus=label(Morph,"Visual morph only.",UDim2.fromOffset(12,262),UDim2.new(1,-24,0,18),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
 local previewRequest=0
 local function selectOwnAvatar()
     previewRequest=previewRequest+1
