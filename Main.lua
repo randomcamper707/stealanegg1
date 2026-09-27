@@ -492,17 +492,33 @@ local function applyTag()
     local c=label(g,"@"..Username:gsub("^@",""),UDim2.fromOffset(0,52),UDim2.new(1,0,0,18),14); c.TextXAlignment=Enum.TextXAlignment.Center; c.TextColor3=Color3.fromRGB(215,215,220)
 end
 
--- Visual morph is parented under CurrentCamera, never workspace physics.
-local MorphShell=nil; local MorphConn=nil; local Hidden={}; local MorphAnim=nil
-local function restoreChar() for o,v in pairs(Hidden) do if o and o.Parent then pcall(function() if o:IsA("BasePart") then o.LocalTransparencyModifier=v elseif o:IsA("Decal") or o:IsA("Texture") then o.Transparency=v end end) end end; Hidden={} end
-local function hideChar() restoreChar(); local ch=P.Character; if not ch then return end; for _,o in ipairs(ch:GetDescendants()) do if o:IsA("BasePart") then Hidden[o]=o.LocalTransparencyModifier; o.LocalTransparencyModifier=1 elseif o:IsA("Decal") or o:IsA("Texture") then Hidden[o]=o.Transparency; o.Transparency=1 end end end
-local function resetMorph() if MorphConn then MorphConn:Disconnect(); MorphConn=nil end; if MorphShell then MorphShell:Destroy(); MorphShell=nil end; MorphAnim=nil; restoreChar() end
-local function footOffset(m,r)
-    local lowest=nil; for _,n in ipairs({"LeftFoot","RightFoot","Left Leg","Right Leg","LeftLowerLeg","RightLowerLeg"}) do local p=m:FindFirstChild(n,true); if p and p:IsA("BasePart") then local y=p.Position.Y-p.Size.Y/2; if not lowest or y<lowest then lowest=y end end end
-    if lowest then return r.Position.Y-lowest end; local h=m:FindFirstChildOfClass("Humanoid"); return h and (h.HipHeight+r.Size.Y/2) or 3
+-- Client-only visual morph. The display rig never participates in physics.
+local MorphShell=nil; local MorphConn=nil; local Hidden={}
+local function restoreChar()
+    for o,v in pairs(Hidden) do
+        if o and o.Parent then
+            pcall(function()
+                if o:IsA("BasePart") then o.LocalTransparencyModifier=v
+                elseif o:IsA("Decal") or o:IsA("Texture") then o.Transparency=v end
+            end)
+        end
+    end
+    Hidden={}
+end
+local function hideChar()
+    restoreChar()
+    local ch=P.Character; if not ch then return end
+    for _,o in ipairs(ch:GetDescendants()) do
+        if o:IsA("BasePart") then Hidden[o]=o.LocalTransparencyModifier; o.LocalTransparencyModifier=1
+        elseif o:IsA("Decal") or o:IsA("Texture") then Hidden[o]=o.Transparency; o.Transparency=1 end
+    end
+end
+local function resetMorph()
+    if MorphConn then MorphConn:Disconnect(); MorphConn=nil end
+    if MorphShell then MorphShell:Destroy(); MorphShell=nil end
+    restoreChar()
 end
 local function doMorph(user)
-    resetMorph()
     local uid
     if not pcall(function() uid=Players:GetUserIdFromNameAsync(user) end) then return false,"Username not found." end
     local m
@@ -514,45 +530,41 @@ local function doMorph(user)
     local rr=ch and ch:FindFirstChild("HumanoidRootPart")
     if not sr or not sh or not rr then m:Destroy(); return false,"Morph root missing." end
 
-    -- The shell is completely isolated from the real character. It is never welded to,
-    -- parented under, or used to reposition the player's physical character.
+    -- Every display part is anchored and non-collidable. No force, weld, or
+    -- humanoid state from this rig can move the actual player character.
     for _,o in ipairs(m:GetDescendants()) do
         if o:IsA("BasePart") then
+            o.Anchored=true
             o.CanCollide=false
             o.CanTouch=false
             o.CanQuery=false
-            o.Massless=true
             o.AssemblyLinearVelocity=Vector3.zero
             o.AssemblyAngularVelocity=Vector3.zero
-            o.Anchored=false
         end
     end
-    sr.Anchored=true
     sh.AutoRotate=false
     sh.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
     sh.NameDisplayDistance=0
     sh.HealthDisplayDistance=0
     pcall(function() sh.EvaluateStateMachine=false end)
 
+    resetMorph()
     m.Name="SAE_MorphShell"
-    m:PivotTo(rr.CFrame)
-    m.Parent=workspace.CurrentCamera or workspace
+    m.Parent=workspace.CurrentCamera
     MorphShell=m
-    MorphAnim=animations(sh)
-    hideChar()
-
+    local forward=Vector3.new(0,0,-1)
     MorphConn=RunService.RenderStepped:Connect(function()
-        if not MorphShell or not MorphShell.Parent then return end
-        local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-        if not r then return end
-        -- Root-to-root alignment avoids the old vertical-offset bug that made the morph appear airborne.
-        MorphShell:PivotTo(r.CFrame)
-        sr.AssemblyLinearVelocity=Vector3.zero
-        sr.AssemblyAngularVelocity=Vector3.zero
-        local v=r.AssemblyLinearVelocity
-        animate(MorphAnim,Vector3.new(v.X,0,v.Z).Magnitude)
+        if MorphShell~=m or not m.Parent then return end
+        local r=P.Character==ch and ch:FindFirstChild("HumanoidRootPart")
+        if not r then resetMorph(); return end
+        local look=r.CFrame.LookVector
+        local flat=Vector3.new(look.X,0,look.Z)
+        if flat.Magnitude>.001 then forward=flat.Unit end
+        -- Follow position and yaw only; never copy a tumbling root's pitch or roll.
+        m:PivotTo(CFrame.lookAt(r.Position,r.Position+forward))
     end)
-    return true,"Morphed into @"..user
+    hideChar()
+    return true,"Morphed into @"..user.." (local appearance)"
 end
 
 -- Trails.
@@ -1345,7 +1357,7 @@ local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(118,121),UDim2.n
 local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(118,148),UDim2.new(1,-130,0,48),"")
 local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(13,222),UDim2.new(.62,-18,0,43),false)
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,222),UDim2.new(.38,-13,0,43),true)
-local morphStatus=label(Morph,"Physics-isolated shell: it never moves or welds to your real character.",UDim2.fromOffset(13,270),UDim2.new(1,-26,0,24),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+local morphStatus=label(Morph,"Visual morph only: movement remains under your control.",UDim2.fromOffset(13,270),UDim2.new(1,-26,0,24),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
 myAvatarBtn.MouseButton1Click:Connect(function() morphInput.Text=P.Name; preview.Image="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"; myAvatarBtn.BackgroundColor3=C.purple; playersBtn.BackgroundColor3=C.card2 end)
 playersBtn.MouseButton1Click:Connect(function() morphInput.Text=""; myAvatarBtn.BackgroundColor3=C.card2; playersBtn.BackgroundColor3=C.purple end)
 morphInput.FocusLost:Connect(function() local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$",""); if u~="" then local id; if pcall(function() id=Players:GetUserIdFromNameAsync(u) end) then preview.Image="rbxthumb://type=AvatarHeadShot&id="..id.."&w=150&h=150" end end end)
@@ -1353,7 +1365,7 @@ morphBtn.MouseButton1Click:Connect(function()
     local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$","")
     if u=="" then morphStatus.Text="Enter a Roblox username."; morphStatus.TextColor3=C.orange; return end
     morphBtn.Text="LOADING..."
-    if callRemote("Morph",{Username=u}) then morphStatus.Text="Server morph request sent."; morphStatus.TextColor3=C.green else local ok,msg=doMorph(u); morphStatus.Text=msg; morphStatus.TextColor3=ok and C.green or C.red end
+    local ok,msg=doMorph(u); morphStatus.Text=msg; morphStatus.TextColor3=ok and C.green or C.red
     morphBtn.Text="MORPH"
 end)
 resetMorphBtn.MouseButton1Click:Connect(function() resetMorph(); morphStatus.Text="Original appearance restored."; morphStatus.TextColor3=C.green end)
