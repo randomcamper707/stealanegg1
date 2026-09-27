@@ -690,6 +690,63 @@ local function doMorph(user)
         end
     end
 
+    -- Preserve the target avatar's own joint offsets. Matching body-part
+    -- centers directly leaves gaps when the two avatars have different sizes.
+    local function jointFrames(joint)
+        if joint:IsA("Motor6D") then
+            return joint.Part0,joint.Part1,joint.C0,joint.C1
+        elseif joint:IsA("AnimationConstraint") then
+            local a0,a1=joint.Attachment0,joint.Attachment1
+            if a0 and a1 then return a0.Parent,a1.Parent,a0.CFrame,a1.CFrame end
+        end
+    end
+    local realJoints={}
+    for _,joint in ipairs(character:GetDescendants()) do
+        local p0,p1,c0,c1=jointFrames(joint)
+        if p0 and p1 and p0:IsA("BasePart") and p1:IsA("BasePart")
+            and character:FindFirstChild(p0.Name)==p0 and character:FindFirstChild(p1.Name)==p1 then
+            realJoints[p0.Name.."|"..p1.Name]={c0=c0,c1=c1}
+        end
+    end
+    local poseEdges={}
+    for _,joint in ipairs(model:GetDescendants()) do
+        local p0,p1,c0,c1=jointFrames(joint)
+        if p0 and p1 and bodyMap[p0] and bodyMap[p1] then
+            local real=realJoints[p0.Name.."|"..p1.Name]
+            if not real then
+                local reversed=realJoints[p1.Name.."|"..p0.Name]
+                if reversed then real={c0=reversed.c1,c1=reversed.c0} end
+            end
+            if real then
+                table.insert(poseEdges,{part0=p0,part1=p1,c0=c0,c1=c1,
+                    realPart0=bodyMap[p0],realPart1=bodyMap[p1],
+                    realC0=real.c0,realC1=real.c1})
+            end
+        end
+    end
+    local orderedPose={}
+    local seen={[root]=true}
+    -- Traverse from the root so every parent is positioned before its child.
+    for _=1,#bodyPairs do
+        local added=false
+        for _,edge in ipairs(poseEdges) do
+            if seen[edge.part0] ~= seen[edge.part1] then
+                edge.forward=seen[edge.part0]
+                seen[edge.part0]=true
+                seen[edge.part1]=true
+                table.insert(orderedPose,edge)
+                added=true
+            end
+        end
+        if not added then break end
+    end
+    for _,pair in ipairs(bodyPairs) do
+        if not seen[pair.visual] then
+            model:Destroy()
+            return false,"Avatar body joints could not match your character."
+        end
+    end
+
     -- Capture where each accessory sits relative to its target body part.
     local accessories={}
     for _,item in ipairs(model:GetChildren()) do
@@ -736,7 +793,18 @@ local function doMorph(user)
     local function copyPose()
         for _,pair in ipairs(bodyPairs) do
             if not pair.visual.Parent or not pair.real.Parent then return false end
-            pair.visual.CFrame=pair.real.CFrame
+        end
+        root.CFrame=realRoot.CFrame
+        for _,edge in ipairs(orderedPose) do
+            -- Recover the live joint pose from the real character, then apply
+            -- that pose around the target avatar's shoulder/neck/hip offsets.
+            local motion=edge.realC0:Inverse()*edge.realPart0.CFrame:Inverse()
+                *edge.realPart1.CFrame*edge.realC1
+            if edge.forward then
+                edge.part1.CFrame=edge.part0.CFrame*edge.c0*motion*edge.c1:Inverse()
+            else
+                edge.part0.CFrame=edge.part1.CFrame*edge.c1*motion:Inverse()*edge.c0:Inverse()
+            end
         end
         for _,info in ipairs(accessories) do
             info.handle.CFrame=info.body.CFrame*info.offset
