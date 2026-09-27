@@ -160,7 +160,6 @@ end
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
-local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",710,410,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
 -- Permanent launchers so closed panels never disappear permanently.
 local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-58); Launch.Size=UDim2.fromOffset(106,108); Launch.BackgroundTransparency=1; Launch.Parent=Gui
@@ -1505,7 +1504,6 @@ local EventsPage=newAdminPage("Meteor event",false)
 local BoostsPage=newAdminPage("Boosts",true)
 local NamesPage=newAdminPage("Names",false)
 local SettingsPage=newAdminPage("Settings",false)
-local AppearancePage=newAdminPage("Appearance",false)
 
 local Builders={}
 
@@ -1513,16 +1511,14 @@ function Builders.Home()
 -- HOME
 local homeItems={
     {"Eggs","Spawn eggs"},{"Announce","Announcements"},{"Events","Meteor event"},{"Boosts","Boosts"},
-    {"Console","CONSOLE"},{"Names","Names"},{"Settings","Settings"},{"Appearance","Appearance"}
+    {"Names","Names"},{"Settings","Settings"}
 }
 for i,item in ipairs(homeItems) do
     local row=math.floor((i-1)/2)
     local col=(i-1)%2
     local b=button(HomePage,item[1],UDim2.new(col*.5,col==0 and 0 or 5,0,row*70+8),UDim2.new(.5,-5,0,58),true)
     b.TextSize=12
-    b.MouseButton1Click:Connect(function()
-        if item[2]=="CONSOLE" then Console.Visible=true else showAdminPage(item[2],true) end
-    end)
+    b.MouseButton1Click:Connect(function() showAdminPage(item[2],true) end)
 end
 local hdesc=label(HomePage,"Choose what you want to do.",UDim2.new(0,4,1,-56),UDim2.new(1,-8,0,22),10)
 hdesc.TextColor3=C.muted
@@ -1779,20 +1775,6 @@ end
 Builders.Settings()
 Builders.Settings=nil
 
-function Builders.Appearance()
--- APPEARANCE / ROLE
-section(AppearancePage,"OVERHEAD ROLE",8)
-local ownerRole=button(AppearancePage,"OWNER",UDim2.fromOffset(5,38),UDim2.new(.5,-8,0,42),true)
-local adminRole=button(AppearancePage,"ADMIN",UDim2.new(.5,3,0,38),UDim2.new(.5,-8,0,42),true)
-local appearanceStatus=label(AppearancePage,"OWNER is red. ADMIN is purple.",UDim2.fromOffset(7,94),UDim2.new(1,-14,0,45),10); appearanceStatus.TextWrapped=true; appearanceStatus.TextColor3=C.muted
-addRoleSelector(ownerRole,adminRole,appearanceStatus)
-
-showAdminPage("Home",false)
-
-end
-Builders.Appearance()
-Builders.Appearance=nil
-
 function Builders.Morph()
 -- Compact morph controls; Reset returns both the character and this preview to the player's account.
 local ownPreview="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"
@@ -1951,31 +1933,7 @@ end
 Builders.Collectors()
 Builders.Collectors=nil
 
-function Builders.Console()
--- Console.
-local out=Instance.new("ScrollingFrame"); out.Position=UDim2.fromOffset(11,72); out.Size=UDim2.new(1,-22,1,-152); out.BackgroundColor3=Color3.fromRGB(4,5,11); out.BorderSizePixel=0; out.CanvasSize=UDim2.new(); out.ScrollBarThickness=4; out.ScrollBarImageColor3=C.purple; out.Parent=Console; corner(out,8); local OL=Instance.new("UIListLayout"); OL.Padding=UDim.new(0,2); OL.Parent=out
-local function line(t,col) local x=label(out,t,UDim2.new(),UDim2.new(1,-8,0,19),14); x.Font=Enum.Font.Code; x.TextColor3=col or C.green; task.defer(function() out.CanvasSize=UDim2.new(0,0,0,OL.AbsoluteContentSize.Y+8); out.CanvasPosition=Vector2.new(0,OL.AbsoluteContentSize.Y) end) end
-local ci=textbox(Console,"enter a command",UDim2.new(0,11,1,-71),UDim2.new(1,-22,0,34),""); ci.Font=Enum.Font.Code; ci.TextXAlignment=Enum.TextXAlignment.Left
-local quick=Instance.new("ScrollingFrame"); quick.Position=UDim2.new(0,11,1,-32); quick.Size=UDim2.new(1,-22,0,25); quick.BackgroundTransparency=1; quick.BorderSizePixel=0; quick.ScrollingDirection=Enum.ScrollingDirection.X; quick.CanvasSize=UDim2.fromOffset(950,0); quick.ScrollBarThickness=2; quick.Parent=Console; local QL=Instance.new("UIListLayout"); QL.FillDirection=Enum.FillDirection.Horizontal; QL.Padding=UDim.new(0,5); QL.Parent=quick
-local function q(t,w) local b=button(quick,t,UDim2.new(),UDim2.fromOffset(w,23),true); b.Font=Enum.Font.Code; b.TextSize=10; return b end
-local qh=q("/help",53); local qa=q("/announcement",105); local qg=q("/globalAnnouncement",138); local qt=q("/teleport",74); local qi=q("/invite",62); local qad=q("/giveadmin",83); local qcow=q("/givecoowner",102); local qv=q("/givevps",76); local qp=q("/players",70)
-local function findPlayer(s) s=string.lower(tostring(s)); for _,p in ipairs(Players:GetPlayers()) do if string.lower(p.Name)==s or string.lower(p.DisplayName)==s then return p end end; for _,p in ipairs(Players:GetPlayers()) do if string.sub(string.lower(p.Name),1,string.len(s))==s then return p end end end
-local function command(raw)
-    raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,C.muted); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
-    if cmd=="/help" then line("/announcement <message>"); line("/globalAnnouncement <message>"); line("/teleport <player>"); line("/invite <player>"); line("/giveadmin <player>"); line("/givecoowner <player>"); line("/givevps <player> (or /giveps)"); line("/players"); return end
-    if cmd=="/players" then local n={}; for _,p in ipairs(Players:GetPlayers()) do table.insert(n,p.Name) end; line("Players: "..table.concat(n,", ")); return end
-    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.orange); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(P.UserId,Display,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..rest); line("Announcement shown."); return end
-    if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.orange); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(P.UserId,Display,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Use /help.",C.red)
-end
-ci.FocusLost:Connect(function(enter) if enter then local t=ci.Text; ci.Text=""; command(t) end end); local function pre(t) ci.Text=t; ci:CaptureFocus() end; qh.MouseButton1Click:Connect(function() command("/help") end); qa.MouseButton1Click:Connect(function() pre("/announcement ") end); qg.MouseButton1Click:Connect(function() pre("/globalAnnouncement ") end); qt.MouseButton1Click:Connect(function() pre("/teleport ") end); qi.MouseButton1Click:Connect(function() pre("/invite ") end); qad.MouseButton1Click:Connect(function() pre("/giveadmin ") end); qcow.MouseButton1Click:Connect(function() pre("/givecoowner ") end); qv.MouseButton1Click:Connect(function() pre("/givevps ") end); qp.MouseButton1Click:Connect(function() command("/players") end); line(P.Name.." has joined the server."); line("TAB = open / close console.",C.blue); line("Quick commands restored.",C.blue)
-
-end
-Builders.Console()
-Builders.Console=nil
-
-local lastTab=0
 UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode==Enum.KeyCode.Tab then local now=os.clock(); if now-lastTab>.2 then lastTab=now; Console.Visible=not Console.Visible end; return end
     if input.KeyCode==Enum.KeyCode.X and HeldEgg and not UserInputService:GetFocusedTextBox() then dropHeld() end
 end)
 P.CharacterAdded:Connect(function() HeldEgg=nil; Carry.Visible=false; resetMorph(); task.wait(.5); applyTag() end)
