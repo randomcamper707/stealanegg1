@@ -159,40 +159,50 @@ end
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
--- Rounded white flakes drift down the admin panel without covering its controls.
+-- Visible, screen-wide snowfall. Each flake is a rounded white dot.
+local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
+if oldSnow then oldSnow:Destroy() end
+local SnowGui=Instance.new("ScreenGui")
+SnowGui.Name="SAE_SnowOverlay"
+SnowGui.ResetOnSpawn=false
+SnowGui.IgnoreGuiInset=true
+SnowGui.DisplayOrder=Gui.DisplayOrder+1
+SnowGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
+SnowGui.Parent=PG
 local SnowLayer=Instance.new("Frame")
-SnowLayer.Name="Snowfall"
+SnowLayer.Name="FallingWhiteDots"
 SnowLayer.Size=UDim2.fromScale(1,1)
 SnowLayer.BackgroundTransparency=1
 SnowLayer.ClipsDescendants=true
 SnowLayer.Active=false
-SnowLayer.Parent=Main
+SnowLayer.Parent=SnowGui
 local snowRandom=Random.new()
-for i=1,28 do
-    local diameter=snowRandom:NextInteger(3,7)
+for i=1,80 do
+    local diameter=snowRandom:NextInteger(4,8)
     local flake=Instance.new("Frame")
     flake.Name="Flake"..i
     flake.Size=UDim2.fromOffset(diameter,diameter)
-    flake.BackgroundColor3=Color3.new(1,1,1)
-    flake.BackgroundTransparency=snowRandom:NextNumber(.25,.65)
+    flake.BackgroundColor3=Color3.fromRGB(255,255,255)
+    flake.BackgroundTransparency=snowRandom:NextNumber(.08,.35)
     flake.BorderSizePixel=0
     flake.Active=false
+    flake.ZIndex=2
     corner(flake,diameter)
     flake.Parent=SnowLayer
-    local x=snowRandom:NextNumber(.02,.96)
-    flake.Position=UDim2.new(x,0,snowRandom:NextNumber(-.05,1),0)
+    local x=snowRandom:NextNumber(.01,.99)
+    flake.Position=UDim2.new(x,0,snowRandom:NextNumber(-.04,.98),0)
     task.spawn(function()
-        while flake.Parent and Gui.Parent do
-            local drift=snowRandom:NextNumber(-.12,.12)
-            local fall=TweenService:Create(flake,TweenInfo.new(snowRandom:NextNumber(4.5,8),Enum.EasingStyle.Linear),{
-                Position=UDim2.new(math.clamp(x+drift,.01,.98),0,1.04,0)
+        while flake.Parent and SnowGui.Parent do
+            local nextX=math.clamp(x+snowRandom:NextNumber(-.08,.08),.01,.99)
+            local fall=TweenService:Create(flake,TweenInfo.new(snowRandom:NextNumber(6,11),Enum.EasingStyle.Linear),{
+                Position=UDim2.new(nextX,0,1.03,0)
             })
             fall:Play()
             fall.Completed:Wait()
-            if not flake.Parent or not Gui.Parent then break end
-            x=snowRandom:NextNumber(.02,.96)
-            flake.Position=UDim2.new(x,0,-.04,0)
-            flake.BackgroundTransparency=snowRandom:NextNumber(.25,.65)
+            if not flake.Parent or not SnowGui.Parent then break end
+            x=snowRandom:NextNumber(.01,.99)
+            flake.Position=UDim2.new(x,0,-.03,0)
+            flake.BackgroundTransparency=snowRandom:NextNumber(.08,.35)
         end
     end)
 end
