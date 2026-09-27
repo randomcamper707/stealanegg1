@@ -4,48 +4,10 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
--- Compatibility bootstrap:
--- Some executors run the chunk before LocalPlayer/PlayerGui exists.
--- The old version silently returned in that case, which looked like "nothing happened."
-if not game:IsLoaded() then
-    pcall(function() game.Loaded:Wait() end)
-end
-
-local function waitForValue(fn, timeout)
-    local started=os.clock()
-    repeat
-        local ok,value=pcall(fn)
-        if ok and value then return value end
-        task.wait(.1)
-    until os.clock()-started >= (timeout or 60)
-    return nil
-end
-
-local P=waitForValue(function()
-    return Players.LocalPlayer
-end,60)
-
-if not P then
-    error("[SAE] LocalPlayer was unavailable after 60 seconds. Execute after joining the game.")
-end
-
-local PG=waitForValue(function()
-    return P:FindFirstChildOfClass("PlayerGui")
-end,60)
-
--- Executor-compatible fallback. This does not change the UI itself; it only
--- gives the existing ScreenGui somewhere usable to parent if PlayerGui is blocked.
-if not PG then
-    local ok,hui=pcall(function()
-        if type(gethui)=="function" then return gethui() end
-        return nil
-    end)
-    if ok then PG=hui end
-end
-
-if not PG then
-    error("[SAE] No usable PlayerGui/UI container was available.")
-end
+local P = Players.LocalPlayer
+if not P then return end
+local PG = P:FindFirstChildOfClass("PlayerGui") or P:WaitForChild("PlayerGui",10)
+if not PG then return end
 
 local function arrlen(t)
     local n=0
@@ -155,7 +117,7 @@ local function remote(path)
     if type(path)~="table" then return nil end
     local x=ReplicatedStorage
     for _,n in ipairs(path) do x=x:FindFirstChild(n); if not x then return nil end end
-    if x:IsA("RemoteEvent") or x:IsA("RemoteFunction") then return x end; return nil
+    if x:IsA("RemoteEvent") or x:IsA("RemoteFunction") then return x end
 end
 local function callRemote(key,...)
     local r=remote(CFG.Remotes[key]); if not r then return false end
@@ -207,7 +169,7 @@ local function norm(s) return string.lower(tostring(s or "")):gsub("[^%w]","") e
 local function rootOf(o)
     if not o then return nil end
     if o:IsA("BasePart") then return o end
-    if o:IsA("Model") then return o.PrimaryPart or o:FindFirstChild("HumanoidRootPart",true) or o:FindFirstChildWhichIsA("BasePart",true) end; return nil
+    if o:IsA("Model") then return o.PrimaryPart or o:FindFirstChild("HumanoidRootPart",true) or o:FindFirstChildWhichIsA("BasePart",true) end
 end
 local function pivot(o,cf) if o:IsA("Model") then o:PivotTo(cf) elseif o:IsA("BasePart") then o.CFrame=cf end end
 
@@ -743,7 +705,7 @@ end)
 
 -- Safe zone and bots.
 local SafeObj=nil; local SafePos=nil; local SafeName="Not locked"; local Marker=nil
-local function objPos(o) if not o then return nil end; if o:IsA("BasePart") then return o.Position elseif o:IsA("Model") then return o:GetPivot().Position end; return nil end
+local function objPos(o) if not o then return nil end; if o:IsA("BasePart") then return o.Position elseif o:IsA("Model") then return o:GetPivot().Position end end
 local function safePosition() if SafeObj and SafeObj.Parent then local p=objPos(SafeObj); if p then local hit=groundHit(p,nil); SafePos=hit and hit.Position or p end end; return SafePos end
 local function marker()
     if Marker then Marker:Destroy(); Marker=nil end; local p=safePosition(); if not p then return end; local x=Instance.new("Part"); x.Name="SAE_SafeZoneMarker"; x.Size=Vector3.new(8,.08,8); x.Anchored=true; x.CanCollide=false; x.CanTouch=false; x.CanQuery=false; x.Material=Enum.Material.Neon; x.Color=Color3.fromRGB(80,255,120); x.Transparency=.82; x.Position=p+Vector3.new(0,.08,0); x.Parent=workspace; Marker=x
@@ -890,518 +852,653 @@ local function botBrain(d)
                                 stuckSince=os.clock()
                             end
                         end
+                    else
+                        target=nil
                     end
                 end
             end
+
+            local v=r.AssemblyLinearVelocity
+            local s=Vector3.new(v.X,0,v.Z).Magnitude
+            animate(d.anim,s)
+            if d.trail then d.trail.Enabled=s>2 end
         end
     end)
 end
 
-(function()
--- Restored UI/control wiring.
--- The original paste ended before this section, so the existing helpers above are left intact
--- and the panels are populated using those same functions/state objects.
-
-local function panelBody(win, canvasHeight)
-    local s=Instance.new("ScrollingFrame")
-    s.Name="Body"
-    s.Position=UDim2.fromOffset(8,68)
-    s.Size=UDim2.new(1,-16,1,-76)
-    s.BackgroundTransparency=1
-    s.BorderSizePixel=0
-    s.ScrollBarThickness=5
-    s.ScrollBarImageColor3=C.purple2
-    s.CanvasSize=UDim2.fromOffset(0,canvasHeight or 700)
-    s.ScrollingDirection=Enum.ScrollingDirection.Y
-    s.Parent=win
-    return s
-end
-
-local function setStatus(lbl,msg,good)
-    lbl.Text=tostring(msg or "")
-    lbl.TextColor3=(good==false) and C.red or ((good==true) and C.green or C.muted)
-end
-
-local function selector(par,titleText,values,y,defaultIndex)
-    local box=card(par,UDim2.fromOffset(8,y),UDim2.new(1,-16,0,54))
-    local cap=label(box,titleText,UDim2.fromOffset(10,4),UDim2.new(1,-20,0,15),9)
-    cap.TextColor3=C.muted
-    cap.Font=Enum.Font.GothamBold
-    local left=button(box,"<",UDim2.fromOffset(9,23),UDim2.fromOffset(30,24),true)
-    local right=button(box,">",UDim2.new(1,-39,0,23),UDim2.fromOffset(30,24),true)
-    local mid=button(box,"",UDim2.fromOffset(44,23),UDim2.new(1,-88,0,24),true)
-    mid.TextSize=10
-    local idx=math.clamp(defaultIndex or 1,1,math.max(1,#values))
-    local function refresh()
-        mid.Text=tostring(values[idx] or "")
-    end
-    local function step(n)
-        if #values<=0 then return end
-        idx=((idx-1+n)%#values)+1
-        refresh()
-    end
-    left.MouseButton1Click:Connect(function() step(-1) end)
-    right.MouseButton1Click:Connect(function() step(1) end)
-    mid.MouseButton1Click:Connect(function() step(1) end)
-    refresh()
-    return {
-        get=function() return values[idx] end,
-        setIndex=function(n) idx=math.clamp(n,1,math.max(1,#values)); refresh() end,
-        button=mid,
-        frame=box
-    }
-end
-
-local function toggleButton(par,textOff,textOn,pos,size,initial,onChange)
-    local state=initial==true
-    local b=button(par,"",pos,size,true)
-    local function refresh()
-        b.Text=state and textOn or textOff
-        b.BackgroundColor3=state and C.purple or C.card2
-    end
-    b.MouseButton1Click:Connect(function()
-        state=not state
-        refresh()
-        if onChange then onChange(state) end
-    end)
-    refresh()
-    return b,function() return state end,function(v) state=v==true; refresh(); if onChange then onChange(state) end end
-end
-
-local function safeRemote(key,...)
-    if not remote(CFG.Remotes[key]) then
-        return false,key.." remote is not configured."
-    end
-    local ok,err=callRemote(key,...)
-    if ok then return true,key.." sent." end
-    return false,tostring(err or (key.." failed."))
-end
-
-local function spawnCollectors(n)
-    clearBots()
-    n=math.clamp(tonumber(n) or CFG.MaxBots,1,CFG.MaxBots)
-    local pool=botPool()
-    local pr=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-    local made=0
+local function spawnBots(n)
+    if not safePosition() then detectSafe() end; if not safePosition() then return false,"Lock the safe zone first." end; clearBots(); CollectorsEnabled=true; n=math.clamp(n,1,10); local pr=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); if not pr then return false,"Character unavailable." end; local pool=botPool()
     for i=1,n do
-        local ok,m=pcall(function() return botAvatar(i,pool) end)
-        if ok and m then
-            m.Name="SAE_Collector_"..i
-            m.Parent=NPCFolder
-            local h=m:FindFirstChildOfClass("Humanoid")
-            local r=m:FindFirstChild("HumanoidRootPart")
-            if h and r then
-                h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
-                h.NameDisplayDistance=0
-                h.HealthDisplayDistance=0
-                h.AutoRotate=true
-                for _,o in ipairs(m:GetDescendants()) do
-                    if o:IsA("BasePart") and o:FindFirstAncestorOfClass("Accessory") then
-                        o.CanCollide=false
-                        o.Massless=true
-                    end
-                end
-                local ang=((i-1)/math.max(n,1))*math.pi*2
-                local center=pr and pr.Position or getMapFrame().Position
-                local pos=center+Vector3.new(math.cos(ang)*7,0,math.sin(ang)*7)
-                local dir=pr and (pr.Position-pos) or Vector3.new(0,0,-1)
-                placeNPC(m,pos,dir)
-                local trailInfo=TRAILS[((i-1)%#TRAILS)+1]
-                local tr=addTrail(m,trailInfo)
-                if tr then tr.Enabled=true end
-                local stat=math.random(120,980)*1000000
-                local id=BOT_NAMES[((i-1)%#BOT_NAMES)+1]
-                botTag(m,id,trailInfo[1],stat)
-                local d={model=m,key="BOT_"..i,speed=18+((i-1)%4)*2,trail=tr,anim=animations(h)}
-                table.insert(Bots,d)
-                botBrain(d)
-                made=made+1
-            else
-                m:Destroy()
+        local ok,m=pcall(function() return botAvatar(i,pool) end); if ok and m then m.Name="Egg Bot "..i; m.Parent=NPCFolder; local h=m:FindFirstChildOfClass("Humanoid"); local r=m:FindFirstChild("HumanoidRootPart"); if h and r then h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None; h.NameDisplayDistance=0; h.HealthDisplayDistance=0; h.AutoRotate=true; r.Anchored=false; local id=BOT_NAMES[((i-1)%arrlen(BOT_NAMES))+1]; local tr=TRAILS[math.random(1,arrlen(TRAILS))]; local stat=math.random(200,270)*1000000; local speed=90+((stat-200000000)/70000000)*35; placeNPC(m,pr.Position-pr.CFrame.LookVector*(5+math.ceil(i/2))+pr.CFrame.RightVector*((i%2==0) and 5 or -5),pr.CFrame.LookVector); local trail=addTrail(m,tr); local d={model=m,key="BOT_"..i.."_"..id[2],speed=speed,trail=trail,anim=animations(h)}; botTag(m,id,tr[1],stat); table.insert(Bots,d); botBrain(d) else m:Destroy() end end; task.wait(.04)
+    end
+    return true,tostring(arrlen(Bots)).." bots spawned - Safe Zone: "..SafeName
+end
+
+-- Reference-script style boost/event controls. Without a configured legitimate server remote,
+-- these remain local control/announcement states rather than pretending to change the server.
+local BOOST_NAMES={
+    "PowerUpX2Rings","AdBoostXGrowth","MutationBoost","PowerUpMagnet","PlayerEggGrowthBoost","PowerUpFusion",
+    "GrowthBoost","AdminTreadmill","PlayerSpeedBoost","x2Growth","MonsterEvent","PlayerEarningsBoost",
+    "EggLuckBoost","BossSpeedBoost","GreatBloom","DragonEggEvent","EggSizeBoost","x2Luck","SpeedBoost",
+    "DemonicEvent","EarningsBoost","Countdown","Luck"
+}
+local BoostState={}
+for _,n in ipairs(BOOST_NAMES) do BoostState[n]=false end
+
+local function announceBoost(name,on)
+    BoostState[name]=on
+    if on then
+        callRemote("Boost",name,true)
+        notice(P.UserId,Display,": activated",name:upper(),"")
+    else
+        callRemote("ClearBoost",name)
+        notice(P.UserId,Display,": cleared",name:upper(),"")
+    end
+end
+
+local MeteorFolder=nil
+local MeteorToken=0
+local function clearMeteor()
+    MeteorToken=MeteorToken+1
+    if MeteorFolder then MeteorFolder:Destroy(); MeteorFolder=nil end
+end
+
+local function findNamedModel(words)
+    local wants={}
+    for _,w in ipairs(words) do wants[norm(w)]=true end
+    for _,container in ipairs({ReplicatedStorage,workspace}) do
+        for _,o in ipairs(container:GetDescendants()) do
+            if o:IsA("Model") and o:FindFirstChildWhichIsA("BasePart",true) and wants[norm(o.Name)] then return o end
+        end
+    end
+    return nil
+end
+
+local function dropMeteorNow()
+    if callRemote("Meteor",{Action="Drop"}) then return true,"Server meteor request sent." end
+    clearMeteor()
+    local cf,bounds=getMapFrame()
+    local folder=Instance.new("Folder")
+    folder.Name="SAE_MeteorEvent"
+    folder.Parent=workspace
+    MeteorFolder=folder
+
+    local meteor=Instance.new("Part")
+    meteor.Name="Drill Monster Meteor"
+    meteor.Shape=Enum.PartType.Ball
+    meteor.Size=Vector3.new(12,12,12)
+    meteor.Material=Enum.Material.Neon
+    meteor.Color=Color3.fromRGB(255,80,35)
+    meteor.Anchored=true
+    meteor.CanCollide=false
+    meteor.Position=cf.Position+Vector3.new(0,90,0)
+    meteor.Parent=folder
+    local fire=Instance.new("ParticleEmitter")
+    fire.Rate=80; fire.Lifetime=NumberRange.new(.35,.7); fire.Speed=NumberRange.new(4,9)
+    fire.Color=ColorSequence.new(Color3.fromRGB(255,210,30),Color3.fromRGB(255,40,20))
+    fire.Parent=meteor
+
+    local hit=groundHit(cf.Position,nil)
+    local ground=hit and hit.Position or cf.Position
+    local tw=TweenService:Create(meteor,TweenInfo.new(1.4,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Position=ground+Vector3.new(0,7,0)})
+    tw:Play()
+    task.spawn(function()
+        tw.Completed:Wait()
+        if not meteor.Parent then return end
+        local burst=Instance.new("Explosion")
+        burst.BlastPressure=0; burst.BlastRadius=0; burst.Position=ground; burst.Parent=workspace
+        local monster=findNamedModel({"Drill Monster","DrillMonster"})
+        if monster then
+            for i=1,4 do
+                local ok=pcall(function()
+                    local c=monster:Clone(); c.Parent=folder; local a=(i-1)*math.pi/2; groundObject(c,ground+Vector3.new(math.cos(a)*16,0,math.sin(a)*16),0)
+                end)
             end
         end
-        if i%3==0 then task.wait() end
-    end
-    return made
+        spawnEggs("Drilla egg",10,100,"DIAGONAL SEQUENCE",CFrame.new(ground),"METEOR")
+        meteor:Destroy()
+    end)
+    return true,"Meteor dropped at map center."
 end
 
--- MAIN / ADMIN PANEL ---------------------------------------------------------
-local MainBody=panelBody(Main,1040)
-section(MainBody,"MAP + EGG SPAWNER",2)
-local MapInfo=label(MainBody,"Map: "..MapName,UDim2.fromOffset(10,24),UDim2.new(1,-20,0,20),10)
-MapInfo.TextColor3=C.muted
-local DetectMapBtn=button(MainBody,"DETECT MAP",UDim2.fromOffset(8,48),UDim2.new(.5,-12,0,30),true)
-local SetMapBtn=button(MainBody,"SET CENTER HERE",UDim2.new(.5,4,0,48),UDim2.new(.5,-12,0,30),true)
-
-local EggSel=selector(MainBody,"EGG",EGGS,86,1)
-local QtyValues={}
-for _,v in ipairs(QTY) do table.insert(QtyValues,tostring(v)) end
-local QtySel=selector(MainBody,"QUANTITY",QtyValues,146,1)
-local PatternSel=selector(MainBody,"PATTERN",PATTERNS,206,1)
-local SizeBox=card(MainBody,UDim2.fromOffset(8,266),UDim2.new(1,-16,0,54))
-local SizeCap=label(SizeBox,"SIZE % (25 - 500)",UDim2.fromOffset(10,4),UDim2.new(1,-20,0,15),9); SizeCap.TextColor3=C.muted; SizeCap.Font=Enum.Font.GothamBold
-local SizeInput=textbox(SizeBox,"100",UDim2.fromOffset(9,23),UDim2.new(1,-18,0,24),"100")
-local SpawnEggBtn=button(MainBody,"SPAWN EGGS",UDim2.fromOffset(8,328),UDim2.new(.64,-12,0,34),false)
-local ClearEggBtn=button(MainBody,"CLEAR",UDim2.new(.64,4,0,328),UDim2.new(.36,-12,0,34),true)
-local EggStatus=label(MainBody,"Ready.",UDim2.fromOffset(10,367),UDim2.new(1,-20,0,36),10); EggStatus.TextWrapped=true; EggStatus.TextColor3=C.muted
-
-DetectMapBtn.MouseButton1Click:Connect(function()
-    local ok,msg=detectMapCenter()
-    MapInfo.Text="Map: "..tostring(msg)
-    setStatus(EggStatus,ok and ("Detected: "..tostring(msg)) or msg,ok)
-end)
-SetMapBtn.MouseButton1Click:Connect(function()
-    local ok,msg=setMapCenterHere()
-    MapInfo.Text="Map: "..tostring(msg)
-    setStatus(EggStatus,msg,ok)
-end)
-SpawnEggBtn.MouseButton1Click:Connect(function()
-    local egg=EggSel.get()
-    local qty=tonumber(QtySel.get()) or 200
-    local size=tonumber(SizeInput.Text) or 100
-    local pat=PatternSel.get()
-    setStatus(EggStatus,"Spawning "..tostring(qty).." eggs...",nil)
+local function startMeteorCountdown(seconds,statusCallback)
+    seconds=math.clamp(tonumber(seconds) or 50,1,600)
+    MeteorToken=MeteorToken+1
+    local token=MeteorToken
     task.spawn(function()
-        local ok,a,b,c=spawnEggs(egg,qty,size,pat)
-        if ok then
-            setStatus(EggStatus,"Spawned "..tostring(a).." eggs ("..tostring(b).." x "..tostring(c)..").",true)
-        else
-            setStatus(EggStatus,tostring(a),false)
+        for s=seconds,0,-1 do
+            if token~=MeteorToken then return end
+            if statusCallback then statusCallback(s) end
+            if s==0 then break end
+            task.wait(1)
         end
+        if token==MeteorToken then dropMeteorNow() end
     end)
-end)
-ClearEggBtn.MouseButton1Click:Connect(function()
-    local n=clearSpawnedEggs()
-    setStatus(EggStatus,"Cleared "..tostring(n).." spawned eggs.",true)
-end)
-
-section(MainBody,"ANNOUNCEMENTS",414)
-local AnnounceInput=textbox(MainBody,"Announcement text",UDim2.fromOffset(8,437),UDim2.new(1,-16,0,34),"")
-local LocalAnn=button(MainBody,"LOCAL",UDim2.fromOffset(8,478),UDim2.new(.33,-8,0,30),true)
-local ServerAnn=button(MainBody,"SERVER",UDim2.new(.33,0,0,478),UDim2.new(.34,-8,0,30),true)
-local GlobalAnn=button(MainBody,"GLOBAL",UDim2.new(.67,0,0,478),UDim2.new(.33,-8,0,30),true)
-local AnnStatus=label(MainBody,"",UDim2.fromOffset(10,512),UDim2.new(1,-20,0,31),10); AnnStatus.TextWrapped=true; AnnStatus.TextColor3=C.muted
-LocalAnn.MouseButton1Click:Connect(function()
-    local t=AnnounceInput.Text
-    if t=="" then setStatus(AnnStatus,"Type an announcement first.",false); return end
-    notice(P.UserId,P.DisplayName,":","ANNOUNCEMENT","- "..t)
-    setStatus(AnnStatus,"Local announcement shown.",true)
-end)
-ServerAnn.MouseButton1Click:Connect(function()
-    local t=AnnounceInput.Text
-    if t=="" then setStatus(AnnStatus,"Type an announcement first.",false); return end
-    local ok,msg=safeRemote("Announcement",t)
-    setStatus(AnnStatus,msg,ok)
-end)
-GlobalAnn.MouseButton1Click:Connect(function()
-    local t=AnnounceInput.Text
-    if t=="" then setStatus(AnnStatus,"Type an announcement first.",false); return end
-    local ok,msg=safeRemote("GlobalAnnouncement",t)
-    setStatus(AnnStatus,msg,ok)
-end)
-
-section(MainBody,"SERVER ACTIONS",552)
-local TargetInput=textbox(MainBody,"Target username",UDim2.fromOffset(8,575),UDim2.new(1,-16,0,32),"")
-local ActionStatus=label(MainBody,"Remotes only run when configured in CFG.Remotes.",UDim2.fromOffset(10,611),UDim2.new(1,-20,0,31),9); ActionStatus.TextWrapped=true; ActionStatus.TextColor3=C.muted
-local function actionButton(text,key,x,y,w)
-    local b=button(MainBody,text,UDim2.fromOffset(x,y),UDim2.fromOffset(w,30),true)
-    b.MouseButton1Click:Connect(function()
-        local target=TargetInput.Text
-        local ok,msg
-        if target~="" then ok,msg=safeRemote(key,target) else ok,msg=safeRemote(key) end
-        setStatus(ActionStatus,msg,ok)
-    end)
-    return b
 end
-actionButton("BOOST","Boost",8,648,106)
-actionButton("CLEAR BOOST","ClearBoost",121,648,116)
-actionButton("METEOR","Meteor",244,648,108)
-actionButton("TELEPORT","Teleport",8,685,106)
-actionButton("INVITE","Invite",121,685,116)
-actionButton("GIVE ADMIN","GiveAdmin",244,685,108)
-actionButton("COOWNER","GiveCoowner",8,722,106)
-actionButton("GIVE VPS","GiveVPS",121,722,116)
-actionButton("SPAWN REMOTE","SpawnEggs",244,722,108)
 
-section(MainBody,"YOUR OVERHEAD TAG",765)
-local RoleSel=selector(MainBody,"ROLE",{"OWNER","COOWNER","ADMIN","CREATOR"},788,1)
-local ApplyRoleBtn=button(MainBody,"APPLY TAG",UDim2.fromOffset(8,850),UDim2.new(1,-16,0,32),false)
-local TagStatus=label(MainBody,"",UDim2.fromOffset(10,886),UDim2.new(1,-20,0,28),10); TagStatus.TextColor3=C.muted
-ApplyRoleBtn.MouseButton1Click:Connect(function()
-    Role=RoleSel.get()
-    Display=P.DisplayName
-    Username=P.Name
-    applyTag()
-    setStatus(TagStatus,"Applied ["..Role.."] tag.",true)
-end)
+-- MAIN navigation and reference-style pages.
+local EggIndex=1
+local Amount=200
+local EggSize=100
+local Pattern=PATTERNS[1]
 
--- MORPH PANEL ---------------------------------------------------------------
-local MorphBody=panelBody(Morph,360)
-section(MorphBody,"AVATAR",2)
-local MorphUser=textbox(MorphBody,"Roblox username",UDim2.fromOffset(8,28),UDim2.new(1,-16,0,38),P.Name)
-local MorphGo=button(MorphBody,"MORPH",UDim2.fromOffset(8,76),UDim2.new(.62,-12,0,36),false)
-local MorphReset=button(MorphBody,"RESET",UDim2.new(.62,4,0,76),UDim2.new(.38,-12,0,36),true)
-local MorphSammy=button(MorphBody,"MORPH AS @"..CFG.SammyUsername,UDim2.fromOffset(8,120),UDim2.new(1,-16,0,34),true)
-local MorphStatus=label(MorphBody,"Enter a username, then press MORPH.",UDim2.fromOffset(10,164),UDim2.new(1,-20,0,54),10); MorphStatus.TextWrapped=true; MorphStatus.TextColor3=C.muted
-MorphGo.MouseButton1Click:Connect(function()
-    local user=MorphUser.Text:gsub("^@","")
-    if user=="" then setStatus(MorphStatus,"Enter a username.",false); return end
-    setStatus(MorphStatus,"Loading avatar...",nil)
-    task.spawn(function()
-        local ok,msg=doMorph(user)
-        setStatus(MorphStatus,msg,ok)
-    end)
-end)
-MorphSammy.MouseButton1Click:Connect(function()
-    MorphUser.Text=CFG.SammyUsername
-    setStatus(MorphStatus,"Loading avatar...",nil)
-    task.spawn(function()
-        local ok,msg=doMorph(CFG.SammyUsername)
-        setStatus(MorphStatus,msg,ok)
-    end)
-end)
-MorphReset.MouseButton1Click:Connect(function()
-    resetMorph()
-    setStatus(MorphStatus,"Morph reset.",true)
-end)
+local Nav=Instance.new("Frame")
+Nav.Position=UDim2.fromOffset(11,70)
+Nav.Size=UDim2.new(1,-22,0,34)
+Nav.BackgroundTransparency=1
+Nav.Parent=Main
+local HomeBtn=button(Nav,"Home",UDim2.fromOffset(0,0),UDim2.fromOffset(70,31),true)
+local BackBtn=button(Nav,"Back",UDim2.fromOffset(76,0),UDim2.fromOffset(70,31),true)
+local PageTitle=label(Nav,"Home",UDim2.fromOffset(156,0),UDim2.new(1,-156,0,31),13)
+PageTitle.Font=Enum.Font.GothamBold
 
--- NPC / COLLECTOR PANEL -----------------------------------------------------
-local BotsBody=panelBody(BotsPanel,1130)
-section(BotsBody,"SAFE ZONE",2)
-local SafeInfo=label(BotsBody,"Safe: "..SafeName,UDim2.fromOffset(10,24),UDim2.new(1,-20,0,20),10); SafeInfo.TextColor3=C.muted
-local DetectSafeBtn=button(BotsBody,"AUTO DETECT",UDim2.fromOffset(8,48),UDim2.new(.5,-12,0,30),true)
-local SetSafeBtn=button(BotsBody,"SET HERE",UDim2.new(.5,4,0,48),UDim2.new(.5,-12,0,30),true)
-local SafeStatus=label(BotsBody,"Collectors deliver eggs here.",UDim2.fromOffset(10,82),UDim2.new(1,-20,0,30),9); SafeStatus.TextWrapped=true; SafeStatus.TextColor3=C.muted
-DetectSafeBtn.MouseButton1Click:Connect(function()
-    local ok,msg=detectSafe(); SafeInfo.Text="Safe: "..tostring(msg); setStatus(SafeStatus,msg,ok)
-end)
-SetSafeBtn.MouseButton1Click:Connect(function()
-    local ok,msg=setSafeHere(); SafeInfo.Text="Safe: "..tostring(msg); setStatus(SafeStatus,msg,ok)
-end)
+local AdminHost=Instance.new("Frame")
+AdminHost.Position=UDim2.fromOffset(11,112)
+AdminHost.Size=UDim2.new(1,-22,1,-123)
+AdminHost.BackgroundTransparency=1
+AdminHost.Parent=Main
+local AdminPages={}
+local PageStack={}
 
-section(BotsBody,"COLLECTORS",120)
-local BotCount=textbox(BotsBody,"1 - "..CFG.MaxBots,UDim2.fromOffset(8,145),UDim2.new(.33,-8,0,32),tostring(CFG.MaxBots))
-local SpawnBotsBtn=button(BotsBody,"SPAWN NPCS",UDim2.new(.33,0,0,145),UDim2.new(.34,-8,0,32),false)
-local ClearBotsBtn=button(BotsBody,"CLEAR",UDim2.new(.67,0,0,145),UDim2.new(.33,-8,0,32),true)
-local CollectToggle=button(BotsBody,"COLLECTORS: OFF",UDim2.fromOffset(8,184),UDim2.new(1,-16,0,34),true)
-local BotStatus=label(BotsBody,"",UDim2.fromOffset(10,222),UDim2.new(1,-20,0,38),9); BotStatus.TextWrapped=true; BotStatus.TextColor3=C.muted
-local function refreshCollectToggle()
-    CollectToggle.Text=CollectorsEnabled and "COLLECTORS: ON" or "COLLECTORS: OFF"
-    CollectToggle.BackgroundColor3=CollectorsEnabled and C.purple or C.card2
-end
-SpawnBotsBtn.MouseButton1Click:Connect(function()
-    local n=math.clamp(tonumber(BotCount.Text) or CFG.MaxBots,1,CFG.MaxBots)
-    setStatus(BotStatus,"Spawning collectors...",nil)
-    task.spawn(function()
-        local made=spawnCollectors(n)
-        setStatus(BotStatus,"Spawned "..made.." / "..n.." collectors.",made>0)
-    end)
-end)
-ClearBotsBtn.MouseButton1Click:Connect(function()
-    clearBots(); refreshCollectToggle(); setStatus(BotStatus,"Collectors cleared.",true)
-end)
-CollectToggle.MouseButton1Click:Connect(function()
-    if not SafePos then
-        local ok,msg=detectSafe()
-        if not ok then setStatus(BotStatus,msg,false); return end
-        SafeInfo.Text="Safe: "..tostring(msg)
-    end
-    CollectorsEnabled=not CollectorsEnabled
-    refreshCollectToggle()
-    setStatus(BotStatus,CollectorsEnabled and "Collectors are collecting eggs." or "Collectors paused.",true)
-end)
-refreshCollectToggle()
-
-section(BotsBody,"SAMMY",270)
-local SammySpawn=button(BotsBody,"SPAWN SAMMY",UDim2.fromOffset(8,295),UDim2.new(.5,-12,0,32),false)
-local SammyDespawn=button(BotsBody,"DESPAWN",UDim2.new(.5,4,0,295),UDim2.new(.5,-12,0,32),true)
-local SammyTagSel=selector(BotsBody,"SAMMY TAG",{"NONE","CREATOR","ADMIN","COOWNER"},335,1)
-local SammyApplyTag=button(BotsBody,"APPLY SAMMY TAG",UDim2.fromOffset(8,395),UDim2.new(1,-16,0,30),true)
-local SammyStatus=label(BotsBody,"",UDim2.fromOffset(10,430),UDim2.new(1,-20,0,34),9); SammyStatus.TextWrapped=true; SammyStatus.TextColor3=C.muted
-SammySpawn.MouseButton1Click:Connect(function()
-    setStatus(SammyStatus,"Loading Sammy...",nil)
-    task.spawn(function() local ok,msg=spawnSammy(); setStatus(SammyStatus,msg,ok) end)
-end)
-SammyDespawn.MouseButton1Click:Connect(function()
-    despawnSammy(); setStatus(SammyStatus,"Sammy despawned.",true)
-end)
-SammyApplyTag.MouseButton1Click:Connect(function()
-    SammyTagMode=SammyTagSel.get(); refreshSammyTag(); setStatus(SammyStatus,"Sammy tag: "..SammyTagMode,true)
-end)
-
-section(BotsBody,"SAMMY EGG BATCH",475)
-local MarkSpotBtn=button(BotsBody,"MARK SPOT",UDim2.fromOffset(8,500),UDim2.new(.33,-8,0,30),true)
-local SpawnBatchBtn=button(BotsBody,"SPAWN 240",UDim2.new(.33,0,0,500),UDim2.new(.34,-8,0,30),false)
-local ClearBatchBtn=button(BotsBody,"CLEAR 240",UDim2.new(.67,0,0,500),UDim2.new(.33,-8,0,30),true)
-local BatchInfo=label(BotsBody,"Batch: 0 / 240",UDim2.fromOffset(10,536),UDim2.new(1,-20,0,22),9); BatchInfo.TextColor3=C.muted
-MarkSpotBtn.MouseButton1Click:Connect(function()
-    local ok,msg=markSammySpot(); setStatus(SammyStatus,msg,ok)
-end)
-SpawnBatchBtn.MouseButton1Click:Connect(function()
-    setStatus(SammyStatus,"Spawning Sammy egg batch...",nil)
-    task.spawn(function()
-        local ok,msg=spawnSammyBatch(false)
-        BatchInfo.Text="Batch: "..countBatch("SAMMY240").." / 240"
-        setStatus(SammyStatus,msg,ok)
-    end)
-end)
-ClearBatchBtn.MouseButton1Click:Connect(function()
-    local n=clearSpawnedEggs("SAMMY240")
-    BatchInfo.Text="Batch: 0 / 240"
-    setStatus(SammyStatus,"Cleared "..n.." Sammy batch eggs.",true)
-end)
-
-local RefillBtn=button(BotsBody,"AUTO REFILL: OFF",UDim2.fromOffset(8,568),UDim2.new(.5,-12,0,32),true)
-local AdvertiseBtn=button(BotsBody,"ADVERTISE: OFF",UDim2.new(.5,4,0,568),UDim2.new(.5,-12,0,32),true)
-local function refreshSammySwitches()
-    RefillBtn.Text=SammyAutoRefill and "AUTO REFILL: ON" or "AUTO REFILL: OFF"
-    RefillBtn.BackgroundColor3=SammyAutoRefill and C.purple or C.card2
-    AdvertiseBtn.Text=SammyAdvertise and "ADVERTISE: ON" or "ADVERTISE: OFF"
-    AdvertiseBtn.BackgroundColor3=SammyAdvertise and C.purple or C.card2
-end
-RefillBtn.MouseButton1Click:Connect(function() SammyAutoRefill=not SammyAutoRefill; refreshSammySwitches() end)
-AdvertiseBtn.MouseButton1Click:Connect(function() SammyAdvertise=not SammyAdvertise; refreshSammySwitches() end)
-refreshSammySwitches()
-
-section(BotsBody,"SAMMY AD MESSAGES",613)
-local Msg1=textbox(BotsBody,"Message 1",UDim2.fromOffset(8,638),UDim2.new(1,-16,0,30),SammyMessages[1])
-local Msg2=textbox(BotsBody,"Message 2",UDim2.fromOffset(8,674),UDim2.new(1,-16,0,30),SammyMessages[2])
-local Msg3=textbox(BotsBody,"Message 3",UDim2.fromOffset(8,710),UDim2.new(1,-16,0,30),SammyMessages[3])
-local SaveMsgs=button(BotsBody,"SAVE MESSAGES",UDim2.fromOffset(8,748),UDim2.new(1,-16,0,30),true)
-SaveMsgs.MouseButton1Click:Connect(function()
-    SammyMessages[1]=Msg1.Text; SammyMessages[2]=Msg2.Text; SammyMessages[3]=Msg3.Text
-    setStatus(SammyStatus,"Advertising messages updated.",true)
-end)
-
-section(BotsBody,"LOCAL CLEANUP",791)
-local ClearAllNPC=button(BotsBody,"CLEAR NPCS + SAMMY",UDim2.fromOffset(8,816),UDim2.new(.5,-12,0,32),true)
-local ClearAllEgg=button(BotsBody,"CLEAR ALL EGGS",UDim2.new(.5,4,0,816),UDim2.new(.5,-12,0,32),true)
-ClearAllNPC.MouseButton1Click:Connect(function() clearBots(); despawnSammy(); refreshCollectToggle(); setStatus(SammyStatus,"NPCs cleared.",true) end)
-ClearAllEgg.MouseButton1Click:Connect(function() local n=clearSpawnedEggs(); BatchInfo.Text="Batch: 0 / 240"; setStatus(SammyStatus,"Cleared "..n.." eggs.",true) end)
-
--- CONSOLE -------------------------------------------------------------------
-local ConsoleBody=Instance.new("Frame")
-ConsoleBody.BackgroundTransparency=1
-ConsoleBody.Position=UDim2.fromOffset(10,70)
-ConsoleBody.Size=UDim2.new(1,-20,1,-80)
-ConsoleBody.Parent=Console
-local ConsoleLog=Instance.new("TextLabel")
-ConsoleLog.BackgroundColor3=C.card
-ConsoleLog.BorderSizePixel=0
-ConsoleLog.Position=UDim2.fromOffset(0,0)
-ConsoleLog.Size=UDim2.new(1,0,1,-46)
-ConsoleLog.Font=Enum.Font.Code
-ConsoleLog.TextSize=12
-ConsoleLog.TextColor3=C.white
-ConsoleLog.TextXAlignment=Enum.TextXAlignment.Left
-ConsoleLog.TextYAlignment=Enum.TextYAlignment.Top
-ConsoleLog.TextWrapped=false
-ConsoleLog.RichText=false
-ConsoleLog.Text=""
-ConsoleLog.Parent=ConsoleBody
-corner(ConsoleLog,8); stroke(ConsoleLog,.45)
-local ConsoleInput=textbox(ConsoleBody,"Command: help",UDim2.new(0,0,1,-38),UDim2.new(1,0,0,34),"")
-ConsoleInput.Font=Enum.Font.Code
-local ConsoleLines={}
-local function consolePrint(msg)
-    table.insert(ConsoleLines,"["..os.date("%H:%M:%S").."] "..tostring(msg))
-    while #ConsoleLines>22 do table.remove(ConsoleLines,1) end
-    ConsoleLog.Text=table.concat(ConsoleLines,"\n")
-end
-local function cmdWords(s)
-    local t={}
-    for w in tostring(s):gmatch("%S+") do table.insert(t,w) end
-    return t
-end
-local function runConsole(line)
-    local a=cmdWords(line)
-    local cmd=string.lower(a[1] or "")
-    if cmd=="" then return end
-    if cmd=="help" then
-        consolePrint("map | setmap | safe | setsafe | eggs <name> <count> <size> | cleareggs")
-        consolePrint("morph <user> | unmorph | bots <1-"..CFG.MaxBots.."> | collect on/off | clearbots")
-        consolePrint("sammy | unsammy | sammyeggs | clearsammyeggs | role <name>")
-    elseif cmd=="map" then
-        local ok,msg=detectMapCenter(); consolePrint(tostring(ok).." - "..tostring(msg))
-    elseif cmd=="setmap" then
-        local ok,msg=setMapCenterHere(); consolePrint(tostring(ok).." - "..tostring(msg))
-    elseif cmd=="safe" then
-        local ok,msg=detectSafe(); consolePrint(tostring(ok).." - "..tostring(msg))
-    elseif cmd=="setsafe" then
-        local ok,msg=setSafeHere(); consolePrint(tostring(ok).." - "..tostring(msg))
-    elseif cmd=="cleareggs" then
-        consolePrint("Cleared "..clearSpawnedEggs().." eggs")
-    elseif cmd=="eggs" then
-        local name=a[2] or "MIXED"
-        local count=tonumber(a[3]) or 200
-        local size=tonumber(a[4]) or 100
-        local ok,msg=spawnEggs(name,count,size,PATTERNS[1])
-        consolePrint(tostring(ok).." - "..tostring(msg))
-    elseif cmd=="morph" then
-        local u=a[2]
-        if not u then consolePrint("Usage: morph <username>") else local ok,msg=doMorph(u:gsub("^@","")); consolePrint(tostring(ok).." - "..tostring(msg)) end
-    elseif cmd=="unmorph" then
-        resetMorph(); consolePrint("Morph reset")
-    elseif cmd=="bots" then
-        local n=tonumber(a[2]) or CFG.MaxBots
-        consolePrint("Spawned "..spawnCollectors(n).." collectors")
-    elseif cmd=="collect" then
-        local v=string.lower(a[2] or "")
-        if v=="on" then if not SafePos then detectSafe() end; CollectorsEnabled=true elseif v=="off" then CollectorsEnabled=false else CollectorsEnabled=not CollectorsEnabled end
-        refreshCollectToggle(); consolePrint("Collectors: "..(CollectorsEnabled and "ON" or "OFF"))
-    elseif cmd=="clearbots" then
-        clearBots(); refreshCollectToggle(); consolePrint("Collectors cleared")
-    elseif cmd=="sammy" then
-        local ok,msg=spawnSammy(); consolePrint(tostring(ok).." - "..tostring(msg))
-    elseif cmd=="unsammy" then
-        despawnSammy(); consolePrint("Sammy despawned")
-    elseif cmd=="sammyeggs" then
-        local ok,msg=spawnSammyBatch(false); consolePrint(tostring(ok).." - "..tostring(msg))
-    elseif cmd=="clearsammyeggs" then
-        consolePrint("Cleared "..clearSpawnedEggs("SAMMY240").." Sammy eggs")
-    elseif cmd=="role" then
-        Role=string.upper(a[2] or "OWNER"); applyTag(); consolePrint("Role tag: "..Role)
-    elseif cmd=="clear" then
-        ConsoleLines={}; ConsoleLog.Text=""
+local function newAdminPage(name,scrolling)
+    local f
+    if scrolling then
+        f=Instance.new("ScrollingFrame")
+        f.CanvasSize=UDim2.new()
+        f.ScrollBarThickness=4
+        f.ScrollBarImageColor3=C.purple
+        f.ScrollingDirection=Enum.ScrollingDirection.Y
     else
-        consolePrint("Unknown command: "..cmd)
+        f=Instance.new("Frame")
     end
+    f.Name=name
+    f.Size=UDim2.fromScale(1,1)
+    f.BackgroundTransparency=1
+    f.BorderSizePixel=0
+    f.Visible=false
+    f.Parent=AdminHost
+    AdminPages[name]=f
+    return f
 end
-ConsoleInput.FocusLost:Connect(function(enter)
-    if not enter then return end
-    local s=ConsoleInput.Text
-    ConsoleInput.Text=""
-    consolePrint("> "..s)
-    task.spawn(function()
-        local ok,err=pcall(runConsole,s)
-        if not ok then consolePrint("ERROR: "..tostring(err)) end
-    end)
-end)
-consolePrint("SAE console ready. Press TAB to show/hide. Type help for commands.")
 
-UserInputService.InputBegan:Connect(function(input,processed)
-    if processed then return end
-    if input.KeyCode==Enum.KeyCode.Tab then
-        Console.Visible=not Console.Visible
-    elseif input.KeyCode==Enum.KeyCode.X and not UserInputService:GetFocusedTextBox() then
-        dropHeld()
+local function showAdminPage(name,push)
+    if push~=false then
+        local current=nil
+        for n,p in pairs(AdminPages) do if p.Visible then current=n end end
+        if current and current~=name then table.insert(PageStack,current) end
+    end
+    for n,p in pairs(AdminPages) do p.Visible=(n==name) end
+    PageTitle.Text=name
+end
+
+HomeBtn.MouseButton1Click:Connect(function() PageStack={}; showAdminPage("Home",false) end)
+BackBtn.MouseButton1Click:Connect(function()
+    local n=table.remove(PageStack)
+    if n then showAdminPage(n,false) else showAdminPage("Home",false) end
+end)
+
+local HomePage=newAdminPage("Home",false)
+local EggsPage=newAdminPage("Spawn eggs",false)
+local PatternPage=newAdminPage("Mixed egg layouts",false)
+local AnnouncePage=newAdminPage("Announcements",false)
+local EventsPage=newAdminPage("Meteor event",false)
+local BoostsPage=newAdminPage("Boosts",true)
+local NamesPage=newAdminPage("Names",false)
+local SettingsPage=newAdminPage("Settings",false)
+local AppearancePage=newAdminPage("Appearance",false)
+
+local Builders={}
+
+function Builders.Home()
+-- HOME
+local homeItems={
+    {"Eggs","Spawn eggs"},{"Announce","Announcements"},{"Events","Meteor event"},{"Boosts","Boosts"},
+    {"Console","CONSOLE"},{"Names","Names"},{"Settings","Settings"},{"Appearance","Appearance"}
+}
+for i,item in ipairs(homeItems) do
+    local row=math.floor((i-1)/2)
+    local col=(i-1)%2
+    local b=button(HomePage,item[1],UDim2.new(col*.5,col==0 and 0 or 5,0,row*70+8),UDim2.new(.5,-5,0,58),true)
+    b.TextSize=12
+    b.MouseButton1Click:Connect(function()
+        if item[2]=="CONSOLE" then Console.Visible=true else showAdminPage(item[2],true) end
+    end)
+end
+local hdesc=label(HomePage,"Choose what you want to do.",UDim2.new(0,4,1,-56),UDim2.new(1,-8,0,22),10)
+hdesc.TextColor3=C.muted
+local hstatus=label(HomePage,"v7 ready - portable for any LocalPlayer account",UDim2.new(0,4,1,-30),UDim2.new(1,-8,0,22),9)
+hstatus.TextColor3=C.muted
+
+end
+Builders.Home()
+Builders.Home=nil
+
+-- shared slider helper
+local function intSlider(parent,y,minv,maxv,step,initial,title,onChange)
+    local titleLabel=label(parent,"",UDim2.fromOffset(8,y),UDim2.new(1,-16,0,20),10)
+    titleLabel.Font=Enum.Font.GothamBold
+    local bar=Instance.new("Frame")
+    bar.Position=UDim2.fromOffset(10,y+28)
+    bar.Size=UDim2.new(1,-20,0,9)
+    bar.BackgroundColor3=C.card2
+    bar.BorderSizePixel=0
+    bar.Active=true
+    bar.Parent=parent
+    corner(bar,99)
+    local fill=Instance.new("Frame"); fill.BackgroundColor3=C.purple; fill.BorderSizePixel=0; fill.Parent=bar; corner(fill,99)
+    local knob=Instance.new("Frame"); knob.AnchorPoint=Vector2.new(.5,.5); knob.Size=UDim2.fromOffset(17,17); knob.BackgroundColor3=C.white; knob.BorderSizePixel=0; knob.Parent=bar; corner(knob,99)
+    local value=initial
+    local dragging=false
+    local function render()
+        local frac=(value-minv)/(maxv-minv)
+        fill.Size=UDim2.new(frac,0,1,0)
+        knob.Position=UDim2.new(frac,0,.5,0)
+        titleLabel.Text=title..": "..tostring(value)
+        if onChange then onChange(value) end
+    end
+    local function update(x)
+        local frac=math.clamp((x-bar.AbsolutePosition.X)/math.max(1,bar.AbsoluteSize.X),0,1)
+        local raw=minv+(maxv-minv)*frac
+        value=math.clamp(math.floor(raw/step+.5)*step,minv,maxv)
+        render()
+    end
+    bar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=true; update(i.Position.X) end end)
+    UserInputService.InputChanged:Connect(function(i) if dragging and i.UserInputType==Enum.UserInputType.MouseMovement then update(i.Position.X) end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
+    render()
+    return function() return value end,titleLabel
+end
+
+function Builders.SpawnEggs()
+-- SPAWN EGGS page
+local chooseBtn=button(EggsPage,"Choose egg",UDim2.fromOffset(4,7),UDim2.new(.5,-8,0,50),true)
+local mixedBtn=button(EggsPage,"Mixed eggs",UDim2.new(.5,4,0,7),UDim2.new(.5,-8,0,50),true)
+local selectedEggLabel=label(EggsPage,"Selected: MIXED",UDim2.fromOffset(5,61),UDim2.new(1,-10,0,20),10)
+selectedEggLabel.TextColor3=C.purple2
+chooseBtn.MouseButton1Click:Connect(function()
+    EggIndex=EggIndex+1
+    if EggIndex>arrlen(EGGS) then EggIndex=2 end
+    if EggIndex==1 then EggIndex=2 end
+    selectedEggLabel.Text="Selected: "..EGGS[EggIndex]
+end)
+mixedBtn.MouseButton1Click:Connect(function() EggIndex=1; selectedEggLabel.Text="Selected: MIXED" end)
+
+local patternBtn=button(EggsPage,"Layout: ORIGINAL 6x20",UDim2.fromOffset(4,88),UDim2.new(1,-8,0,34),true)
+patternBtn.MouseButton1Click:Connect(function() showAdminPage("Mixed egg layouts",true) end)
+
+section(EggsPage,"QUANTITY",129)
+local amountValues={200,250,300,350,400,450,500}
+local amountButtons={}
+for i,v in ipairs(amountValues) do
+    local row=(i<=4) and 0 or 1
+    local col=(row==0) and (i-1) or (i-5)
+    local b=button(EggsPage,tostring(v),UDim2.fromOffset(4+col*85,150+row*31),UDim2.fromOffset(78,26),true)
+    amountButtons[v]=b
+    b.MouseButton1Click:Connect(function()
+        Amount=v
+        for k,x in pairs(amountButtons) do x.BackgroundColor3=(k==Amount) and C.purple or C.card2 end
+    end)
+end
+amountButtons[200].BackgroundColor3=C.purple
+
+local sizeValue=function() return EggSize end
+sizeValue=intSlider(EggsPage,217,25,500,5,100,"Egg scale",function(v) EggSize=v end)
+local spawnBtn=button(EggsPage,"Spawn eggs in MAP CENTER",UDim2.fromOffset(4,275),UDim2.new(1,-8,0,38),false)
+local clearEggBtn=button(EggsPage,"Clear spawned eggs",UDim2.fromOffset(4,320),UDim2.new(1,-8,0,34),true)
+local spawnStatus=label(EggsPage,"Map center is used regardless of where you stand.",UDim2.fromOffset(5,361),UDim2.new(1,-10,0,42),9)
+spawnStatus.TextWrapped=true; spawnStatus.TextColor3=C.muted
+spawnBtn.MouseButton1Click:Connect(function()
+    spawnBtn.Text="SPAWNING..."
+    local en=EGGS[EggIndex]
+    if callRemote("SpawnEggs",{Egg=en,Quantity=Amount,Size=EggSize,Pattern=Pattern,MapCenter=true}) then
+        spawnStatus.Text="Server spawn request sent."
+        spawnStatus.TextColor3=C.green
+    else
+        local ok,made,cols,rows=spawnEggs(en,Amount,EggSize,Pattern,nil,"GENERAL")
+        if ok then
+            spawnStatus.Text=tostring(made).." eggs - centered - "..tostring(cols).." per row / "..tostring(rows).." rows."
+            spawnStatus.TextColor3=C.green
+            notice(P.UserId,Display,": spawned",tostring(made).." EGGS","")
+        else
+            spawnStatus.Text=tostring(made); spawnStatus.TextColor3=C.red
+        end
+    end
+    spawnBtn.Text="Spawn eggs in MAP CENTER"
+end)
+clearEggBtn.MouseButton1Click:Connect(function() local n=clearSpawnedEggs(); spawnStatus.Text="Cleared "..n.." spawned egg(s)."; spawnStatus.TextColor3=C.green end)
+
+-- mixed layout page from the reference screenshots
+local patternDescriptions={
+    ["ORIGINAL 6x20"]="Classic rows; mixed egg types cycle across the row.",
+    ["ONE TYPE PER ROW"]="Each physical row uses one egg type.",
+    ["SPLIT ROWS 3+3"]="Egg types change in groups of three across each row.",
+    ["PAIRS 2+2+2"]="Egg types repeat in pairs across each row.",
+    ["MIRRORED ROWS"]="Every second row reverses the type sequence.",
+    ["ALTERNATING ROWS"]="Rows alternate between egg types.",
+    ["DIAGONAL SEQUENCE"]="Egg types shift diagonally from row to row."
+}
+local patStatus=label(PatternPage,"MIXED EGGS - select a pattern",UDim2.fromOffset(5,3),UDim2.new(1,-10,0,25),11); patStatus.Font=Enum.Font.GothamBold
+for i,n in ipairs(PATTERNS) do
+    local row=math.floor((i-1)/2); local col=(i-1)%2
+    local wide=(i==arrlen(PATTERNS) and (arrlen(PATTERNS)%2==1))
+    local pos=wide and UDim2.fromOffset(4,35+row*58) or UDim2.new(col*.5,col==0 and 4 or 4,0,35+row*58)
+    local sz=wide and UDim2.new(1,-8,0,49) or UDim2.new(.5,-8,0,49)
+    local b=button(PatternPage,n, pos, sz,true)
+    b.TextSize=10
+    b.MouseButton1Click:Connect(function()
+        Pattern=n
+        patternBtn.Text="Layout: "..n
+        patStatus.Text=n.." selected"
+        showAdminPage("Spawn eggs",false)
+    end)
+end
+local patInfo=label(PatternPage,"Every layout is map-centered, physically spaced, and kept inside the detected floor as much as possible.",UDim2.new(0,5,1,-56),UDim2.new(1,-10,0,50),9)
+patInfo.TextWrapped=true; patInfo.TextColor3=C.muted
+
+end
+Builders.SpawnEggs()
+Builders.SpawnEggs=nil
+
+function Builders.Announcements()
+-- ANNOUNCEMENTS
+section(AnnouncePage,"ANNOUNCEMENTS",8)
+local annBox=textbox(AnnouncePage,"Type your announcement...",UDim2.fromOffset(5,38),UDim2.new(1,-10,0,52),"")
+local annSend=button(AnnouncePage,"Send announcement",UDim2.fromOffset(5,101),UDim2.new(1,-10,0,38),false)
+local annGlobal=button(AnnouncePage,"Send GLOBAL announcement",UDim2.fromOffset(5,146),UDim2.new(1,-10,0,36),true)
+local annClear=button(AnnouncePage,"Clear announcement",UDim2.fromOffset(5,189),UDim2.new(1,-10,0,36),true)
+local annStatus=label(AnnouncePage,"Centered banner uses the approved verified badge.",UDim2.fromOffset(7,235),UDim2.new(1,-14,0,42),9); annStatus.TextWrapped=true; annStatus.TextColor3=C.muted
+local function sendAnnouncement(global)
+    local msg=annBox.Text
+    if msg=="" then annStatus.Text="Type an announcement first."; annStatus.TextColor3=C.orange; return end
+    callRemote(global and "GlobalAnnouncement" or "Announcement",msg)
+    notice(P.UserId,Display,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..msg)
+    annStatus.Text=global and "Global announcement shown locally / remote called if configured." or "Announcement shown."
+    annStatus.TextColor3=C.green
+end
+annSend.MouseButton1Click:Connect(function() sendAnnouncement(false) end)
+annGlobal.MouseButton1Click:Connect(function() sendAnnouncement(true) end)
+annClear.MouseButton1Click:Connect(function() annBox.Text=""; annStatus.Text="Announcement cleared."; annStatus.TextColor3=C.muted end)
+annBox.FocusLost:Connect(function(enter) if enter then sendAnnouncement(false) end end)
+
+end
+Builders.Announcements()
+Builders.Announcements=nil
+
+function Builders.Meteor()
+-- METEOR EVENT
+local eventTitle=label(EventsPage,"DRILL MONSTER METEOR",UDim2.fromOffset(5,4),UDim2.new(1,-10,0,26),13); eventTitle.Font=Enum.Font.GothamBold
+local eventDesc=label(EventsPage,"4x Drill Monster + 10 Drilla eggs. If the monster model is visible to the client it is cloned; otherwise the eggs/meteor still run.",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,70),10); eventDesc.TextWrapped=true; eventDesc.TextYAlignment=Enum.TextYAlignment.Top
+local meteorStatus=label(EventsPage,"Meteor display: cleared",UDim2.fromOffset(5,108),UDim2.new(1,-10,0,24),10); meteorStatus.TextColor3=C.muted
+local countdownBtn=button(EventsPage,"Start countdown - 00:50",UDim2.fromOffset(5,143),UDim2.new(1,-10,0,38),false)
+local dropMeteorBtn=button(EventsPage,"Drop meteor now",UDim2.fromOffset(5,188),UDim2.new(1,-10,0,36),true)
+local timerBox=textbox(EventsPage,"Timer seconds (1-600)",UDim2.fromOffset(5,232),UDim2.new(.5,-8,0,36),"50")
+local setTimerBtn=button(EventsPage,"Set timer",UDim2.new(.5,3,0,232),UDim2.new(.5,-8,0,36),true)
+local clearMeteorBtn=button(EventsPage,"Clear / cancel",UDim2.fromOffset(5,276),UDim2.new(1,-10,0,36),true)
+countdownBtn.MouseButton1Click:Connect(function()
+    local seconds=tonumber(timerBox.Text) or 50
+    startMeteorCountdown(seconds,function(s) countdownBtn.Text="Countdown - "..string.format("%02d:%02d",math.floor(s/60),s%60); meteorStatus.Text="Meteor countdown active"; meteorStatus.TextColor3=C.orange end)
+end)
+dropMeteorBtn.MouseButton1Click:Connect(function() local ok,msg=dropMeteorNow(); meteorStatus.Text=msg; meteorStatus.TextColor3=ok and C.green or C.red end)
+setTimerBtn.MouseButton1Click:Connect(function() local s=math.clamp(tonumber(timerBox.Text) or 50,1,600); timerBox.Text=tostring(s); countdownBtn.Text="Start countdown - "..string.format("%02d:%02d",math.floor(s/60),s%60) end)
+clearMeteorBtn.MouseButton1Click:Connect(function() clearMeteor(); meteorStatus.Text="Meteor display: cleared"; meteorStatus.TextColor3=C.muted; countdownBtn.Text="Start countdown - 00:50" end)
+
+end
+Builders.Meteor()
+Builders.Meteor=nil
+
+function Builders.Boosts()
+-- BOOSTS
+local BoostList=Instance.new("UIListLayout")
+BoostList.Padding=UDim.new(0,7)
+BoostList.Parent=BoostsPage
+local boostHeader=label(BoostsPage,"BOOSTS - local announce controls; configured remotes are called when present.",UDim2.new(),UDim2.new(1,-8,0,36),9)
+boostHeader.TextWrapped=true; boostHeader.TextColor3=C.muted
+for _,name in ipairs(BOOST_NAMES) do
+    local row=Instance.new("Frame")
+    row.Size=UDim2.new(1,-8,0,86)
+    row.BackgroundColor3=C.card
+    row.BorderSizePixel=0
+    row.Parent=BoostsPage
+    corner(row,10); stroke(row,.62)
+    local nm=label(row,name,UDim2.fromOffset(10,6),UDim2.new(1,-20,0,24),11); nm.Font=Enum.Font.GothamBold
+    local state=label(row,"OFF",UDim2.fromOffset(10,39),UDim2.fromOffset(72,32),11); state.TextXAlignment=Enum.TextXAlignment.Center; state.Font=Enum.Font.GothamBold
+    local announce=button(row,"Announce",UDim2.fromOffset(89,36),UDim2.fromOffset(110,36),false)
+    local clear=button(row,"Clear",UDim2.new(1,-118,0,36),UDim2.fromOffset(108,36),true)
+    announce.MouseButton1Click:Connect(function() announceBoost(name,true); state.Text="ON"; state.TextColor3=C.green end)
+    clear.MouseButton1Click:Connect(function() announceBoost(name,false); state.Text="OFF"; state.TextColor3=C.white end)
+end
+local clearAllBoosts=button(BoostsPage,"Clear all bottom effects",UDim2.new(),UDim2.new(1,-8,0,40),true)
+clearAllBoosts.MouseButton1Click:Connect(function() for _,n in ipairs(BOOST_NAMES) do if BoostState[n] then announceBoost(n,false) end end end)
+BoostList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() BoostsPage.CanvasSize=UDim2.fromOffset(0,BoostList.AbsoluteContentSize.Y+12) end)
+task.defer(function() BoostsPage.CanvasSize=UDim2.fromOffset(0,BoostList.AbsoluteContentSize.Y+12) end)
+
+end
+Builders.Boosts()
+Builders.Boosts=nil
+
+function Builders.Names()
+-- NAMES
+section(NamesPage,"CUSTOM DISPLAY NAME",8)
+local displayInput=textbox(NamesPage,"Display name",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,42),Display)
+section(NamesPage,"CUSTOM USERNAME LABEL",88)
+local usernameInput=textbox(NamesPage,"Username",UDim2.fromOffset(5,114),UDim2.new(1,-10,0,42),Username)
+local applyNameBtn=button(NamesPage,"Apply names",UDim2.fromOffset(5,171),UDim2.new(1,-10,0,40),false)
+local nameStatus=label(NamesPage,"These change only the custom overhead display, not the Roblox account.",UDim2.fromOffset(7,223),UDim2.new(1,-14,0,50),9); nameStatus.TextWrapped=true; nameStatus.TextColor3=C.muted
+applyNameBtn.MouseButton1Click:Connect(function() if displayInput.Text~="" then Display=displayInput.Text end; if usernameInput.Text~="" then Username=usernameInput.Text:gsub("^@","") end; applyTag(); nameStatus.Text="Custom display updated."; nameStatus.TextColor3=C.green end)
+
+end
+Builders.Names()
+Builders.Names=nil
+
+function Builders.Settings()
+-- SETTINGS
+local mapCard=card(SettingsPage,UDim2.fromOffset(0,0),UDim2.new(1,0,0,152))
+section(mapCard,"MAP CENTER - ALL GENERAL EGGS SPAWN HERE",8)
+local mapStatus=label(mapCard,"Not detected",UDim2.fromOffset(10,32),UDim2.new(1,-20,0,22),10); mapStatus.Font=Enum.Font.GothamBold; mapStatus.TextColor3=C.orange
+local detectMapBtn=button(mapCard,"AUTO DETECT",UDim2.fromOffset(10,64),UDim2.new(.5,-15,0,35),false)
+local setMapBtn=button(mapCard,"SET HERE",UDim2.new(.5,5,0,64),UDim2.new(.5,-15,0,35),true)
+local hideMapMarker=button(mapCard,"Toggle center marker",UDim2.fromOffset(10,106),UDim2.new(1,-20,0,32),true)
+local mapMarkerVisible=true
+local function refreshMapStatus() if MapCF then mapStatus.Text="LOCKED - "..MapName; mapStatus.TextColor3=C.green else mapStatus.Text="Not detected"; mapStatus.TextColor3=C.orange end end
+detectMapBtn.MouseButton1Click:Connect(function() local ok,msg=detectMapCenter(); refreshMapStatus(); if not ok then mapStatus.Text=msg; mapStatus.TextColor3=C.red end end)
+setMapBtn.MouseButton1Click:Connect(function() local ok,msg=setMapCenterHere(); refreshMapStatus(); if not ok then mapStatus.Text=msg; mapStatus.TextColor3=C.red end end)
+hideMapMarker.MouseButton1Click:Connect(function() mapMarkerVisible=not mapMarkerVisible; if MapMarker then MapMarker.Transparency=mapMarkerVisible and .72 or 1 end end)
+local rescanBtn=button(SettingsPage,"Rescan egg models",UDim2.fromOffset(0,166),UDim2.new(1,0,0,38),true)
+local settingsInfo=label(SettingsPage,"No account lock is used. Your friend can run the same file; LocalPlayer is resolved at runtime.",UDim2.fromOffset(5,217),UDim2.new(1,-10,0,58),9); settingsInfo.TextWrapped=true; settingsInfo.TextColor3=C.muted
+rescanBtn.MouseButton1Click:Connect(function() EggCache={}; settingsInfo.Text="Egg model cache cleared. Models will be re-detected on the next spawn."; settingsInfo.TextColor3=C.green end)
+
+
+-- Start map-center detection after the UI exists. Kept inside this scope so
+-- refreshMapStatus does not have to remain a top-level local.
+task.spawn(function()
+    task.wait(.6)
+    detectMapCenter()
+    refreshMapStatus()
+end)
+end
+Builders.Settings()
+Builders.Settings=nil
+
+function Builders.Appearance()
+-- APPEARANCE / ROLE
+section(AppearancePage,"OVERHEAD ROLE",8)
+local ownerRole=button(AppearancePage,"OWNER",UDim2.fromOffset(5,38),UDim2.new(.5,-8,0,42),true)
+local adminRole=button(AppearancePage,"ADMIN",UDim2.new(.5,3,0,38),UDim2.new(.5,-8,0,42),true)
+ownerRole.BackgroundColor3=C.red
+local appearanceStatus=label(AppearancePage,"OWNER is red. ADMIN is purple.",UDim2.fromOffset(7,94),UDim2.new(1,-14,0,45),10); appearanceStatus.TextWrapped=true; appearanceStatus.TextColor3=C.muted
+ownerRole.MouseButton1Click:Connect(function() Role="OWNER"; ownerRole.BackgroundColor3=C.red; adminRole.BackgroundColor3=C.card2; applyTag(); appearanceStatus.Text="OWNER tag applied."; appearanceStatus.TextColor3=C.green end)
+adminRole.MouseButton1Click:Connect(function() Role="ADMIN"; ownerRole.BackgroundColor3=C.card2; adminRole.BackgroundColor3=C.purple; applyTag(); appearanceStatus.Text="ADMIN tag applied."; appearanceStatus.TextColor3=C.green end)
+
+showAdminPage("Home",false)
+
+end
+Builders.Appearance()
+Builders.Appearance=nil
+
+function Builders.Morph()
+-- MORPH PANEL - redesigned to match the reference Avatar Morpher.
+local MorphTabs=Instance.new("Frame"); MorphTabs.Position=UDim2.fromOffset(12,72); MorphTabs.Size=UDim2.new(1,-24,0,38); MorphTabs.BackgroundTransparency=1; MorphTabs.Parent=Morph
+local myAvatarBtn=button(MorphTabs,"MY AVATAR",UDim2.fromOffset(0,0),UDim2.new(.5,-5,0,36),false)
+local playersBtn=button(MorphTabs,"PLAYERS",UDim2.new(.5,5,0,0),UDim2.new(.5,-5,0,36),true)
+local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(13,121); preview.Size=UDim2.fromOffset(92,92); preview.BackgroundColor3=C.card2; preview.BorderSizePixel=0; preview.Image="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"; preview.Parent=Morph; corner(preview,12)
+local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(118,121),UDim2.new(1,-130,0,22),10); morphLabel.TextColor3=C.muted; morphLabel.Font=Enum.Font.GothamBold
+local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(118,148),UDim2.new(1,-130,0,48),"")
+local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(13,222),UDim2.new(.62,-18,0,43),false)
+local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,222),UDim2.new(.38,-13,0,43),true)
+local morphStatus=label(Morph,"Physics-isolated shell: it never moves or welds to your real character.",UDim2.fromOffset(13,270),UDim2.new(1,-26,0,24),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+myAvatarBtn.MouseButton1Click:Connect(function() morphInput.Text=P.Name; preview.Image="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"; myAvatarBtn.BackgroundColor3=C.purple; playersBtn.BackgroundColor3=C.card2 end)
+playersBtn.MouseButton1Click:Connect(function() morphInput.Text=""; myAvatarBtn.BackgroundColor3=C.card2; playersBtn.BackgroundColor3=C.purple end)
+morphInput.FocusLost:Connect(function() local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$",""); if u~="" then local id; if pcall(function() id=Players:GetUserIdFromNameAsync(u) end) then preview.Image="rbxthumb://type=AvatarHeadShot&id="..id.."&w=150&h=150" end end end)
+morphBtn.MouseButton1Click:Connect(function()
+    local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$","")
+    if u=="" then morphStatus.Text="Enter a Roblox username."; morphStatus.TextColor3=C.orange; return end
+    morphBtn.Text="LOADING..."
+    if callRemote("Morph",{Username=u}) then morphStatus.Text="Server morph request sent."; morphStatus.TextColor3=C.green else local ok,msg=doMorph(u); morphStatus.Text=msg; morphStatus.TextColor3=ok and C.green or C.red end
+    morphBtn.Text="MORPH"
+end)
+resetMorphBtn.MouseButton1Click:Connect(function() resetMorph(); morphStatus.Text="Original appearance restored."; morphStatus.TextColor3=C.green end)
+
+end
+Builders.Morph()
+Builders.Morph=nil
+
+function Builders.Collectors()
+-- NPC COLLECTORS panel with Collectors / Avatar / Sammy tabs.
+local BotTabs=Instance.new("Frame"); BotTabs.Position=UDim2.fromOffset(12,71); BotTabs.Size=UDim2.new(1,-24,0,36); BotTabs.BackgroundTransparency=1; BotTabs.Parent=BotsPanel
+local BotTabButtons={}; local BotPages={}
+local function newBotPage(n)
+    local f=Instance.new("ScrollingFrame")
+    f.Position=UDim2.fromOffset(12,112); f.Size=UDim2.new(1,-24,1,-124); f.BackgroundTransparency=1; f.BorderSizePixel=0; f.ScrollBarThickness=4; f.ScrollBarImageColor3=C.purple; f.CanvasSize=UDim2.new(); f.Visible=false; f.Parent=BotsPanel
+    BotPages[n]=f; return f
+end
+local CollectorsPage=newBotPage("Collectors")
+local BotAvatarPage=newBotPage("Avatar")
+local BotSammyPage=newBotPage("Sammy")
+local function showBotPage(n) for k,p in pairs(BotPages) do p.Visible=(k==n) end; for k,b in pairs(BotTabButtons) do b.BackgroundColor3=(k==n) and C.purple or C.card2 end end
+for i,n in ipairs({"Collectors","Avatar","Sammy"}) do local b=button(BotTabs,n,UDim2.new((i-1)/3,3*(i-1),0,0),UDim2.new(1/3,-6,0,32),true); BotTabButtons[n]=b; b.MouseButton1Click:Connect(function() showBotPage(n) end) end
+
+-- Collectors tab
+local SafeCard=card(CollectorsPage,UDim2.fromOffset(0,0),UDim2.new(1,-6,0,111)); section(SafeCard,"SAFE ZONE",7)
+local collectorSafeStatus=label(SafeCard,"NOT LOCKED",UDim2.fromOffset(10,29),UDim2.new(1,-20,0,20),10); collectorSafeStatus.Font=Enum.Font.GothamBold; collectorSafeStatus.TextColor3=C.orange
+local autoSafe=button(SafeCard,"AUTO DETECT",UDim2.fromOffset(10,61),UDim2.new(.5,-15,0,34),false)
+local setSafe=button(SafeCard,"SET HERE",UDim2.new(.5,5,0,61),UDim2.new(.5,-15,0,34),true)
+local function refreshSafeUI() if safePosition() then collectorSafeStatus.Text="LOCKED - "..SafeName; collectorSafeStatus.TextColor3=C.green else collectorSafeStatus.Text="NOT LOCKED"; collectorSafeStatus.TextColor3=C.orange end end
+autoSafe.MouseButton1Click:Connect(function() local ok,msg=detectSafe(); refreshSafeUI(); if not ok then collectorSafeStatus.Text=msg; collectorSafeStatus.TextColor3=C.red end end)
+setSafe.MouseButton1Click:Connect(function() local ok,msg=setSafeHere(); refreshSafeUI(); if not ok then collectorSafeStatus.Text=msg; collectorSafeStatus.TextColor3=C.red end end)
+local NPCCount=2
+local WaveDelay=5
+intSlider(CollectorsPage,125,1,10,1,2,"NPCS PER WAVE",function(v) NPCCount=v end)
+intSlider(CollectorsPage,180,1,15,1,5,"WAVE DELAY (SEC)",function(v) WaveDelay=v end)
+local collectorsToggle=button(CollectorsPage,"COLLECTORS: OFF",UDim2.fromOffset(0,238),UDim2.new(1,-6,0,38),true)
+local clearNPCBtn=button(CollectorsPage,"Stop / clear NPCs",UDim2.fromOffset(0,283),UDim2.new(1,-6,0,36),true)
+local collectorInfo=label(CollectorsPage,"Eggs: 0 | NPCs: 0",UDim2.fromOffset(5,326),UDim2.new(1,-16,0,28),9); collectorInfo.TextColor3=C.muted
+collectorsToggle.MouseButton1Click:Connect(function()
+    if CollectorsEnabled then
+        CollectorsEnabled=false; collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle.BackgroundColor3=C.card2
+    else
+        if arrlen(Bots)==0 then local ok,msg=spawnBots(NPCCount); if not ok then collectorInfo.Text=msg; collectorInfo.TextColor3=C.red; return end else CollectorsEnabled=true end
+        collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle.BackgroundColor3=C.purple; collectorInfo.Text="Collectors continuously collect -> safe zone -> repeat."; collectorInfo.TextColor3=C.green
+    end
+end)
+clearNPCBtn.MouseButton1Click:Connect(function() clearBots(); collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle.BackgroundColor3=C.card2; collectorInfo.Text="NPCs cleared."; collectorInfo.TextColor3=C.muted end)
+CollectorsPage.CanvasSize=UDim2.fromOffset(0,366)
+
+task.spawn(function()
+    while Gui.Parent do
+        task.wait(1)
+        if collectorInfo and collectorInfo.Parent then
+            local active=0
+            for _,b in ipairs(Bots) do if b.model and b.model.Parent then active=active+1 end end
+            local eggs=0
+            for e,st in pairs(EggState) do if e and e.Parent and not st.delivered then eggs=eggs+1 end end
+            if CollectorsEnabled then collectorInfo.Text="Eggs: "..eggs.." | NPCs: "..active.." | collecting continuously" end
+        end
     end
 end)
 
-P.CharacterAdded:Connect(function()
-    task.delay(.75,function()
-        if Gui.Parent then
-            resetMorph()
-            applyTag()
-        end
-    end)
-end)
+-- Avatar tab
+local avatarCard=card(BotAvatarPage,UDim2.fromOffset(0,0),UDim2.new(1,-6,0,195))
+section(avatarCard,"COLLECTOR APPEARANCE",8)
+local av1=label(avatarCard,"Different avatars: ON",UDim2.fromOffset(12,37),UDim2.new(1,-24,0,22),11); av1.TextColor3=C.green
+local av2=label(avatarCard,"Random trail per bot: ON",UDim2.fromOffset(12,68),UDim2.new(1,-24,0,22),11); av2.TextColor3=C.green
+local av3=label(avatarCard,"Displayed speed stat: 200M - 270M",UDim2.fromOffset(12,99),UDim2.new(1,-24,0,22),11); av3.TextColor3=C.green
+local refreshBots=button(avatarCard,"Refresh collector avatars",UDim2.fromOffset(10,139),UDim2.new(1,-20,0,39),false)
+local avatarStatus=label(BotAvatarPage,"The same file works for your friend; avatars resolve against their current server too.",UDim2.fromOffset(5,211),UDim2.new(1,-16,0,50),9); avatarStatus.TextWrapped=true; avatarStatus.TextColor3=C.muted
+refreshBots.MouseButton1Click:Connect(function() if not safePosition() then avatarStatus.Text="Lock the safe zone first."; avatarStatus.TextColor3=C.orange; return end; local ok,msg=spawnBots(NPCCount); avatarStatus.Text=msg; avatarStatus.TextColor3=ok and C.green or C.red; if ok then CollectorsEnabled=true; collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle.BackgroundColor3=C.purple end end)
+BotAvatarPage.CanvasSize=UDim2.fromOffset(0,275)
 
-task.defer(function()
-    applyTag()
-    local ok,msg=detectMapCenter()
-    MapInfo.Text="Map: "..tostring(msg)
-    if ok then setStatus(EggStatus,"Map ready: "..tostring(msg),true) end
-end)
+-- Sammy tab, closely matching the reference panel.
+local sy=0
+local sammyHeader=label(BotSammyPage,"SAMMY S7 - 240 MIXED EGGS / 2x",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,26),11); sammyHeader.Font=Enum.Font.GothamBold; sy=sy+32
+local spawnSammyButton=button(BotSammyPage,"Spawn Sammy",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,38),false); sy=sy+45
+local markSpotButton=button(BotSammyPage,"Mark this spot",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,34),true); sy=sy+38
+local spotStatus=label(BotSammyPage,"World spot not marked - map center will be used",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,32),9); spotStatus.TextColor3=C.muted; spotStatus.TextWrapped=true; sy=sy+37
+local sammyEggButton=button(BotSammyPage,"Spawn 240 eggs / refill empty spots",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,38),false); sy=sy+45
+local clearSammyEggs=button(BotSammyPage,"CLEAR SAMMY EGGS",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,35),true); clearSammyEggs.BackgroundColor3=Color3.fromRGB(120,30,68); sy=sy+42
+local autoRefillBtn=button(BotSammyPage,"AUTO REFILL: OFF - after 50 gone",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,34),true); sy=sy+41
+local testBannerBtn=button(BotSammyPage,"Test banner",UDim2.fromOffset(0,sy),UDim2.new(.5,-8,0,33),true)
+local advertiseBtn=button(BotSammyPage,"ADVERTISE: OFF",UDim2.new(.5,3,0,sy),UDim2.new(.5,-9,0,33),true); sy=sy+42
+local sammyDirect=textbox(BotSammyPage,"This box always announces as Sammy",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,42),""); sy=sy+48
+local sammyRemove=button(BotSammyPage,"Remove Sammy",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,35),true); sy=sy+42
+local tagNone=button(BotSammyPage,"No tag",UDim2.fromOffset(0,sy),UDim2.new(1/3,-6,0,34),false)
+local tagAdmin=button(BotSammyPage,"Admin",UDim2.new(1/3,2,0,sy),UDim2.new(1/3,-6,0,34),true)
+local tagCreator=button(BotSammyPage,"Creator",UDim2.new(2/3,4,0,sy),UDim2.new(1/3,-10,0,34),true); sy=sy+42
+local sammyPanelStatus=label(BotSammyPage,"Ready to spawn Sammy.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,33),9); sammyPanelStatus.TextColor3=C.muted; sy=sy+42
+section(BotSammyPage,"ADVERTISEMENT MESSAGES",sy); sy=sy+24
+local msg1=textbox(BotSammyPage,"Message 1",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,46),SammyMessages[1]); sy=sy+53
+local msg2=textbox(BotSammyPage,"Message 2",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,46),SammyMessages[2]); sy=sy+53
+local msg3=textbox(BotSammyPage,"Message 3",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,46),SammyMessages[3]); sy=sy+53
+local saveMessages=button(BotSammyPage,"Save all 3",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,36),false); sy=sy+45
+local adHint=label(BotSammyPage,"Save then use Test banner or ADVERTISE.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,32),9); adHint.TextColor3=C.muted; sy=sy+38
+BotSammyPage.CanvasSize=UDim2.fromOffset(0,sy)
 
-end)()
+spawnSammyButton.MouseButton1Click:Connect(function() if callRemote("SpawnSammy") then sammyPanelStatus.Text="Server Sammy request sent."; sammyPanelStatus.TextColor3=C.green else local ok,msg=spawnSammy(); sammyPanelStatus.Text=msg; sammyPanelStatus.TextColor3=ok and C.green or C.red end end)
+markSpotButton.MouseButton1Click:Connect(function() local ok,msg=markSammySpot(); spotStatus.Text=msg; spotStatus.TextColor3=ok and C.green or C.red end)
+sammyEggButton.MouseButton1Click:Connect(function() local ok,msg=spawnSammyBatch(countBatch("SAMMY240")>0); sammyPanelStatus.Text=msg; sammyPanelStatus.TextColor3=ok and C.green or C.red end)
+clearSammyEggs.MouseButton1Click:Connect(function() local n=clearSpawnedEggs("SAMMY240"); sammyPanelStatus.Text="Cleared "..n.." Sammy egg(s)."; sammyPanelStatus.TextColor3=C.green end)
+autoRefillBtn.MouseButton1Click:Connect(function() SammyAutoRefill=not SammyAutoRefill; autoRefillBtn.Text=SammyAutoRefill and "AUTO REFILL: ON - after 50 gone" or "AUTO REFILL: OFF - after 50 gone"; autoRefillBtn.BackgroundColor3=SammyAutoRefill and C.purple or C.card2 end)
+testBannerBtn.MouseButton1Click:Connect(function() sammyBanner(SammyMessages[1] or "Sammy test banner") end)
+advertiseBtn.MouseButton1Click:Connect(function() SammyAdvertise=not SammyAdvertise; advertiseBtn.Text=SammyAdvertise and "ADVERTISE: ON" or "ADVERTISE: OFF"; advertiseBtn.BackgroundColor3=SammyAdvertise and C.purple or C.card2 end)
+sammyDirect.FocusLost:Connect(function(enter) if enter and sammyDirect.Text~="" then sammyBanner(sammyDirect.Text); sammyDirect.Text="" end end)
+sammyRemove.MouseButton1Click:Connect(function() despawnSammy(); sammyPanelStatus.Text="Sammy removed."; sammyPanelStatus.TextColor3=C.muted end)
+local function setSammyMode(mode) SammyTagMode=mode; refreshSammyTag(); tagNone.BackgroundColor3=(mode=="NONE") and C.purple or C.card2; tagAdmin.BackgroundColor3=(mode=="ADMIN") and C.purple or C.card2; tagCreator.BackgroundColor3=(mode=="CREATOR") and C.purple or C.card2 end
+tagNone.MouseButton1Click:Connect(function() setSammyMode("NONE") end); tagAdmin.MouseButton1Click:Connect(function() setSammyMode("ADMIN") end); tagCreator.MouseButton1Click:Connect(function() setSammyMode("CREATOR") end)
+saveMessages.MouseButton1Click:Connect(function() SammyMessages[1]=msg1.Text; SammyMessages[2]=msg2.Text; SammyMessages[3]=msg3.Text; adHint.Text="Saved all 3 messages."; adHint.TextColor3=C.green end)
+showBotPage("Collectors")
+refreshSafeUI()
+
+
+end
+Builders.Collectors()
+Builders.Collectors=nil
+
+function Builders.Console()
+-- Console.
+local out=Instance.new("ScrollingFrame"); out.Position=UDim2.fromOffset(11,72); out.Size=UDim2.new(1,-22,1,-152); out.BackgroundColor3=Color3.fromRGB(4,5,11); out.BorderSizePixel=0; out.CanvasSize=UDim2.new(); out.ScrollBarThickness=4; out.ScrollBarImageColor3=C.purple; out.Parent=Console; corner(out,8); local OL=Instance.new("UIListLayout"); OL.Padding=UDim.new(0,2); OL.Parent=out
+local function line(t,col) local x=label(out,t,UDim2.new(),UDim2.new(1,-8,0,19),14); x.Font=Enum.Font.Code; x.TextColor3=col or C.green; task.defer(function() out.CanvasSize=UDim2.new(0,0,0,OL.AbsoluteContentSize.Y+8); out.CanvasPosition=Vector2.new(0,OL.AbsoluteContentSize.Y) end) end
+local ci=textbox(Console,"enter a command",UDim2.new(0,11,1,-71),UDim2.new(1,-22,0,34),""); ci.Font=Enum.Font.Code; ci.TextXAlignment=Enum.TextXAlignment.Left
+local quick=Instance.new("ScrollingFrame"); quick.Position=UDim2.new(0,11,1,-32); quick.Size=UDim2.new(1,-22,0,25); quick.BackgroundTransparency=1; quick.BorderSizePixel=0; quick.ScrollingDirection=Enum.ScrollingDirection.X; quick.CanvasSize=UDim2.fromOffset(950,0); quick.ScrollBarThickness=2; quick.Parent=Console; local QL=Instance.new("UIListLayout"); QL.FillDirection=Enum.FillDirection.Horizontal; QL.Padding=UDim.new(0,5); QL.Parent=quick
+local function q(t,w) local b=button(quick,t,UDim2.new(),UDim2.fromOffset(w,23),true); b.Font=Enum.Font.Code; b.TextSize=10; return b end
+local qh=q("/help",53); local qa=q("/announcement",105); local qg=q("/globalAnnouncement",138); local qt=q("/teleport",74); local qi=q("/invite",62); local qad=q("/giveadmin",83); local qcow=q("/givecoowner",102); local qv=q("/givevps",76); local qp=q("/players",70)
+local function findPlayer(s) s=string.lower(tostring(s)); for _,p in ipairs(Players:GetPlayers()) do if string.lower(p.Name)==s or string.lower(p.DisplayName)==s then return p end end; for _,p in ipairs(Players:GetPlayers()) do if string.sub(string.lower(p.Name),1,string.len(s))==s then return p end end end
+local function command(raw)
+    raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,C.muted); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
+    if cmd=="/help" then line("/announcement <message>"); line("/globalAnnouncement <message>"); line("/teleport <player>"); line("/invite <player>"); line("/giveadmin <player>"); line("/givecoowner <player>"); line("/givevps <player> (or /giveps)"); line("/players"); return end
+    if cmd=="/players" then local n={}; for _,p in ipairs(Players:GetPlayers()) do table.insert(n,p.Name) end; line("Players: "..table.concat(n,", ")); return end
+    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.orange); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(P.UserId,Display,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..rest); line("Announcement shown."); return end
+    if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.orange); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(P.UserId,Display,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Use /help.",C.red)
+end
+ci.FocusLost:Connect(function(enter) if enter then local t=ci.Text; ci.Text=""; command(t) end end); local function pre(t) ci.Text=t; ci:CaptureFocus() end; qh.MouseButton1Click:Connect(function() command("/help") end); qa.MouseButton1Click:Connect(function() pre("/announcement ") end); qg.MouseButton1Click:Connect(function() pre("/globalAnnouncement ") end); qt.MouseButton1Click:Connect(function() pre("/teleport ") end); qi.MouseButton1Click:Connect(function() pre("/invite ") end); qad.MouseButton1Click:Connect(function() pre("/giveadmin ") end); qcow.MouseButton1Click:Connect(function() pre("/givecoowner ") end); qv.MouseButton1Click:Connect(function() pre("/givevps ") end); qp.MouseButton1Click:Connect(function() command("/players") end); line(P.Name.." has joined the server."); line("TAB = open / close console.",C.blue); line("Quick commands restored.",C.blue)
+
+end
+Builders.Console()
+Builders.Console=nil
+
+local lastTab=0
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode==Enum.KeyCode.Tab then local now=os.clock(); if now-lastTab>.2 then lastTab=now; Console.Visible=not Console.Visible end; return end
+    if input.KeyCode==Enum.KeyCode.X and HeldEgg and not UserInputService:GetFocusedTextBox() then dropHeld() end
+end)
+P.CharacterAdded:Connect(function() HeldEgg=nil; Carry.Visible=false; resetMorph(); task.wait(.5); applyTag() end)
+applyTag()
+return true
