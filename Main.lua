@@ -493,7 +493,7 @@ local function applyTag()
 end
 
 -- Client-only visual morph. The display rig never participates in physics.
-local MorphShell=nil; local MorphConn=nil; local Hidden={}
+local MorphShell=nil; local MorphConn=nil; local MorphAnim=nil; local Hidden={}
 local function restoreChar()
     for o,v in pairs(Hidden) do
         if o and o.Parent then
@@ -516,6 +516,7 @@ end
 local function resetMorph()
     if MorphConn then MorphConn:Disconnect(); MorphConn=nil end
     if MorphShell then MorphShell:Destroy(); MorphShell=nil end
+    MorphAnim=nil
     restoreChar()
 end
 local function doMorph(user)
@@ -530,18 +531,21 @@ local function doMorph(user)
     local rr=ch and ch:FindFirstChild("HumanoidRootPart")
     if not sr or not sh or not rr then m:Destroy(); return false,"Morph root missing." end
 
-    -- Every display part is anchored and non-collidable. No force, weld, or
-    -- humanoid state from this rig can move the actual player character.
+    -- Anchor only the root. Anchoring each accessory and limb separately
+    -- breaks the welds and joints that keep the avatar together.
     for _,o in ipairs(m:GetDescendants()) do
         if o:IsA("BasePart") then
-            o.Anchored=true
+            o.Anchored=false
             o.CanCollide=false
             o.CanTouch=false
             o.CanQuery=false
+            o.Massless=true
             o.AssemblyLinearVelocity=Vector3.zero
             o.AssemblyAngularVelocity=Vector3.zero
         end
     end
+    sr.Anchored=true
+    m.PrimaryPart=sr
     sh.AutoRotate=false
     sh.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
     sh.NameDisplayDistance=0
@@ -550,9 +554,13 @@ local function doMorph(user)
 
     resetMorph()
     m.Name="SAE_MorphShell"
-    m.Parent=workspace.CurrentCamera
+    local look=rr.CFrame.LookVector
+    local flat=Vector3.new(look.X,0,look.Z)
+    local forward=flat.Magnitude>.001 and flat.Unit or Vector3.new(0,0,-1)
+    m:PivotTo(CFrame.lookAt(rr.Position,rr.Position+forward))
+    m.Parent=workspace.CurrentCamera or workspace
     MorphShell=m
-    local forward=Vector3.new(0,0,-1)
+    MorphAnim=animations(sh)
     MorphConn=RunService.RenderStepped:Connect(function()
         if MorphShell~=m or not m.Parent then return end
         local r=P.Character==ch and ch:FindFirstChild("HumanoidRootPart")
@@ -562,6 +570,8 @@ local function doMorph(user)
         if flat.Magnitude>.001 then forward=flat.Unit end
         -- Follow position and yaw only; never copy a tumbling root's pitch or roll.
         m:PivotTo(CFrame.lookAt(r.Position,r.Position+forward))
+        local v=r.AssemblyLinearVelocity
+        animate(MorphAnim,Vector3.new(v.X,0,v.Z).Magnitude)
     end)
     hideChar()
     return true,"Morphed into @"..user.." (local appearance)"
