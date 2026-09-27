@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
@@ -503,6 +504,7 @@ end
 -- Character tag.
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
 local TagAdornee=nil
+local TagShineTween=nil
 local function setTagAdornee(part)
     TagAdornee=part
     local head=P.Character and P.Character:FindFirstChild("Head")
@@ -510,11 +512,79 @@ local function setTagAdornee(part)
     if tag and tag:IsA("BillboardGui") then tag.Adornee=part or head end
 end
 local function applyTag()
-    local ch=P.Character; if not ch then return end; local h=ch:FindFirstChildOfClass("Humanoid"); local head=ch:FindFirstChild("Head"); if h then h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None; h.NameDisplayDistance=0; h.HealthDisplayDistance=0 end; if not head then return end
-    local o=head:FindFirstChild("SAE_Tag"); if o then o:Destroy() end; local g=Instance.new("BillboardGui"); g.Name="SAE_Tag"; g.Size=UDim2.fromOffset(235,76); g.StudsOffsetWorldSpace=Vector3.new(0,2.2,0); g.Adornee=TagAdornee or head; g.AlwaysOnTop=true; g.Parent=head
-    local a=label(g,"["..Role.."]",UDim2.new(),UDim2.new(1,0,0,27),20); a.Font=Enum.Font.GothamBlack; a.TextXAlignment=Enum.TextXAlignment.Center; a.TextStrokeTransparency=0; a.TextColor3=Role=="OWNER" and C.red or C.purple2
-    local b=label(g,Display,UDim2.fromOffset(0,29),UDim2.new(1,0,0,22),18); b.Font=Enum.Font.GothamBold; b.TextXAlignment=Enum.TextXAlignment.Center; b.TextStrokeTransparency=.1
-    local c=label(g,"@"..Username:gsub("^@",""),UDim2.fromOffset(0,52),UDim2.new(1,0,0,18),14); c.TextXAlignment=Enum.TextXAlignment.Center; c.TextColor3=Color3.fromRGB(215,215,220)
+    local ch=P.Character
+    if not ch then return end
+    local h=ch:FindFirstChildOfClass("Humanoid")
+    local head=ch:FindFirstChild("Head")
+    if h then
+        h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
+        h.NameDisplayDistance=0
+        h.HealthDisplayDistance=0
+    end
+    if not head then return end
+    if TagShineTween then TagShineTween:Cancel(); TagShineTween=nil end
+    local old=head:FindFirstChild("SAE_Tag")
+    if old then old:Destroy() end
+    local g=Instance.new("BillboardGui")
+    g.Name="SAE_Tag"
+    g.Size=UDim2.fromOffset(235,76)
+    g.StudsOffsetWorldSpace=Vector3.new(0,2.2,0)
+    g.Adornee=TagAdornee or head
+    g.AlwaysOnTop=true
+    g.Parent=head
+
+    local roleText="["..Role.."]"
+    local a=label(g,roleText,UDim2.new(),UDim2.new(1,0,0,27),20)
+    a.Font=Enum.Font.GothamBlack
+    a.TextXAlignment=Enum.TextXAlignment.Center
+    a.TextStrokeTransparency=0
+    a.TextStrokeColor3=Color3.new(0,0,0)
+    a.TextColor3=Role=="OWNER" and Color3.fromRGB(235,18,35) or C.purple2
+    if Role=="OWNER" then
+        -- Keep the dark outline separate from the moving color highlight.
+        local shine=label(g,roleText,a.Position,a.Size,20)
+        shine.Font=a.Font
+        shine.TextXAlignment=Enum.TextXAlignment.Center
+        shine.TextColor3=C.white
+        shine.TextStrokeTransparency=1
+        local gradient=Instance.new("UIGradient")
+        gradient.Color=ColorSequence.new({
+            ColorSequenceKeypoint.new(0,Color3.fromRGB(225,18,33)),
+            ColorSequenceKeypoint.new(.42,Color3.fromRGB(255,36,48)),
+            ColorSequenceKeypoint.new(.5,Color3.fromRGB(255,220,220)),
+            ColorSequenceKeypoint.new(.58,Color3.fromRGB(255,36,48)),
+            ColorSequenceKeypoint.new(1,Color3.fromRGB(225,18,33))
+        })
+        gradient.Rotation=15
+        gradient.Offset=Vector2.new(-1,0)
+        gradient.Parent=shine
+        TagShineTween=TweenService:Create(gradient,
+            TweenInfo.new(2.2,Enum.EasingStyle.Linear,Enum.EasingDirection.Out,-1,false,.8),
+            {Offset=Vector2.new(1,0)})
+        TagShineTween:Play()
+    end
+
+    local nameRow=Instance.new("Frame")
+    nameRow.BackgroundTransparency=1
+    nameRow.Position=UDim2.fromOffset(0,29)
+    nameRow.Size=UDim2.new(1,0,0,22)
+    nameRow.Parent=g
+    local layout=Instance.new("UIListLayout")
+    layout.FillDirection=Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment=Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment=Enum.VerticalAlignment.Center
+    layout.Padding=UDim.new(0,3)
+    layout.Parent=nameRow
+    local nameWidth=math.min(205,TextService:GetTextSize(Display,18,Enum.Font.GothamBold,Vector2.new(1000,22)).X+2)
+    local b=label(nameRow,Display,UDim2.new(),UDim2.fromOffset(nameWidth,22),18)
+    b.Font=Enum.Font.GothamBold
+    b.TextTruncate=Enum.TextTruncate.AtEnd
+    b.TextStrokeTransparency=.1
+    verified(nameRow,18)
+
+    local c=label(g,"@"..Username:gsub("^@",""),UDim2.fromOffset(0,52),UDim2.new(1,0,0,18),14)
+    c.TextXAlignment=Enum.TextXAlignment.Center
+    c.TextColor3=Color3.fromRGB(215,215,220)
 end
 
 -- Client-side appearance. Keep the real character and its controls untouched.
