@@ -159,53 +159,60 @@ end
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
--- Visible, screen-wide snowfall. Each flake is a rounded white dot.
+-- White circular snowfall, with extra flakes over the admin panel so it is visible.
 local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
 if oldSnow then oldSnow:Destroy() end
-local SnowGui=Instance.new("ScreenGui")
-SnowGui.Name="SAE_SnowOverlay"
-SnowGui.ResetOnSpawn=false
-SnowGui.IgnoreGuiInset=true
-SnowGui.DisplayOrder=Gui.DisplayOrder+1
-SnowGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-SnowGui.Parent=PG
 local SnowLayer=Instance.new("Frame")
 SnowLayer.Name="FallingWhiteDots"
 SnowLayer.Size=UDim2.fromScale(1,1)
 SnowLayer.BackgroundTransparency=1
 SnowLayer.ClipsDescendants=true
 SnowLayer.Active=false
-SnowLayer.Parent=SnowGui
+SnowLayer.ZIndex=20
+SnowLayer.Parent=Gui
+local PanelSnow=Instance.new("Frame")
+PanelSnow.Name="PanelWhiteDots"
+PanelSnow.Size=UDim2.fromScale(1,1)
+PanelSnow.BackgroundTransparency=1
+PanelSnow.ClipsDescendants=true
+PanelSnow.Active=false
+PanelSnow.ZIndex=20
+PanelSnow.Parent=Main
 local snowRandom=Random.new()
-for i=1,80 do
-    local diameter=snowRandom:NextInteger(4,8)
-    local flake=Instance.new("Frame")
-    flake.Name="Flake"..i
-    flake.Size=UDim2.fromOffset(diameter,diameter)
-    flake.BackgroundColor3=Color3.fromRGB(255,255,255)
-    flake.BackgroundTransparency=snowRandom:NextNumber(.08,.35)
-    flake.BorderSizePixel=0
-    flake.Active=false
-    flake.ZIndex=2
-    corner(flake,diameter)
-    flake.Parent=SnowLayer
-    local x=snowRandom:NextNumber(.01,.99)
-    flake.Position=UDim2.new(x,0,snowRandom:NextNumber(-.04,.98),0)
-    task.spawn(function()
-        while flake.Parent and SnowGui.Parent do
-            local nextX=math.clamp(x+snowRandom:NextNumber(-.08,.08),.01,.99)
-            local fall=TweenService:Create(flake,TweenInfo.new(snowRandom:NextNumber(6,11),Enum.EasingStyle.Linear),{
-                Position=UDim2.new(nextX,0,1.03,0)
-            })
-            fall:Play()
-            fall.Completed:Wait()
-            if not flake.Parent or not SnowGui.Parent then break end
-            x=snowRandom:NextNumber(.01,.99)
-            flake.Position=UDim2.new(x,0,-.03,0)
-            flake.BackgroundTransparency=snowRandom:NextNumber(.08,.35)
-        end
-    end)
+local function fallingDots(layer,count)
+    for i=1,count do
+        local diameter=snowRandom:NextInteger(5,9)
+        local flake=Instance.new("Frame")
+        flake.Name="WhiteDot"..i
+        flake.Size=UDim2.fromOffset(diameter,diameter)
+        flake.BackgroundColor3=Color3.fromRGB(255,255,255)
+        flake.BackgroundTransparency=snowRandom:NextNumber(0,.18)
+        flake.BorderSizePixel=0
+        flake.Active=false
+        flake.ZIndex=21
+        local round=Instance.new("UICorner")
+        round.CornerRadius=UDim.new(1,0)
+        round.Parent=flake
+        flake.Parent=layer
+        local x=snowRandom:NextNumber(.02,.96)
+        flake.Position=UDim2.new(x,0,snowRandom:NextNumber(-.02,.98),0)
+        task.spawn(function()
+            while flake.Parent and Gui.Parent do
+                local nextX=math.clamp(x+snowRandom:NextNumber(-.08,.08),.02,.96)
+                local fall=TweenService:Create(flake,TweenInfo.new(snowRandom:NextNumber(5,9),Enum.EasingStyle.Linear),{
+                    Position=UDim2.new(nextX,0,1.03,0)
+                })
+                fall:Play()
+                fall.Completed:Wait()
+                if not flake.Parent or not Gui.Parent then break end
+                x=snowRandom:NextNumber(.02,.96)
+                flake.Position=UDim2.new(x,0,-.03,0)
+            end
+        end)
+    end
 end
+fallingDots(SnowLayer,65)
+fallingDots(PanelSnow,35)
 
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
