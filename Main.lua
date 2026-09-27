@@ -220,9 +220,9 @@ local function ambientDots(panel,columns,rows)
         end
     end
 end
-ambientDots(Main,4,3)
-ambientDots(Morph,3,3)
-ambientDots(BotsPanel,4,3)
+ambientDots(Main,4,4)
+ambientDots(Morph,4,3)
+ambientDots(BotsPanel,5,3)
 
 -- Permanent launchers so closed panels never disappear permanently.
 local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-58); Launch.Size=UDim2.fromOffset(106,108); Launch.BackgroundTransparency=1; Launch.Parent=Gui
