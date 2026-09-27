@@ -790,11 +790,24 @@ local function doMorph(user)
     humanoid.NameDisplayDistance=0
     humanoid.HealthDisplayDistance=0
 
+    -- The real character sets the movement and jump height. Place this
+    -- cosmetic rig at its own standing height so short avatars touch the floor.
+    local function standingRootHeight(rig,rigRoot,rigHumanoid)
+        local height=rigRoot.Size.Y/2+rigHumanoid.HipHeight
+        if rigHumanoid.RigType==Enum.HumanoidRigType.R6 then
+            local leg=rig:FindFirstChild("Left Leg")
+            if leg and leg:IsA("BasePart") then height=height+leg.Size.Y end
+        end
+        return height
+    end
+    local visualHeightOffset=standingRootHeight(model,root,humanoid)
+        -standingRootHeight(character,realRoot,realHumanoid)
+
     local function copyPose()
         for _,pair in ipairs(bodyPairs) do
             if not pair.visual.Parent or not pair.real.Parent then return false end
         end
-        root.CFrame=realRoot.CFrame
+        root.CFrame=realRoot.CFrame+Vector3.new(0,visualHeightOffset,0)
         for _,edge in ipairs(orderedPose) do
             -- Recover the live joint pose from the real character, then apply
             -- that pose around the target avatar's shoulder/neck/hip offsets.
