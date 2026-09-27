@@ -157,7 +157,7 @@ end
 
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
-local Morph=window("MorphPanel","Avatar Morpher","Physics-safe client visual morph",390,300,UDim2.new(.74,0,.28,0))
+local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,238,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",710,410,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
@@ -1656,33 +1656,20 @@ Builders.Appearance()
 Builders.Appearance=nil
 
 function Builders.Morph()
--- MORPH PANEL - redesigned to match the reference Avatar Morpher.
-local MorphTabs=Instance.new("Frame"); MorphTabs.Position=UDim2.fromOffset(12,72); MorphTabs.Size=UDim2.new(1,-24,0,38); MorphTabs.BackgroundTransparency=1; MorphTabs.Parent=Morph
-local myAvatarBtn=button(MorphTabs,"MY AVATAR",UDim2.fromOffset(0,0),UDim2.new(.5,-5,0,36),false)
-local playersBtn=button(MorphTabs,"PLAYERS",UDim2.new(.5,5,0,0),UDim2.new(.5,-5,0,36),true)
+-- Compact morph controls; Reset returns both the character and this preview to the player's account.
 local ownPreview="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"
-local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(13,121); preview.Size=UDim2.fromOffset(92,92); preview.BackgroundColor3=C.card2; preview.BorderSizePixel=0; preview.Image=ownPreview; preview.Parent=Morph; corner(preview,12)
-local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(118,121),UDim2.new(1,-130,0,22),10); morphLabel.TextColor3=C.muted; morphLabel.Font=Enum.Font.GothamBold
-local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(118,148),UDim2.new(1,-130,0,48),"")
-local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(13,222),UDim2.new(.62,-18,0,43),false)
-local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,222),UDim2.new(.38,-13,0,43),true)
-local morphStatus=label(Morph,"Visual morph only: movement remains under your control.",UDim2.fromOffset(13,270),UDim2.new(1,-26,0,24),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(12,76); preview.Size=UDim2.fromOffset(82,82); preview.BackgroundColor3=C.card2; preview.BorderSizePixel=0; preview.Image=ownPreview; preview.Parent=Morph; corner(preview,10)
+local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(106,78),UDim2.new(1,-118,0,18),10); morphLabel.TextColor3=C.muted; morphLabel.Font=Enum.Font.GothamBold
+local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(106,104),UDim2.new(1,-118,0,45),"")
+local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(12,166),UDim2.new(.62,-18,0,39),false)
+local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,166),UDim2.new(.38,-12,0,39),true)
+local morphStatus=label(Morph,"Visual morph only.",UDim2.fromOffset(12,211),UDim2.new(1,-24,0,18),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
 local previewRequest=0
 local function selectOwnAvatar()
     previewRequest=previewRequest+1
     morphInput.Text=P.Name
     preview.Image=ownPreview
-    myAvatarBtn.BackgroundColor3=C.purple
-    playersBtn.BackgroundColor3=C.card2
 end
-myAvatarBtn.MouseButton1Click:Connect(selectOwnAvatar)
-playersBtn.MouseButton1Click:Connect(function()
-    previewRequest=previewRequest+1
-    morphInput.Text=""
-    preview.Image=ownPreview
-    myAvatarBtn.BackgroundColor3=C.card2
-    playersBtn.BackgroundColor3=C.purple
-end)
 morphInput.FocusLost:Connect(function()
     local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$","")
     previewRequest=previewRequest+1
