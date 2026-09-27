@@ -619,6 +619,20 @@ local function repairAvatarRig(model,root,humanoid)
     return true
 end
 
+local function avatarFootOffset(model,root)
+    local lowest
+    for _,name in ipairs({"LeftFoot","RightFoot","Left Leg","Right Leg","LeftLowerLeg","RightLowerLeg"}) do
+        local part=model:FindFirstChild(name,true)
+        if part and part:IsA("BasePart") then
+            local bottom=part.Position.Y-part.Size.Y/2
+            if not lowest or bottom<lowest then lowest=bottom end
+        end
+    end
+    if lowest then return root.Position.Y-lowest end
+    local humanoid=model:FindFirstChildOfClass("Humanoid")
+    return humanoid and humanoid.HipHeight+root.Size.Y/2 or root.Size.Y/2
+end
+
 local function doMorph(user)
     local uid
     if not pcall(function() uid=Players:GetUserIdFromNameAsync(user) end) then return false,"Username not found." end
@@ -653,6 +667,8 @@ local function doMorph(user)
         model:Destroy()
         return false,"Avatar parts could not be attached; your appearance was kept."
     end
+    -- Align the visible avatar's feet with the real rig's feet.
+    local verticalOffset=avatarFootOffset(model,root)-avatarFootOffset(character,realRoot)
     root.Anchored=true
     humanoid.AutoRotate=false
     humanoid.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
@@ -664,6 +680,7 @@ local function doMorph(user)
     model.Name="SAE_MorphShell"
     MorphShell=model
     MorphAnim=animations(humanoid)
+    local realHumanoid=character:FindFirstChildOfClass("Humanoid")
     MorphConn=RunService.RenderStepped:Connect(function()
         if MorphShell~=model or not model.Parent then return end
         local r=P.Character==character and character:FindFirstChild("HumanoidRootPart")
@@ -673,9 +690,11 @@ local function doMorph(user)
         if horizontal.Magnitude>.001 then forward=horizontal.Unit end
         -- Move only the anchored root. Pivoting the whole model every frame
         -- fights the Animator and makes the body and accessories jitter.
-        root.CFrame=CFrame.lookAt(r.Position,r.Position+forward)
-        local v=r.AssemblyLinearVelocity
-        animate(MorphAnim,Vector3.new(v.X,0,v.Z).Magnitude)
+        local position=r.Position+Vector3.new(0,verticalOffset,0)
+        root.CFrame=CFrame.lookAt(position,position+forward)
+        -- Raw velocity can spike; play the visual walk cycle at normal speed.
+        local moving=realHumanoid and realHumanoid.MoveDirection.Magnitude>.05
+        animate(MorphAnim,moving and 16 or 0)
     end)
     hideChar()
     return true,"Morphed into @"..user.." (local appearance)"
