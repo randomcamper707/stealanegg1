@@ -223,30 +223,6 @@ local function animations(h)
     local it,rt; pcall(function() it=a:LoadAnimation(idle); rt=a:LoadAnimation(run) end); if it then it.Looped=true; it:Play(.1) end; if rt then rt.Looped=true end
     return {idle=it,run=rt,moving=false}
 end
-local function cosmeticAnimations(model,rigType)
-    local controller=Instance.new("AnimationController")
-    controller.Name="SAE_CosmeticAnimator"
-    controller.Parent=model
-    local animator=Instance.new("Animator")
-    animator.Parent=controller
-    local idle=Instance.new("Animation")
-    local run=Instance.new("Animation")
-    if rigType==Enum.HumanoidRigType.R15 then
-        idle.AnimationId="rbxassetid://507766666"
-        run.AnimationId="rbxassetid://507767714"
-    else
-        idle.AnimationId="rbxassetid://180435571"
-        run.AnimationId="rbxassetid://180426354"
-    end
-    local idleTrack,runTrack
-    pcall(function()
-        idleTrack=animator:LoadAnimation(idle)
-        runTrack=animator:LoadAnimation(run)
-    end)
-    if idleTrack then idleTrack.Looped=true; idleTrack:Play(.1) end
-    if runTrack then runTrack.Looped=true end
-    return {idle=idleTrack,run=runTrack,moving=false}
-end
 local function animate(st,speed)
     if not st then return end
     if speed>1.2 then
@@ -643,84 +619,142 @@ local function repairAvatarRig(model,root,humanoid)
     return true
 end
 
-local function avatarFootOffset(model,root)
-    local lowest
-    for _,name in ipairs({"LeftFoot","RightFoot","Left Leg","Right Leg","LeftLowerLeg","RightLowerLeg"}) do
-        local part=model:FindFirstChild(name,true)
-        if part and part:IsA("BasePart") then
-            local bottom=part.Position.Y-part.Size.Y/2
-            if not lowest or bottom<lowest then lowest=bottom end
-        end
-    end
-    if lowest then return root.Position.Y-lowest end
-    local humanoid=model:FindFirstChildOfClass("Humanoid")
-    return humanoid and humanoid.HipHeight+root.Size.Y/2 or root.Size.Y/2
-end
-
 local function doMorph(user)
     local uid
     if not pcall(function() uid=Players:GetUserIdFromNameAsync(user) end) then return false,"Username not found." end
     local model
     if not pcall(function() model=createAvatar(uid) end) or not model then return false,"Avatar could not be created." end
 
-    local root=model:FindFirstChild("HumanoidRootPart")
-    local humanoid=model:FindFirstChildOfClass("Humanoid")
     local character=P.Character
     local realRoot=character and character:FindFirstChild("HumanoidRootPart")
-    if not root or not humanoid or not realRoot then model:Destroy(); return false,"Morph root missing." end
-
-    for _,part in ipairs(model:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.Anchored=false
-            part.CanCollide=false
-            part.CanTouch=false
-            part.CanQuery=false
-            part.Massless=true
-            part.AssemblyLinearVelocity=Vector3.zero
-            part.AssemblyAngularVelocity=Vector3.zero
-        end
+    local realHumanoid=character and character:FindFirstChildOfClass("Humanoid")
+    local root=model:FindFirstChild("HumanoidRootPart")
+    local humanoid=model:FindFirstChildOfClass("Humanoid")
+    if not realRoot or not realHumanoid or not root or not humanoid then
+        model:Destroy()
+        return false,"Character or avatar rig unavailable."
     end
-    model.PrimaryPart=root
-    local look=realRoot.CFrame.LookVector
-    local flat=Vector3.new(look.X,0,look.Z)
-    local forward=flat.Magnitude>.001 and flat.Unit or Vector3.new(0,0,-1)
-    model:PivotTo(CFrame.lookAt(realRoot.Position,realRoot.Position+forward))
-    -- Keep the cosmetic model out of the normal Workspace character list.
+
+    -- A visual pose copy needs the same body-part names as the player rig.
+    if humanoid.RigType~=realHumanoid.RigType then
+        local matched
+        local ok=pcall(function()
+            local description=Players:GetHumanoidDescriptionFromUserIdAsync(uid)
+            matched=Players:CreateHumanoidModelFromDescriptionAsync(description,realHumanoid.RigType)
+        end)
+        model:Destroy()
+        if not ok or not matched then return false,"This avatar rig could not be matched to your character." end
+        model=matched
+        root=model:FindFirstChild("HumanoidRootPart")
+        humanoid=model:FindFirstChildOfClass("Humanoid")
+        if not root or not humanoid then model:Destroy(); return false,"Matched avatar rig unavailable." end
+    end
+
     local camera=workspace.CurrentCamera
     if not camera then model:Destroy(); return false,"Camera unavailable." end
+    model.PrimaryPart=root
+    model:PivotTo(realRoot.CFrame)
     model.Parent=camera
     local rigOk,assembled=pcall(function() return repairAvatarRig(model,root,humanoid) end)
     if not rigOk or not assembled or P.Character~=character then
         model:Destroy()
         return false,"Avatar parts could not be attached; your appearance was kept."
     end
-    -- A bounded foot adjustment avoids lifting the visual rig far above the player.
-    local verticalOffset=math.clamp(avatarFootOffset(model,root)-avatarFootOffset(character,realRoot),-4,4)
-    root.Anchored=true
-    -- The extra Humanoid is not a player. Remove its physics/controller
-    -- behavior after the avatar has been built and use an AnimationController.
-    local rigType=humanoid.RigType
-    humanoid:Destroy()
+    -- Remove any joint that accidentally points outside the cosmetic model.
+    for _,joint in ipairs(model:GetDescendants()) do
+        if joint:IsA("JointInstance") or joint:IsA("WeldConstraint") then
+            local p0,p1=joint.Part0,joint.Part1
+            if (p0 and not p0:IsDescendantOf(model)) or (p1 and not p1:IsDescendantOf(model)) then
+                joint:Destroy()
+            end
+        end
+    end
+    for part in pairs(connectedParts(root)) do
+        if not part:IsDescendantOf(model) then
+            model:Destroy()
+            return false,"Avatar rig was not isolated; your appearance was kept."
+        end
+    end
+
+    local bodyPairs={}
+    local bodyMap={}
+    for _,part in ipairs(model:GetChildren()) do
+        if part:IsA("BasePart") then
+            local realPart=character:FindFirstChild(part.Name)
+            if not realPart or not realPart:IsA("BasePart") then
+                model:Destroy()
+                return false,"Avatar body could not match your character."
+            end
+            bodyMap[part]=realPart
+            table.insert(bodyPairs,{visual=part,real=realPart})
+        end
+    end
+
+    -- Capture where each accessory sits relative to its target body part.
+    local accessories={}
+    for _,item in ipairs(model:GetChildren()) do
+        if item:IsA("Accessory") then
+            local handle=item:FindFirstChild("Handle")
+            if not handle or not handle:IsA("BasePart") then
+                model:Destroy()
+                return false,"Avatar accessory could not be displayed."
+            end
+            local attachedTo
+            for _,joint in ipairs(handle:GetChildren()) do
+                if joint:IsA("JointInstance") then
+                    if joint.Part0==handle and bodyMap[joint.Part1] then attachedTo=joint.Part1; break end
+                    if joint.Part1==handle and bodyMap[joint.Part0] then attachedTo=joint.Part0; break end
+                end
+            end
+            attachedTo=attachedTo or root
+            local info={handle=handle,body=attachedTo,offset=attachedTo.CFrame:ToObjectSpace(handle.CFrame),extras={}}
+            for _,part in ipairs(item:GetDescendants()) do
+                if part:IsA("BasePart") and part~=handle then
+                    table.insert(info.extras,{part=part,offset=handle.CFrame:ToObjectSpace(part.CFrame)})
+                end
+            end
+            table.insert(accessories,info)
+        end
+    end
+
+    -- These are display parts only. No moving or welded assembly is added
+    -- to the player's real character or simulated beside it.
+    for _,part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.CanCollide=false
+            part.CanTouch=false
+            part.CanQuery=false
+            part.Anchored=true
+        end
+    end
+    pcall(function() humanoid.EvaluateStateMachine=false end)
+    humanoid.AutoRotate=false
+    humanoid.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
+    humanoid.NameDisplayDistance=0
+    humanoid.HealthDisplayDistance=0
+
+    local function copyPose()
+        for _,pair in ipairs(bodyPairs) do
+            if not pair.visual.Parent or not pair.real.Parent then return false end
+            pair.visual.CFrame=pair.real.CFrame
+        end
+        for _,info in ipairs(accessories) do
+            info.handle.CFrame=info.body.CFrame*info.offset
+            for _,extra in ipairs(info.extras) do
+                extra.part.CFrame=info.handle.CFrame*extra.offset
+            end
+        end
+        return true
+    end
+    if not copyPose() then model:Destroy(); return false,"Character changed during morph." end
 
     resetMorph()
     model.Name="SAE_MorphShell"
     MorphShell=model
-    MorphAnim=cosmeticAnimations(model,rigType)
-    local realHumanoid=character:FindFirstChildOfClass("Humanoid")
     MorphConn=RunService.RenderStepped:Connect(function()
-        if MorphShell~=model or not model.Parent then return end
-        local r=P.Character==character and character:FindFirstChild("HumanoidRootPart")
-        if not r then resetMorph(); return end
-        local direction=r.CFrame.LookVector
-        local horizontal=Vector3.new(direction.X,0,direction.Z)
-        if horizontal.Magnitude>.001 then forward=horizontal.Unit end
-        -- Move only the anchored root. Pivoting the whole model every frame
-        -- fights the Animator and makes the body and accessories jitter.
-        local position=r.Position+Vector3.new(0,verticalOffset,0)
-        root.CFrame=CFrame.lookAt(position,position+forward)
-        -- Raw velocity can spike; play the visual walk cycle at normal speed.
-        local moving=realHumanoid and realHumanoid.MoveDirection.Magnitude>.05
-        animate(MorphAnim,moving and 16 or 0)
+        if MorphShell~=model or not model:IsDescendantOf(workspace) or P.Character~=character or not copyPose() then
+            resetMorph()
+        end
     end)
     hideChar()
     return true,"Morphed into @"..user.." (local appearance)"
