@@ -492,7 +492,7 @@ local function applyTag()
     local c=label(g,"@"..Username:gsub("^@",""),UDim2.fromOffset(0,52),UDim2.new(1,0,0,18),14); c.TextXAlignment=Enum.TextXAlignment.Center; c.TextColor3=Color3.fromRGB(215,215,220)
 end
 
--- Client-only visual morph. The display rig never participates in physics.
+-- Client-side appearance. Keep the real character and its controls untouched.
 local MorphShell=nil; local MorphConn=nil; local MorphAnim=nil; local Hidden={}
 local function restoreChar()
     for o,v in pairs(Hidden) do
@@ -519,57 +519,141 @@ local function resetMorph()
     MorphAnim=nil
     restoreChar()
 end
+
+local function connectedParts(root)
+    local connected={[root]=true}
+    for _,part in ipairs(root:GetConnectedParts(true)) do connected[part]=true end
+    return connected
+end
+
+local function repairAvatarRig(model,root,humanoid)
+    -- Client-created avatar models can omit accessory welds. Build the body
+    -- joints first, then weld each loose handle by matching attachments.
+    pcall(function() humanoid:BuildRigFromAttachments() end)
+    local connected=connectedParts(root)
+    local body={}
+    for _,part in ipairs(model:GetChildren()) do
+        if part:IsA("BasePart") then
+            table.insert(body,part)
+            if part~=root and not connected[part] then
+                local joint=Instance.new("WeldConstraint")
+                joint.Name="SAE_BodyFallback"
+                joint.Part0=root; joint.Part1=part; joint.Parent=root
+            end
+        end
+    end
+    connected=connectedParts(root)
+    for _,item in ipairs(model:GetChildren()) do
+        if item:IsA("Accessory") then
+            local handle=item:FindFirstChild("Handle")
+            if not handle or not handle:IsA("BasePart") then return false end
+            local bodyAttachment,handleAttachment
+            for _,att in ipairs(handle:GetDescendants()) do
+                if att:IsA("Attachment") and att.Parent:IsA("BasePart") then
+                    for _,part in ipairs(body) do
+                        local match=part:FindFirstChild(att.Name,true)
+                        if match and match:IsA("Attachment") and match.Parent:IsA("BasePart") then
+                            bodyAttachment=match; handleAttachment=att; break
+                        end
+                    end
+                end
+                if bodyAttachment then break end
+            end
+            if bodyAttachment then
+                -- Match the two attachment frames even if a stale weld exists.
+                for _,joint in ipairs(handle:GetChildren()) do
+                    if joint:IsA("JointInstance") and
+                        (joint.Name=="AccessoryWeld" or not joint.Part0 or not joint.Part1) then
+                        joint:Destroy()
+                    end
+                end
+                local joint=Instance.new("Weld")
+                joint.Name="AccessoryWeld"
+                joint.Part0=bodyAttachment.Parent
+                joint.Part1=handleAttachment.Parent
+                joint.C0=bodyAttachment.CFrame
+                joint.C1=handleAttachment.CFrame
+                handle.CFrame=joint.Part0.CFrame*joint.C0*joint.C1:Inverse()
+                joint.Parent=handle
+            elseif not connected[handle] then
+                return false
+            end
+        end
+    end
+    connected=connectedParts(root)
+    -- Keep extra pieces in a multi-part accessory attached to its handle.
+    for _,item in ipairs(model:GetChildren()) do
+        if item:IsA("Accessory") then
+            local handle=item:FindFirstChild("Handle")
+            for _,part in ipairs(item:GetDescendants()) do
+                if part:IsA("BasePart") and part~=handle and not connected[part] then
+                    local joint=Instance.new("WeldConstraint")
+                    joint.Name="SAE_AccessoryFallback"
+                    joint.Part0=handle; joint.Part1=part; joint.Parent=handle
+                end
+            end
+        end
+    end
+    connected=connectedParts(root)
+    for _,part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") and not connected[part] then return false end
+    end
+    return true
+end
+
 local function doMorph(user)
     local uid
     if not pcall(function() uid=Players:GetUserIdFromNameAsync(user) end) then return false,"Username not found." end
-    local m
-    if not pcall(function() m=createAvatar(uid) end) or not m then return false,"Avatar could not be created." end
+    local model
+    if not pcall(function() model=createAvatar(uid) end) or not model then return false,"Avatar could not be created." end
 
-    local sr=m:FindFirstChild("HumanoidRootPart")
-    local sh=m:FindFirstChildOfClass("Humanoid")
-    local ch=P.Character
-    local rr=ch and ch:FindFirstChild("HumanoidRootPart")
-    if not sr or not sh or not rr then m:Destroy(); return false,"Morph root missing." end
+    local root=model:FindFirstChild("HumanoidRootPart")
+    local humanoid=model:FindFirstChildOfClass("Humanoid")
+    local character=P.Character
+    local realRoot=character and character:FindFirstChild("HumanoidRootPart")
+    if not root or not humanoid or not realRoot then model:Destroy(); return false,"Morph root missing." end
 
-    -- Anchor only the root. Anchoring each accessory and limb separately
-    -- breaks the welds and joints that keep the avatar together.
-    for _,o in ipairs(m:GetDescendants()) do
-        if o:IsA("BasePart") then
-            o.Anchored=false
-            o.CanCollide=false
-            o.CanTouch=false
-            o.CanQuery=false
-            o.Massless=true
-            o.AssemblyLinearVelocity=Vector3.zero
-            o.AssemblyAngularVelocity=Vector3.zero
+    for _,part in ipairs(model:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Anchored=false
+            part.CanCollide=false
+            part.CanTouch=false
+            part.CanQuery=false
+            part.Massless=true
+            part.AssemblyLinearVelocity=Vector3.zero
+            part.AssemblyAngularVelocity=Vector3.zero
         end
     end
-    sr.Anchored=true
-    m.PrimaryPart=sr
-    sh.AutoRotate=false
-    sh.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
-    sh.NameDisplayDistance=0
-    sh.HealthDisplayDistance=0
-    pcall(function() sh.EvaluateStateMachine=false end)
-
-    resetMorph()
-    m.Name="SAE_MorphShell"
-    local look=rr.CFrame.LookVector
+    model.PrimaryPart=root
+    local look=realRoot.CFrame.LookVector
     local flat=Vector3.new(look.X,0,look.Z)
     local forward=flat.Magnitude>.001 and flat.Unit or Vector3.new(0,0,-1)
-    m:PivotTo(CFrame.lookAt(rr.Position,rr.Position+forward))
-    m.Parent=workspace.CurrentCamera or workspace
-    MorphShell=m
-    MorphAnim=animations(sh)
+    model:PivotTo(CFrame.lookAt(realRoot.Position,realRoot.Position+forward))
+    model.Parent=workspace
+    local rigOk,assembled=pcall(function() return repairAvatarRig(model,root,humanoid) end)
+    if not rigOk or not assembled or P.Character~=character then
+        model:Destroy()
+        return false,"Avatar parts could not be attached; your appearance was kept."
+    end
+    root.Anchored=true
+    humanoid.AutoRotate=false
+    humanoid.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
+    humanoid.NameDisplayDistance=0
+    humanoid.HealthDisplayDistance=0
+    pcall(function() humanoid.EvaluateStateMachine=false end)
+
+    resetMorph()
+    model.Name="SAE_MorphShell"
+    MorphShell=model
+    MorphAnim=animations(humanoid)
     MorphConn=RunService.RenderStepped:Connect(function()
-        if MorphShell~=m or not m.Parent then return end
-        local r=P.Character==ch and ch:FindFirstChild("HumanoidRootPart")
+        if MorphShell~=model or not model.Parent then return end
+        local r=P.Character==character and character:FindFirstChild("HumanoidRootPart")
         if not r then resetMorph(); return end
-        local look=r.CFrame.LookVector
-        local flat=Vector3.new(look.X,0,look.Z)
-        if flat.Magnitude>.001 then forward=flat.Unit end
-        -- Follow position and yaw only; never copy a tumbling root's pitch or roll.
-        m:PivotTo(CFrame.lookAt(r.Position,r.Position+forward))
+        local direction=r.CFrame.LookVector
+        local horizontal=Vector3.new(direction.X,0,direction.Z)
+        if horizontal.Magnitude>.001 then forward=horizontal.Unit end
+        model:PivotTo(CFrame.lookAt(r.Position,r.Position+forward))
         local v=r.AssemblyLinearVelocity
         animate(MorphAnim,Vector3.new(v.X,0,v.Z).Magnitude)
     end)
