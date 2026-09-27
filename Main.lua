@@ -159,6 +159,40 @@ end
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
+-- Soft UI starlight behind the controls. The labels do not capture input.
+local StarLayer=Instance.new("Frame")
+StarLayer.Name="Starlight"
+StarLayer.Size=UDim2.fromScale(1,1)
+StarLayer.BackgroundTransparency=1
+StarLayer.ClipsDescendants=true
+StarLayer.Active=false
+StarLayer.Parent=Main
+local starRandom=Random.new()
+for i=1,16 do
+    local star=Instance.new("TextLabel")
+    star.Name="Star"..i
+    star.BackgroundTransparency=1
+    star.Active=false
+    star.Text=(i%4==0) and "✦" or "✧"
+    star.Font=Enum.Font.GothamBold
+    star.TextSize=starRandom:NextInteger(9,16)
+    star.TextColor3=(i%3==0) and C.blue or C.purple2
+    star.TextTransparency=starRandom:NextNumber(.75,.92)
+    star.Size=UDim2.fromOffset(20,20)
+    star.Position=UDim2.new(starRandom:NextNumber(.03,.93),0,starRandom:NextNumber(.13,.94),0)
+    star.Parent=StarLayer
+    task.spawn(function()
+        task.wait(starRandom:NextNumber(0,2))
+        while star.Parent and Gui.Parent do
+            local tw=TweenService:Create(star,TweenInfo.new(starRandom:NextNumber(1.4,2.6),Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{TextTransparency=starRandom:NextNumber(.45,.65),Rotation=star.Rotation+20})
+            tw:Play(); tw.Completed:Wait()
+            if not star.Parent then break end
+            tw=TweenService:Create(star,TweenInfo.new(starRandom:NextNumber(1.4,2.6),Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{TextTransparency=starRandom:NextNumber(.82,.96),Rotation=star.Rotation+20})
+            tw:Play(); tw.Completed:Wait()
+        end
+    end)
+end
+
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",710,410,UDim2.new(.5,0,.5,0)); Console.Visible=false
@@ -1507,8 +1541,7 @@ local HomePage=newAdminPage("Home",false)
 local EggsPage=newAdminPage("Spawn eggs",false)
 local PatternPage=newAdminPage("Mixed egg layouts",false)
 local AnnouncePage=newAdminPage("Announcements",false)
-local EventsPage=newAdminPage("Meteor event",false)
-local BoostsPage=newAdminPage("Boosts",true)
+local AdminAbusePage=newAdminPage("Admin Abuse",true)
 local NamesPage=newAdminPage("Names",false)
 local SettingsPage=newAdminPage("Settings",false)
 
@@ -1517,13 +1550,14 @@ local Builders={}
 function Builders.Home()
 -- HOME
 local homeItems={
-    {"Eggs","Spawn eggs"},{"Announce","Announcements"},{"Events","Meteor event"},{"Boosts","Boosts"},
-    {"Names","Names"},{"Settings","Settings"}
+    {"Eggs","Spawn eggs"},{"Announce","Announcements"},{"Names","Names"},
+    {"Settings","Settings"},{"Admin Abuse","Admin Abuse"}
 }
 for i,item in ipairs(homeItems) do
     local row=math.floor((i-1)/2)
     local col=(i-1)%2
-    local b=button(HomePage,item[1],UDim2.new(col*.5,4,0,row*54+8),UDim2.new(.5,-8,0,44),true)
+    local isCombined=(item[1]=="Admin Abuse")
+    local b=button(HomePage,item[1],UDim2.new(isCombined and 0 or col*.5,4,0,row*54+8),isCombined and UDim2.new(1,-8,0,44) or UDim2.new(.5,-8,0,44),true)
     b.TextSize=11
     b.BackgroundColor3=C.purple
     b.BackgroundTransparency=.76
@@ -1689,8 +1723,18 @@ end
 Builders.Announcements()
 Builders.Announcements=nil
 
-function Builders.Meteor()
--- METEOR EVENT
+function Builders.AdminAbuse()
+-- METEOR EVENT: the first section of the combined scrollable page.
+local AdminList=Instance.new("UIListLayout")
+AdminList.Padding=UDim.new(0,9)
+AdminList.SortOrder=Enum.SortOrder.LayoutOrder
+AdminList.Parent=AdminAbusePage
+local EventsPage=Instance.new("Frame")
+EventsPage.Name="MeteorControls"
+EventsPage.Size=UDim2.new(1,-8,0,322)
+EventsPage.BackgroundTransparency=1
+EventsPage.LayoutOrder=1
+EventsPage.Parent=AdminAbusePage
 local eventTitle=label(EventsPage,"DRILL MONSTER METEOR",UDim2.fromOffset(5,4),UDim2.new(1,-10,0,26),13); eventTitle.Font=Enum.Font.GothamBold
 local eventDesc=label(EventsPage,"4x Drill Monster + 10 Drilla eggs. If the monster model is visible to the client it is cloned; otherwise the eggs/meteor still run.",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,70),10); eventDesc.TextWrapped=true; eventDesc.TextYAlignment=Enum.TextYAlignment.Top
 local meteorStatus=label(EventsPage,"Meteor display: cleared",UDim2.fromOffset(5,108),UDim2.new(1,-10,0,24),10); meteorStatus.TextColor3=C.muted
@@ -1707,23 +1751,16 @@ dropMeteorBtn.MouseButton1Click:Connect(function() local ok,msg=dropMeteorNow();
 setTimerBtn.MouseButton1Click:Connect(function() local s=math.clamp(tonumber(timerBox.Text) or 50,1,600); timerBox.Text=tostring(s); countdownBtn.Text="Start countdown - "..string.format("%02d:%02d",math.floor(s/60),s%60) end)
 clearMeteorBtn.MouseButton1Click:Connect(function() clearMeteor(); meteorStatus.Text="Meteor display: cleared"; meteorStatus.TextColor3=C.muted; countdownBtn.Text="Start countdown - 00:50" end)
 
-end
-Builders.Meteor()
-Builders.Meteor=nil
-
-function Builders.Boosts()
--- BOOSTS
-local BoostList=Instance.new("UIListLayout")
-BoostList.Padding=UDim.new(0,7)
-BoostList.Parent=BoostsPage
-local boostHeader=label(BoostsPage,"BOOSTS - local announce controls; configured remotes are called when present.",UDim2.new(),UDim2.new(1,-8,0,36),9)
-boostHeader.TextWrapped=true; boostHeader.TextColor3=C.muted
-for _,name in ipairs(BOOST_NAMES) do
+-- BOOSTS: all existing controls follow the meteor section.
+local boostHeader=label(AdminAbusePage,"BOOSTS - local announce controls; configured remotes are called when present.",UDim2.new(),UDim2.new(1,-8,0,36),9)
+boostHeader.TextWrapped=true; boostHeader.TextColor3=C.muted; boostHeader.LayoutOrder=2
+for index,name in ipairs(BOOST_NAMES) do
     local row=Instance.new("Frame")
     row.Size=UDim2.new(1,-8,0,86)
     row.BackgroundColor3=C.card
     row.BorderSizePixel=0
-    row.Parent=BoostsPage
+    row.Parent=AdminAbusePage
+    row.LayoutOrder=index+2
     corner(row,10); stroke(row,.62)
     local nm=label(row,name,UDim2.fromOffset(10,6),UDim2.new(1,-20,0,24),11); nm.Font=Enum.Font.GothamBold
     local state=label(row,"OFF",UDim2.fromOffset(10,39),UDim2.fromOffset(72,32),11); state.TextXAlignment=Enum.TextXAlignment.Center; state.Font=Enum.Font.GothamBold
@@ -1732,14 +1769,15 @@ for _,name in ipairs(BOOST_NAMES) do
     announce.MouseButton1Click:Connect(function() announceBoost(name,true); state.Text="ON"; state.TextColor3=C.green end)
     clear.MouseButton1Click:Connect(function() announceBoost(name,false); state.Text="OFF"; state.TextColor3=C.white end)
 end
-local clearAllBoosts=button(BoostsPage,"Clear all bottom effects",UDim2.new(),UDim2.new(1,-8,0,40),true)
+local clearAllBoosts=button(AdminAbusePage,"Clear all bottom effects",UDim2.new(),UDim2.new(1,-8,0,40),true)
+clearAllBoosts.LayoutOrder=#BOOST_NAMES+3
 clearAllBoosts.MouseButton1Click:Connect(function() for _,n in ipairs(BOOST_NAMES) do if BoostState[n] then announceBoost(n,false) end end end)
-BoostList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() BoostsPage.CanvasSize=UDim2.fromOffset(0,BoostList.AbsoluteContentSize.Y+12) end)
-task.defer(function() BoostsPage.CanvasSize=UDim2.fromOffset(0,BoostList.AbsoluteContentSize.Y+12) end)
+AdminList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() AdminAbusePage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
+task.defer(function() AdminAbusePage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
 
 end
-Builders.Boosts()
-Builders.Boosts=nil
+Builders.AdminAbuse()
+Builders.AdminAbuse=nil
 
 function Builders.Names()
 -- NAMES
