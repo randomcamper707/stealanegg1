@@ -159,19 +159,11 @@ end
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
--- White circular snowfall, with extra flakes over the admin panel so it is visible.
+-- Soft white dots drift and fade only inside the Admin Abuse panel.
 local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
 if oldSnow then oldSnow:Destroy() end
-local SnowLayer=Instance.new("Frame")
-SnowLayer.Name="FallingWhiteDots"
-SnowLayer.Size=UDim2.fromScale(1,1)
-SnowLayer.BackgroundTransparency=1
-SnowLayer.ClipsDescendants=true
-SnowLayer.Active=false
-SnowLayer.ZIndex=20
-SnowLayer.Parent=Gui
 local PanelSnow=Instance.new("Frame")
-PanelSnow.Name="PanelWhiteDots"
+PanelSnow.Name="AmbientWhiteDots"
 PanelSnow.Size=UDim2.fromScale(1,1)
 PanelSnow.BackgroundTransparency=1
 PanelSnow.ClipsDescendants=true
@@ -179,40 +171,45 @@ PanelSnow.Active=false
 PanelSnow.ZIndex=20
 PanelSnow.Parent=Main
 local snowRandom=Random.new()
-local function fallingDots(layer,count)
-    for i=1,count do
-        local diameter=snowRandom:NextInteger(5,9)
-        local flake=Instance.new("Frame")
-        flake.Name="WhiteDot"..i
-        flake.Size=UDim2.fromOffset(diameter,diameter)
-        flake.BackgroundColor3=Color3.fromRGB(255,255,255)
-        flake.BackgroundTransparency=snowRandom:NextNumber(0,.18)
-        flake.BorderSizePixel=0
-        flake.Active=false
-        flake.ZIndex=21
-        local round=Instance.new("UICorner")
-        round.CornerRadius=UDim.new(1,0)
-        round.Parent=flake
-        flake.Parent=layer
-        local x=snowRandom:NextNumber(.02,.96)
-        flake.Position=UDim2.new(x,0,snowRandom:NextNumber(-.02,.98),0)
-        task.spawn(function()
-            while flake.Parent and Gui.Parent do
-                local nextX=math.clamp(x+snowRandom:NextNumber(-.08,.08),.02,.96)
-                local fall=TweenService:Create(flake,TweenInfo.new(snowRandom:NextNumber(5,9),Enum.EasingStyle.Linear),{
-                    Position=UDim2.new(nextX,0,1.03,0)
-                })
-                fall:Play()
-                fall.Completed:Wait()
-                if not flake.Parent or not Gui.Parent then break end
-                x=snowRandom:NextNumber(.02,.96)
-                flake.Position=UDim2.new(x,0,-.03,0)
-            end
-        end)
-    end
+for i=1,26 do
+    local diameter=snowRandom:NextInteger(3,6)
+    local dot=Instance.new("Frame")
+    dot.Name="WhiteDot"..i
+    dot.Size=UDim2.fromOffset(diameter,diameter)
+    dot.BackgroundColor3=Color3.fromRGB(255,255,255)
+    dot.BackgroundTransparency=1
+    dot.BorderSizePixel=0
+    dot.Active=false
+    dot.ZIndex=21
+    local round=Instance.new("UICorner")
+    round.CornerRadius=UDim.new(1,0)
+    round.Parent=dot
+    dot.Parent=PanelSnow
+    task.spawn(function()
+        task.wait(snowRandom:NextNumber(0,2))
+        while dot.Parent and Gui.Parent do
+            local x=snowRandom:NextNumber(.03,.95)
+            local y=snowRandom:NextNumber(.08,.94)
+            dot.Position=UDim2.new(x,0,y,0)
+            local driftX=math.clamp(x+snowRandom:NextNumber(-.1,.1),.03,.95)
+            local driftY=math.clamp(y+snowRandom:NextNumber(-.08,.08),.08,.94)
+            local glow=TweenService:Create(dot,TweenInfo.new(snowRandom:NextNumber(1.3,2.3),Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{
+                Position=UDim2.new(driftX,0,driftY,0),
+                BackgroundTransparency=snowRandom:NextNumber(.25,.55)
+            })
+            glow:Play()
+            glow.Completed:Wait()
+            if not dot.Parent or not Gui.Parent then break end
+            task.wait(snowRandom:NextNumber(.2,.8))
+            local fade=TweenService:Create(dot,TweenInfo.new(snowRandom:NextNumber(1.2,2.2),Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{
+                Position=UDim2.new(math.clamp(driftX+snowRandom:NextNumber(-.06,.06),.03,.95),0,math.clamp(driftY+snowRandom:NextNumber(-.06,.06),.08,.94),0),
+                BackgroundTransparency=1
+            })
+            fade:Play()
+            fade.Completed:Wait()
+        end
+    end)
 end
-fallingDots(SnowLayer,65)
-fallingDots(PanelSnow,35)
 
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
