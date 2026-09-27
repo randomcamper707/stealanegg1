@@ -165,64 +165,9 @@ Morph.BackgroundTransparency=Main.BackgroundTransparency
 BotsPanel.BackgroundTransparency=Main.BackgroundTransparency
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",710,410,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
--- A sparse, evenly spaced field of white dots drifts and fades within each panel.
+-- Remove any overlay left by older versions.
 local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
 if oldSnow then oldSnow:Destroy() end
-local snowRandom=Random.new()
-local function ambientDots(panel,columns,rows)
-    local layer=Instance.new("Frame")
-    layer.Name="AmbientWhiteDots"
-    layer.Size=UDim2.fromScale(1,1)
-    layer.BackgroundTransparency=1
-    layer.ClipsDescendants=true
-    layer.Active=false
-    layer.ZIndex=20
-    layer.Parent=panel
-    for row=0,rows-1 do
-        for col=0,columns-1 do
-            local dot=Instance.new("Frame")
-            dot.Name="WhiteDot"
-            local diameter=snowRandom:NextInteger(3,5)
-            dot.Size=UDim2.fromOffset(diameter,diameter)
-            dot.BackgroundColor3=Color3.fromRGB(255,255,255)
-            dot.BackgroundTransparency=1
-            dot.BorderSizePixel=0
-            dot.Active=false
-            dot.ZIndex=21
-            local round=Instance.new("UICorner")
-            round.CornerRadius=UDim.new(1,0)
-            round.Parent=dot
-            dot.Parent=layer
-            local centerX=(col+.5)/columns
-            local centerY=(row+.5)/rows
-            task.spawn(function()
-                task.wait(snowRandom:NextNumber(0,3))
-                while dot.Parent and Gui.Parent do
-                    local x=math.clamp(centerX+snowRandom:NextNumber(-.07,.07),.02,.98)
-                    local y=math.clamp(centerY+snowRandom:NextNumber(-.07,.07),.02,.98)
-                    dot.Position=UDim2.fromScale(x,y)
-                    local nextX=math.clamp(x+snowRandom:NextNumber(-.045,.045),.02,.98)
-                    local nextY=math.clamp(y+snowRandom:NextNumber(-.045,.045),.02,.98)
-                    local fadeIn=TweenService:Create(dot,TweenInfo.new(snowRandom:NextNumber(1.8,2.8),Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{
-                        Position=UDim2.fromScale(nextX,nextY),
-                        BackgroundTransparency=snowRandom:NextNumber(.48,.72)
-                    })
-                    fadeIn:Play(); fadeIn.Completed:Wait()
-                    if not dot.Parent or not Gui.Parent then break end
-                    task.wait(snowRandom:NextNumber(.4,1.2))
-                    local fadeOut=TweenService:Create(dot,TweenInfo.new(snowRandom:NextNumber(1.8,2.8),Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{
-                        Position=UDim2.fromScale(math.clamp(nextX+snowRandom:NextNumber(-.035,.035),.02,.98),math.clamp(nextY+snowRandom:NextNumber(-.035,.035),.02,.98)),
-                        BackgroundTransparency=1
-                    })
-                    fadeOut:Play(); fadeOut.Completed:Wait()
-                end
-            end)
-        end
-    end
-end
-ambientDots(Main,4,4)
-ambientDots(Morph,4,4)
-ambientDots(BotsPanel,5,4)
 
 -- Permanent launchers so closed panels never disappear permanently.
 local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-58); Launch.Size=UDim2.fromOffset(106,108); Launch.BackgroundTransparency=1; Launch.Parent=Gui
