@@ -2691,7 +2691,43 @@ local ownPreview="rbxthumb://type=AvatarHeadShot&id="..P.UserId.."&w=150&h=150"
 local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(12,73); preview.Size=UDim2.fromOffset(78,78); preview.BackgroundColor3=C.card2; preview.BorderSizePixel=0; preview.Image=ownPreview; preview.Parent=Morph; corner(preview,10)
 local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(102,76),UDim2.new(1,-114,0,18),10); morphLabel.TextColor3=C.muted; morphLabel.Font=Enum.Font.GothamBold
 local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(102,101),UDim2.new(1,-114,0,43),"")
-local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(12,158),UDim2.new(.62,-18,0,37),false)
+local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(12,158),UDim2.new(.62,-18,0,37),true)
+-- Keep the label crisp: a UIGradient on a TextButton also tints its text.
+do
+    local idleColor=Color3.fromRGB(34,34,40)
+    local idleBorder=Color3.fromRGB(82,82,94)
+    morphBtn.BackgroundColor3=idleColor
+    morphBtn.BackgroundTransparency=0
+    morphBtn.AutoButtonColor=false
+    morphBtn.TextColor3=C.white
+    morphBtn.TextTransparency=0
+    morphBtn.TextStrokeTransparency=1
+    morphBtn.TextSize=13
+    morphBtn.TextScaled=false
+    local outline=stroke(morphBtn,.3)
+    outline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+    outline.Color=idleBorder
+    local fillTween,borderTween
+    local function setHover(hovered)
+        if fillTween then fillTween:Cancel() end
+        if borderTween then borderTween:Cancel() end
+        local transition=TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
+        fillTween=TweenService:Create(morphBtn,transition,{
+            BackgroundColor3=hovered and Color3.fromRGB(100,49,160) or idleColor
+        })
+        borderTween=TweenService:Create(outline,transition,{
+            Color=hovered and Color3.fromRGB(164,110,220) or idleBorder,
+            Transparency=hovered and .1 or .3
+        })
+        fillTween:Play()
+        borderTween:Play()
+    end
+    morphBtn.MouseEnter:Connect(function() setHover(true) end)
+    morphBtn.MouseLeave:Connect(function() setHover(false) end)
+    Morph:GetPropertyChangedSignal("Visible"):Connect(function()
+        if not Morph.Visible then setHover(false) end
+    end)
+end
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,158),UDim2.new(.38,-12,0,37),true)
 local roleLabel=label(Morph,"OVERHEAD ROLE",UDim2.fromOffset(12,203),UDim2.new(1,-24,0,16),9); roleLabel.TextColor3=C.muted; roleLabel.Font=Enum.Font.GothamBold
 local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true)
