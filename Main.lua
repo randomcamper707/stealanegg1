@@ -223,7 +223,7 @@ local function window(name,title,sub,w,h,pos)
 end
 
 -- Create every important panel immediately before any game scan.
-local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",344,224,UDim2.new(.22,0,.52,0))
+local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",344,172,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
@@ -2454,9 +2454,9 @@ local function showAdminPage(name,push)
     Nav.Visible=(name~="Home")
     -- Size each branch to its controls instead of leaving a tall empty window.
     local heights={
-        Home=224, ["Spawn eggs"]=398, ["Mixed egg layouts"]=352,
-        Announcements=336, ["Admin Abuse"]=404, Names=286,
-        ["Avatar Name"]=330, ["Announcements Profile"]=384, Settings=328
+        Home=172, ["Spawn eggs"]=398, ["Mixed egg layouts"]=352,
+        Announcements=336, ["Admin Abuse"]=286, ["Boost Effects"]=404, Meteor=364,
+        Names=286, ["Avatar Name"]=330, ["Announcements Profile"]=384
     }
     Main.Size=UDim2.fromOffset(344,heights[name] or 398)
     local top=name=="Home" and 68 or 100
@@ -2473,23 +2473,21 @@ local HomePage=newAdminPage("Home",false)
 local EggsPage=newAdminPage("Spawn eggs",false)
 local PatternPage=newAdminPage("Mixed egg layouts",false)
 local AnnouncePage=newAdminPage("Announcements",false)
-local AdminAbusePage=newAdminPage("Admin Abuse",true)
+local AdminAbusePage=newAdminPage("Admin Abuse",false)
 local NamesPage=newAdminPage("Names",false)
-local SettingsPage=newAdminPage("Settings",false)
 
 local Builders={}
 
 function Builders.Home()
 -- HOME
 local homeItems={
-    {"Eggs","Spawn eggs"},{"Announce","Announcements"},{"Names","Names"},
-    {"Settings","Settings"},{"Admin Abuse","Admin Abuse"}
+    {"Eggs","Spawn eggs"},{"Announce","Announcements"},
+    {"Names","Names"},{"Admin Abuse","Admin Abuse"}
 }
 for i,item in ipairs(homeItems) do
     local row=math.floor((i-1)/2)
     local col=(i-1)%2
-    local isCombined=(item[1]=="Admin Abuse")
-    local b=button(HomePage,item[1],UDim2.new(isCombined and 0 or col*.5,4,0,row*46+4),isCombined and UDim2.new(1,-8,0,36) or UDim2.new(.5,-8,0,36),true)
+    local b=button(HomePage,item[1],UDim2.new(col*.5,4,0,row*46+4),UDim2.new(.5,-8,0,36),true)
     b.TextSize=11
     b:SetAttribute("RestingColor",C.purple)
     b.BackgroundTransparency=.76
@@ -2659,17 +2657,25 @@ Builders.Announcements()
 Builders.Announcements=nil
 
 function Builders.AdminAbuse()
--- METEOR EVENT: the first section of the combined scrollable page.
+-- A small menu keeps boosts and meteor controls on separate branches.
+local BoostsPage=newAdminPage("Boost Effects",true)
+local EventsPage=newAdminPage("Meteor",false)
+section(AdminAbusePage,"EVENTS AND EFFECTS",4)
+local boostsBtn=button(AdminAbusePage,"Boost Effects",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,34),true)
+local boostsHint=label(AdminAbusePage,"Announce or clear any boost effect.",UDim2.fromOffset(9,68),UDim2.new(1,-18,0,24),11)
+boostsHint.TextWrapped=true; boostsHint.TextColor3=C.muted
+local meteorBtn=button(AdminAbusePage,"Meteor",UDim2.fromOffset(5,102),UDim2.new(1,-10,0,34),true)
+local meteorHint=label(AdminAbusePage,"Start a countdown, drop a meteor, or cancel it.",UDim2.fromOffset(9,142),UDim2.new(1,-18,0,28),11)
+meteorHint.TextWrapped=true; meteorHint.TextColor3=C.muted
+boostsBtn.MouseButton1Click:Connect(function() showAdminPage("Boost Effects",true) end)
+meteorBtn.MouseButton1Click:Connect(function() showAdminPage("Meteor",true) end)
+
 local AdminList=Instance.new("UIListLayout")
 AdminList.Padding=UDim.new(0,7)
 AdminList.SortOrder=Enum.SortOrder.LayoutOrder
-AdminList.Parent=AdminAbusePage
-local EventsPage=Instance.new("Frame")
-EventsPage.Name="MeteorControls"
-EventsPage.Size=UDim2.new(1,-8,0,254)
-EventsPage.BackgroundTransparency=1
-EventsPage.LayoutOrder=1
-EventsPage.Parent=AdminAbusePage
+AdminList.Parent=BoostsPage
+
+-- METEOR controls.
 local eventTitle=label(EventsPage,"DRILL MONSTER METEOR",UDim2.fromOffset(5,2),UDim2.new(1,-10,0,22),12); eventTitle.Font=Enum.Font.GothamBold
 local eventDesc=label(EventsPage,"Drops a meteor, 10 Drilla eggs, and up to 4 Drill Monsters.",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,42),11); eventDesc.TextWrapped=true; eventDesc.TextYAlignment=Enum.TextYAlignment.Top
 local meteorStatus=label(EventsPage,"No meteor active.",UDim2.fromOffset(5,76),UDim2.new(1,-10,0,20),10); meteorStatus.TextColor3=C.muted
@@ -2686,16 +2692,16 @@ dropMeteorBtn.MouseButton1Click:Connect(function() local ok,msg=dropMeteorNow();
 setTimerBtn.MouseButton1Click:Connect(function() local s=math.clamp(tonumber(timerBox.Text) or 50,1,600); timerBox.Text=tostring(s); countdownBtn.Text="Start countdown - "..string.format("%02d:%02d",math.floor(s/60),s%60) end)
 clearMeteorBtn.MouseButton1Click:Connect(function() clearMeteor(); meteorStatus.Text="No meteor active."; meteorStatus.TextColor3=C.muted; countdownBtn.Text="Start countdown - 00:50" end)
 
--- BOOSTS: all existing controls follow the meteor section.
-local boostHeader=label(AdminAbusePage,"BOOSTS - announce or clear an effect.",UDim2.new(),UDim2.new(1,-8,0,28),11)
-boostHeader.TextWrapped=true; boostHeader.TextColor3=C.muted; boostHeader.LayoutOrder=2
+-- BOOSTS: every existing effect stays in this scrollable branch.
+local boostHeader=label(BoostsPage,"BOOSTS - announce or clear an effect.",UDim2.new(),UDim2.new(1,-8,0,28),11)
+boostHeader.TextWrapped=true; boostHeader.TextColor3=C.muted; boostHeader.LayoutOrder=1
 for index,name in ipairs(BOOST_NAMES) do
     local row=Instance.new("Frame")
     row.Size=UDim2.new(1,-8,0,68)
     row.BackgroundColor3=C.card
     row.BorderSizePixel=0
-    row.Parent=AdminAbusePage
-    row.LayoutOrder=index+2
+    row.Parent=BoostsPage
+    row.LayoutOrder=index+1
     corner(row,10); stroke(row,.62)
     local nm=label(row,name,UDim2.fromOffset(8,4),UDim2.new(1,-20,0,20),11); nm.Font=Enum.Font.GothamBold
     local state=label(row,"OFF",UDim2.fromOffset(8,32),UDim2.fromOffset(50,28),11); state.TextXAlignment=Enum.TextXAlignment.Center; state.Font=Enum.Font.GothamBold
@@ -2704,11 +2710,11 @@ for index,name in ipairs(BOOST_NAMES) do
     announce.MouseButton1Click:Connect(function() announceBoost(name,true); state.Text="ON"; state.TextColor3=C.green end)
     clear.MouseButton1Click:Connect(function() announceBoost(name,false); state.Text="OFF"; state.TextColor3=C.white end)
 end
-local clearAllBoosts=button(AdminAbusePage,"Clear all boost effects",UDim2.new(),UDim2.new(1,-8,0,32),true)
-clearAllBoosts.LayoutOrder=#BOOST_NAMES+3
+local clearAllBoosts=button(BoostsPage,"Clear all boost effects",UDim2.new(),UDim2.new(1,-8,0,32),true)
+clearAllBoosts.LayoutOrder=#BOOST_NAMES+2
 clearAllBoosts.MouseButton1Click:Connect(function() for _,n in ipairs(BOOST_NAMES) do if BoostState[n] then announceBoost(n,false) end end end)
-AdminList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() AdminAbusePage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
-task.defer(function() AdminAbusePage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
+AdminList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() BoostsPage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
+task.defer(function() BoostsPage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
 
 end
 Builders.AdminAbuse()
@@ -2801,35 +2807,12 @@ end
 Builders.Names()
 Builders.Names=nil
 
-function Builders.Settings()
--- SETTINGS
-local mapCard=card(SettingsPage,UDim2.fromOffset(0,0),UDim2.new(1,0,0,132))
-section(mapCard,"MAP CENTER",4)
-local mapStatus=label(mapCard,"Not detected",UDim2.fromOffset(10,26),UDim2.new(1,-20,0,20),10); mapStatus.Font=Enum.Font.GothamBold; mapStatus.TextColor3=C.orange
-local detectMapBtn=button(mapCard,"AUTO DETECT",UDim2.fromOffset(10,54),UDim2.new(.5,-15,0,32),false)
-local setMapBtn=button(mapCard,"SET HERE",UDim2.new(.5,5,0,54),UDim2.new(.5,-15,0,32),true)
-local hideMapMarker=button(mapCard,"Toggle center marker",UDim2.fromOffset(10,94),UDim2.new(1,-20,0,30),true)
-local mapMarkerVisible=true
-local function refreshMapStatus() if MapCF then mapStatus.Text="LOCKED - "..MapName; mapStatus.TextColor3=C.green else mapStatus.Text="Not detected"; mapStatus.TextColor3=C.orange end end
-detectMapBtn.MouseButton1Click:Connect(function() local ok,msg=detectMapCenter(); refreshMapStatus(); if not ok then mapStatus.Text=msg; mapStatus.TextColor3=C.red end end)
-setMapBtn.MouseButton1Click:Connect(function() local ok,msg=setMapCenterHere(); refreshMapStatus(); if not ok then mapStatus.Text=msg; mapStatus.TextColor3=C.red end end)
-hideMapMarker.MouseButton1Click:Connect(function() mapMarkerVisible=not mapMarkerVisible; if MapMarker then MapMarker.Transparency=mapMarkerVisible and .72 or 1 end end)
-local rescanBtn=button(SettingsPage,"Rescan egg models",UDim2.fromOffset(0,140),UDim2.new(1,0,0,32),true)
-local settingsInfo=label(SettingsPage,"Set the map center or refresh the available egg models.",UDim2.fromOffset(5,182),UDim2.new(1,-10,0,36),11); settingsInfo.TextWrapped=true; settingsInfo.TextColor3=C.muted
-rescanBtn.MouseButton1Click:Connect(function() EggCache={}; EggTemplateCache={}; settingsInfo.Text="Egg models will refresh on the next spawn."; settingsInfo.TextColor3=C.green end)
-
-
--- Start map-center detection after the UI exists. Kept inside this scope so
--- refreshMapStatus does not have to remain a top-level local.
+-- Keep automatic map and safe-zone detection independent of navigation.
 task.spawn(function()
     task.wait(.6)
     if detectSafe then pcall(function() detectSafe() end) end
     detectMapCenter()
-    refreshMapStatus()
 end)
-end
-Builders.Settings()
-Builders.Settings=nil
 
 function Builders.Morph()
 -- Compact morph controls; Reset returns both the character and this preview to the player's account.
