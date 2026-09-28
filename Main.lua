@@ -117,62 +117,58 @@ local function button(par,t,p,s,dark)
     local x=Instance.new("TextButton")
     x.Position=p; x.Size=s
     x.BackgroundColor3=dark and C.card2 or C.purple
+    x:SetAttribute("RestingColor",x.BackgroundColor3)
     x.BorderSizePixel=0; x.AutoButtonColor=false
-    x.Text=t; x.TextColor3=C.white; x.Font=Enum.Font.GothamBold; x.TextSize=11
+    x.Text=t; x.TextColor3=C.white; x.TextTransparency=0
+    x.Font=Enum.Font.GothamBold; x.TextSize=11
     x.Parent=par; corner(x,8)
     if not dark then grad(x) end
-
-    -- Animate a separate value so hover never overwrites a control's state color.
-    local baseColor=x.BackgroundColor3
-    local renderedColor=baseColor
     local hovering=false
+    local idleTransparency=x.BackgroundTransparency
     local animation
-    local color=Instance.new("Color3Value")
-    color.Name="HoverColor"; color.Value=baseColor; color.Parent=x
     local gradients={}
-    local function render(value)
-        renderedColor=value
-        x.BackgroundColor3=value
-    end
-    color.Changed:Connect(render)
-    x:GetPropertyChangedSignal("BackgroundColor3"):Connect(function()
-        if x.BackgroundColor3==renderedColor then return end
-        baseColor=x.BackgroundColor3
-        if hovering then
-            render(color.Value)
-        else
-            if animation then animation:Cancel() end
-            color.Value=baseColor
-            renderedColor=baseColor
+    local function restoreGradients()
+        for gradient,enabled in pairs(gradients) do
+            if gradient.Parent==x then gradient.Enabled=enabled end
         end
+        gradients={}
+    end
+    local function paint()
+        if animation then animation:Cancel() end
+        animation=TweenService:Create(x,TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+            BackgroundColor3=hovering and Color3.fromRGB(100,49,160) or x:GetAttribute("RestingColor"),
+            BackgroundTransparency=hovering and 0 or idleTransparency
+        })
+        animation.Completed:Connect(function(state)
+            if state==Enum.PlaybackState.Completed and not hovering then restoreGradients() end
+        end)
+        animation:Play()
+    end
+    -- State changes use an attribute, separate from the animated background.
+    x:GetAttributeChangedSignal("RestingColor"):Connect(function()
+        if hovering then return end
+        if animation then animation:Cancel() end
+        restoreGradients()
+        x.BackgroundColor3=x:GetAttribute("RestingColor")
     end)
     local function setHover(value)
         if hovering==value then return end
-        hovering=value
-        if animation then animation:Cancel() end
-        if hovering then
-            gradients={}
+        if value then
+            if not animation or animation.PlaybackState~=Enum.PlaybackState.Playing then
+                idleTransparency=x.BackgroundTransparency
+            end
             for _,child in ipairs(x:GetChildren()) do
                 if child:IsA("UIGradient") then
-                    gradients[child]=child.Enabled
+                    if gradients[child]==nil then gradients[child]=child.Enabled end
                     child.Enabled=false
                 end
             end
-        else
-            for gradient,enabled in pairs(gradients) do
-                if gradient.Parent==x then gradient.Enabled=enabled end
-            end
-            gradients={}
         end
-        color.Value=x.BackgroundColor3
-        animation=TweenService:Create(color,TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-            Value=hovering and Color3.fromRGB(100,49,160) or baseColor
-        })
-        animation:Play()
+        hovering=value
+        paint()
     end
     x.MouseEnter:Connect(function() setHover(true) end)
     x.MouseLeave:Connect(function() setHover(false) end)
-    -- Closing a panel or switching pages must also release its hover state.
     local ancestor=x
     while ancestor and ancestor:IsA("GuiObject") do
         local watched=ancestor
@@ -1401,9 +1397,9 @@ local function setRole(role)
     Role=role
     applyTag()
     for _,selector in ipairs(RoleSelectors) do
-        selector.owner.BackgroundColor3=role=="OWNER" and C.red or C.card2
-        selector.coowner.BackgroundColor3=role=="CO-OWNER" and CoownerColor or C.card2
-        selector.admin.BackgroundColor3=role=="ADMIN" and C.purple or C.card2
+        selector.owner:SetAttribute("RestingColor",role=="OWNER" and C.red or C.card2)
+        selector.coowner:SetAttribute("RestingColor",role=="CO-OWNER" and CoownerColor or C.card2)
+        selector.admin:SetAttribute("RestingColor",role=="ADMIN" and C.purple or C.card2)
         if selector.status then
             selector.status.Text=role.." tag applied."
             selector.status.TextColor3=C.green
@@ -1412,9 +1408,9 @@ local function setRole(role)
 end
 local function addRoleSelector(owner,coowner,admin,status)
     table.insert(RoleSelectors,{owner=owner,coowner=coowner,admin=admin,status=status})
-    owner.BackgroundColor3=Role=="OWNER" and C.red or C.card2
-    coowner.BackgroundColor3=Role=="CO-OWNER" and CoownerColor or C.card2
-    admin.BackgroundColor3=Role=="ADMIN" and C.purple or C.card2
+    owner:SetAttribute("RestingColor",Role=="OWNER" and C.red or C.card2)
+    coowner:SetAttribute("RestingColor",Role=="CO-OWNER" and CoownerColor or C.card2)
+    admin:SetAttribute("RestingColor",Role=="ADMIN" and C.purple or C.card2)
     owner.MouseButton1Click:Connect(function() setRole("OWNER") end)
     coowner.MouseButton1Click:Connect(function() setRole("CO-OWNER") end)
     admin.MouseButton1Click:Connect(function() setRole("ADMIN") end)
@@ -2410,7 +2406,7 @@ Nav.Size=UDim2.new(1,-22,0,34)
 Nav.BackgroundTransparency=1
 Nav.Parent=Main
 local BackBtn=button(Nav,"Back",UDim2.fromOffset(0,0),UDim2.fromOffset(68,29),true)
-BackBtn.BackgroundColor3=C.purple
+BackBtn:SetAttribute("RestingColor",C.purple)
 BackBtn.BackgroundTransparency=.76
 local backOutline=stroke(BackBtn,.68); backOutline.Color=C.purple2
 local PageTitle=label(Nav,"",UDim2.fromOffset(80,0),UDim2.new(1,-80,0,31),13)
@@ -2486,11 +2482,11 @@ for i,item in ipairs(homeItems) do
     local isCombined=(item[1]=="Admin Abuse")
     local b=button(HomePage,item[1],UDim2.new(isCombined and 0 or col*.5,4,0,row*54+8),isCombined and UDim2.new(1,-8,0,44) or UDim2.new(.5,-8,0,44),true)
     b.TextSize=11
-    b.BackgroundColor3=C.purple
+    b:SetAttribute("RestingColor",C.purple)
     b.BackgroundTransparency=.76
     local outline=stroke(b,.72); outline.Color=C.purple2
-    b.MouseEnter:Connect(function() b.BackgroundTransparency=.63; outline.Transparency=.48 end)
-    b.MouseLeave:Connect(function() b.BackgroundTransparency=.76; outline.Transparency=.72 end)
+    b.MouseEnter:Connect(function() outline.Transparency=.48 end)
+    b.MouseLeave:Connect(function() outline.Transparency=.72 end)
     b.MouseButton1Click:Connect(function() showAdminPage(item[2],true) end)
 end
 
@@ -2563,10 +2559,10 @@ for i,v in ipairs(amountValues) do
     amountButtons[value]=b
     b.MouseButton1Click:Connect(function()
         Amount=value
-        for k,x in pairs(amountButtons) do x.BackgroundColor3=(k==Amount) and C.purple or C.card2 end
+        for k,x in pairs(amountButtons) do x:SetAttribute("RestingColor",(k==Amount) and C.purple or C.card2) end
     end)
 end
-amountButtons[200].BackgroundColor3=C.purple
+amountButtons[200]:SetAttribute("RestingColor",C.purple)
 
 local sizeValue=function() return EggSize end
 sizeValue=intSlider(EggsPage,217,25,500,5,100,"Egg scale",function(v) EggSize=v end)
@@ -2822,7 +2818,7 @@ end
 local CollectorsPage=newBotPage("Collectors")
 local BotAvatarPage=newBotPage("Avatar")
 local BotSammyPage=newBotPage("Sammy")
-local function showBotPage(n) for k,p in pairs(BotPages) do p.Visible=(k==n) end; for k,b in pairs(BotTabButtons) do b.BackgroundColor3=(k==n) and C.purple or C.card2 end end
+local function showBotPage(n) for k,p in pairs(BotPages) do p.Visible=(k==n) end; for k,b in pairs(BotTabButtons) do b:SetAttribute("RestingColor",(k==n) and C.purple or C.card2) end end
 for i,n in ipairs({"Collectors","Avatar","Sammy"}) do local b=button(BotTabs,n,UDim2.new((i-1)/3,3*(i-1),0,0),UDim2.new(1/3,-6,0,32),true); BotTabButtons[n]=b; b.MouseButton1Click:Connect(function() showBotPage(n) end) end
 
 -- Collectors tab
@@ -2842,13 +2838,13 @@ local clearNPCBtn=button(CollectorsPage,"Stop / clear NPCs",UDim2.fromOffset(0,2
 local collectorInfo=label(CollectorsPage,"Eggs: 0 | NPCs: 0",UDim2.fromOffset(5,326),UDim2.new(1,-16,0,28),9); collectorInfo.TextColor3=C.muted
 collectorsToggle.MouseButton1Click:Connect(function()
     if CollectorsEnabled then
-        CollectorsEnabled=false; collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle.BackgroundColor3=C.card2
+        CollectorsEnabled=false; collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle:SetAttribute("RestingColor",C.card2)
     else
         if arrlen(Bots)==0 then local ok,msg=spawnBots(NPCCount); if not ok then collectorInfo.Text=msg; collectorInfo.TextColor3=C.red; return end else CollectorsEnabled=true end
-        collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle.BackgroundColor3=C.purple; collectorInfo.Text="Collectors continuously collect -> safe zone -> repeat."; collectorInfo.TextColor3=C.green
+        collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle:SetAttribute("RestingColor",C.purple); collectorInfo.Text="Collectors continuously collect -> safe zone -> repeat."; collectorInfo.TextColor3=C.green
     end
 end)
-clearNPCBtn.MouseButton1Click:Connect(function() clearBots(); collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle.BackgroundColor3=C.card2; collectorInfo.Text="NPCs cleared."; collectorInfo.TextColor3=C.muted end)
+clearNPCBtn.MouseButton1Click:Connect(function() clearBots(); collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle:SetAttribute("RestingColor",C.card2); collectorInfo.Text="NPCs cleared."; collectorInfo.TextColor3=C.muted end)
 CollectorsPage.CanvasSize=UDim2.fromOffset(0,366)
 
 task.spawn(function()
@@ -2872,7 +2868,7 @@ local av2=label(avatarCard,"Random trail per bot: ON",UDim2.fromOffset(12,68),UD
 local av3=label(avatarCard,"Displayed speed stat: 200M - 270M",UDim2.fromOffset(12,99),UDim2.new(1,-24,0,22),11); av3.TextColor3=C.green
 local refreshBots=button(avatarCard,"Refresh collector avatars",UDim2.fromOffset(10,139),UDim2.new(1,-20,0,39),false)
 local avatarStatus=label(BotAvatarPage,"The same file works for your friend; avatars resolve against their current server too.",UDim2.fromOffset(5,211),UDim2.new(1,-16,0,50),9); avatarStatus.TextWrapped=true; avatarStatus.TextColor3=C.muted
-refreshBots.MouseButton1Click:Connect(function() if not safePosition() then avatarStatus.Text="Lock the safe zone first."; avatarStatus.TextColor3=C.orange; return end; local ok,msg=spawnBots(NPCCount); avatarStatus.Text=msg; avatarStatus.TextColor3=ok and C.green or C.red; if ok then CollectorsEnabled=true; collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle.BackgroundColor3=C.purple end end)
+refreshBots.MouseButton1Click:Connect(function() if not safePosition() then avatarStatus.Text="Lock the safe zone first."; avatarStatus.TextColor3=C.orange; return end; local ok,msg=spawnBots(NPCCount); avatarStatus.Text=msg; avatarStatus.TextColor3=ok and C.green or C.red; if ok then CollectorsEnabled=true; collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle:SetAttribute("RestingColor",C.purple) end end)
 BotAvatarPage.CanvasSize=UDim2.fromOffset(0,275)
 
 -- Sammy tab, closely matching the reference panel.
@@ -2882,7 +2878,7 @@ local spawnSammyButton=button(BotSammyPage,"Spawn Sammy",UDim2.fromOffset(0,sy),
 local markSpotButton=button(BotSammyPage,"Mark this spot",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,34),true); sy=sy+38
 local spotStatus=label(BotSammyPage,"World spot not marked - map center will be used",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,32),9); spotStatus.TextColor3=C.muted; spotStatus.TextWrapped=true; sy=sy+37
 local sammyEggButton=button(BotSammyPage,"Spawn 240 eggs / refill empty spots",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,38),false); sy=sy+45
-local clearSammyEggs=button(BotSammyPage,"CLEAR SAMMY EGGS",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,35),true); clearSammyEggs.BackgroundColor3=Color3.fromRGB(120,30,68); sy=sy+42
+local clearSammyEggs=button(BotSammyPage,"CLEAR SAMMY EGGS",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,35),true); clearSammyEggs:SetAttribute("RestingColor",Color3.fromRGB(120,30,68)); sy=sy+42
 local autoRefillBtn=button(BotSammyPage,"AUTO REFILL: OFF - after 50 gone",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,34),true); sy=sy+41
 local testBannerBtn=button(BotSammyPage,"Test banner",UDim2.fromOffset(0,sy),UDim2.new(.5,-8,0,33),true)
 local advertiseBtn=button(BotSammyPage,"ADVERTISE: OFF",UDim2.new(.5,3,0,sy),UDim2.new(.5,-9,0,33),true); sy=sy+42
@@ -2903,12 +2899,12 @@ spawnSammyButton.MouseButton1Click:Connect(function() if callRemote("SpawnSammy"
 markSpotButton.MouseButton1Click:Connect(function() local ok,msg=markSammySpot(); spotStatus.Text=msg; spotStatus.TextColor3=ok and C.green or C.red end)
 sammyEggButton.MouseButton1Click:Connect(function() local ok,msg=spawnSammyBatch(countBatch("SAMMY240")>0); sammyPanelStatus.Text=msg; sammyPanelStatus.TextColor3=ok and C.green or C.red end)
 clearSammyEggs.MouseButton1Click:Connect(function() local n=clearSpawnedEggs("SAMMY240"); sammyPanelStatus.Text="Cleared "..n.." Sammy egg(s)."; sammyPanelStatus.TextColor3=C.green end)
-autoRefillBtn.MouseButton1Click:Connect(function() SammyAutoRefill=not SammyAutoRefill; autoRefillBtn.Text=SammyAutoRefill and "AUTO REFILL: ON - after 50 gone" or "AUTO REFILL: OFF - after 50 gone"; autoRefillBtn.BackgroundColor3=SammyAutoRefill and C.purple or C.card2 end)
+autoRefillBtn.MouseButton1Click:Connect(function() SammyAutoRefill=not SammyAutoRefill; autoRefillBtn.Text=SammyAutoRefill and "AUTO REFILL: ON - after 50 gone" or "AUTO REFILL: OFF - after 50 gone"; autoRefillBtn:SetAttribute("RestingColor",SammyAutoRefill and C.purple or C.card2) end)
 testBannerBtn.MouseButton1Click:Connect(function() sammyBanner(SammyMessages[1] or "Sammy test banner") end)
-advertiseBtn.MouseButton1Click:Connect(function() SammyAdvertise=not SammyAdvertise; advertiseBtn.Text=SammyAdvertise and "ADVERTISE: ON" or "ADVERTISE: OFF"; advertiseBtn.BackgroundColor3=SammyAdvertise and C.purple or C.card2 end)
+advertiseBtn.MouseButton1Click:Connect(function() SammyAdvertise=not SammyAdvertise; advertiseBtn.Text=SammyAdvertise and "ADVERTISE: ON" or "ADVERTISE: OFF"; advertiseBtn:SetAttribute("RestingColor",SammyAdvertise and C.purple or C.card2) end)
 sammyDirect.FocusLost:Connect(function(enter) if enter and sammyDirect.Text~="" then sammyBanner(sammyDirect.Text); sammyDirect.Text="" end end)
 sammyRemove.MouseButton1Click:Connect(function() despawnSammy(); sammyPanelStatus.Text="Sammy removed."; sammyPanelStatus.TextColor3=C.muted end)
-local function setSammyMode(mode) SammyTagMode=mode; refreshSammyTag(); tagNone.BackgroundColor3=(mode=="NONE") and C.purple or C.card2; tagAdmin.BackgroundColor3=(mode=="ADMIN") and C.purple or C.card2; tagCreator.BackgroundColor3=(mode=="CREATOR") and C.purple or C.card2 end
+local function setSammyMode(mode) SammyTagMode=mode; refreshSammyTag(); tagNone:SetAttribute("RestingColor",(mode=="NONE") and C.purple or C.card2); tagAdmin:SetAttribute("RestingColor",(mode=="ADMIN") and C.purple or C.card2); tagCreator:SetAttribute("RestingColor",(mode=="CREATOR") and C.purple or C.card2) end
 tagNone.MouseButton1Click:Connect(function() setSammyMode("NONE") end); tagAdmin.MouseButton1Click:Connect(function() setSammyMode("ADMIN") end); tagCreator.MouseButton1Click:Connect(function() setSammyMode("CREATOR") end)
 local function sendSammyAd(index)
     local msg=SammyMessages[index]
