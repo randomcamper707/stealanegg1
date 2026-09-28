@@ -2693,9 +2693,12 @@ local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(102,76),UDim2.ne
 local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(102,101),UDim2.new(1,-114,0,43),"")
 local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(12,158),UDim2.new(.62,-18,0,37),true)
 -- Keep the label crisp: a UIGradient on a TextButton also tints its text.
+local setMorphSelected
 do
-    local idleColor=Color3.fromRGB(34,34,40)
-    local idleBorder=Color3.fromRGB(82,82,94)
+    local idleColor=C.card2 -- Match the Reset button.
+    local idleBorder=C.border
+    local selected=false
+    local hovering=false
     morphBtn.BackgroundColor3=idleColor
     morphBtn.BackgroundTransparency=0
     morphBtn.AutoButtonColor=false
@@ -2709,18 +2712,24 @@ do
     outline.Color=idleBorder
     local fillTween,borderTween
     local function setHover(hovered)
+        hovering=hovered
+        local highlighted=hovering or selected
         if fillTween then fillTween:Cancel() end
         if borderTween then borderTween:Cancel() end
         local transition=TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
         fillTween=TweenService:Create(morphBtn,transition,{
-            BackgroundColor3=hovered and Color3.fromRGB(100,49,160) or idleColor
+            BackgroundColor3=highlighted and Color3.fromRGB(100,49,160) or idleColor
         })
         borderTween=TweenService:Create(outline,transition,{
-            Color=hovered and Color3.fromRGB(164,110,220) or idleBorder,
-            Transparency=hovered and .1 or .3
+            Color=highlighted and Color3.fromRGB(164,110,220) or idleBorder,
+            Transparency=highlighted and .1 or .3
         })
         fillTween:Play()
         borderTween:Play()
+    end
+    setMorphSelected=function(value)
+        selected=value
+        setHover(hovering)
     end
     morphBtn.MouseEnter:Connect(function() setHover(true) end)
     morphBtn.MouseLeave:Connect(function() setHover(false) end)
@@ -2755,11 +2764,13 @@ end)
 morphBtn.MouseButton1Click:Connect(function()
     local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$","")
     if u=="" then morphStatus.Text="Enter a Roblox username."; morphStatus.TextColor3=C.orange; return end
+    setMorphSelected(true)
     morphBtn.Text="LOADING..."
     local ok,msg=doMorph(u); morphStatus.Text=msg; morphStatus.TextColor3=ok and C.green or C.red
     morphBtn.Text="MORPH"
 end)
 resetMorphBtn.MouseButton1Click:Connect(function()
+    setMorphSelected(false)
     resetMorph()
     selectOwnAvatar()
     morphStatus.Text="Original appearance restored."
