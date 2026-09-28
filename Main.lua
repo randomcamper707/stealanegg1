@@ -44,6 +44,7 @@ if hadStaleMorph and P.Character then
 end
 
 local CFG = {
+    AnnouncementProfile = {Name=P.DisplayName, Username=P.Name, UserId=P.UserId},
     SammyUsername = "SpyderSammy",
     MaxBots = 10,
     Remotes = {
@@ -2637,7 +2638,7 @@ local function sendAnnouncement(global)
     local msg=annBox.Text
     if msg=="" then annStatus.Text="Type an announcement first."; annStatus.TextColor3=C.orange; return end
     callRemote(global and "GlobalAnnouncement" or "Announcement",msg)
-    notice(P.UserId,Display,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..msg)
+    notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..msg)
     annStatus.Text=global and "Global announcement shown locally / remote called if configured." or "Announcement shown."
     annStatus.TextColor3=C.green
 end
@@ -2707,15 +2708,88 @@ Builders.AdminAbuse()
 Builders.AdminAbuse=nil
 
 function Builders.Names()
--- NAMES
-section(NamesPage,"CUSTOM DISPLAY NAME",8)
-local displayInput=textbox(NamesPage,"Display name",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,42),Display)
-section(NamesPage,"CUSTOM USERNAME LABEL",88)
-local usernameInput=textbox(NamesPage,"Username",UDim2.fromOffset(5,114),UDim2.new(1,-10,0,42),Username)
-local applyNameBtn=button(NamesPage,"Apply names",UDim2.fromOffset(5,171),UDim2.new(1,-10,0,40),false)
-local nameStatus=label(NamesPage,"These change only the custom overhead display, not the Roblox account.",UDim2.fromOffset(7,223),UDim2.new(1,-14,0,50),9); nameStatus.TextWrapped=true; nameStatus.TextColor3=C.muted
+-- Names is a menu; the original avatar controls remain on their own page.
+local avatarNamesPage=newAdminPage("Avatar Name",false)
+local announcementProfilePage=newAdminPage("Announcements Profile",false)
+section(NamesPage,"NAME SETTINGS",8)
+local avatarNamesBtn=button(NamesPage,"Avatar Name",UDim2.fromOffset(5,37),UDim2.new(1,-10,0,44),true)
+local avatarNamesHint=label(NamesPage,"Custom display name and username label above your avatar.",UDim2.fromOffset(9,86),UDim2.new(1,-18,0,34),10)
+avatarNamesHint.TextWrapped=true; avatarNamesHint.TextColor3=C.muted
+local announcementProfileBtn=button(NamesPage,"Announcements Profile",UDim2.fromOffset(5,139),UDim2.new(1,-10,0,44),true)
+local announcementProfileHint=label(NamesPage,"Choose the name and profile picture shown with announcements.",UDim2.fromOffset(9,188),UDim2.new(1,-18,0,38),10)
+announcementProfileHint.TextWrapped=true; announcementProfileHint.TextColor3=C.muted
+avatarNamesBtn.MouseButton1Click:Connect(function() showAdminPage("Avatar Name",true) end)
+announcementProfileBtn.MouseButton1Click:Connect(function() showAdminPage("Announcements Profile",true) end)
+
+section(avatarNamesPage,"CUSTOM DISPLAY NAME",8)
+local displayInput=textbox(avatarNamesPage,"Display name",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,42),Display)
+section(avatarNamesPage,"CUSTOM USERNAME LABEL",88)
+local usernameInput=textbox(avatarNamesPage,"Username",UDim2.fromOffset(5,114),UDim2.new(1,-10,0,42),Username)
+local applyNameBtn=button(avatarNamesPage,"Apply names",UDim2.fromOffset(5,171),UDim2.new(1,-10,0,40),false)
+local nameStatus=label(avatarNamesPage,"These change only the custom overhead display, not the Roblox account.",UDim2.fromOffset(7,223),UDim2.new(1,-14,0,50),9); nameStatus.TextWrapped=true; nameStatus.TextColor3=C.muted
 applyNameBtn.MouseButton1Click:Connect(function() if displayInput.Text~="" then Display=displayInput.Text end; if usernameInput.Text~="" then Username=usernameInput.Text:gsub("^@","") end; applyTag(); nameStatus.Text="Custom display updated."; nameStatus.TextColor3=C.green end)
 
+-- Announcement identity is independent of the character's overhead identity.
+local profile=CFG.AnnouncementProfile
+section(announcementProfilePage,"ANNOUNCEMENT NAME",8)
+local announcementNameInput=textbox(announcementProfilePage,"Name shown on announcements",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,42),profile.Name)
+section(announcementProfilePage,"ANNOUNCEMENT PROFILE PICTURE",90)
+local profilePreview=Instance.new("ImageLabel")
+profilePreview.Position=UDim2.fromOffset(5,116)
+profilePreview.Size=UDim2.fromOffset(78,78)
+profilePreview.BackgroundColor3=C.card2
+profilePreview.BorderSizePixel=0
+profilePreview.Image="rbxthumb://type=AvatarHeadShot&id="..profile.UserId.."&w=150&h=150"
+profilePreview.Parent=announcementProfilePage
+corner(profilePreview,10)
+local profilePictureInput=textbox(announcementProfilePage,"Roblox username or user ID",UDim2.fromOffset(95,116),UDim2.new(1,-100,0,42),profile.Username)
+local profilePictureHint=label(announcementProfilePage,"Use an exact Roblox username or user ID for the avatar picture.",UDim2.fromOffset(97,164),UDim2.new(1,-104,0,36),9)
+profilePictureHint.TextWrapped=true; profilePictureHint.TextColor3=C.muted
+local applyProfileBtn=button(announcementProfilePage,"Apply announcement profile",UDim2.fromOffset(5,217),UDim2.new(1,-10,0,40),true)
+local profileStatus=label(announcementProfilePage,"These settings change the sender name and picture on new announcements.",UDim2.fromOffset(7,269),UDim2.new(1,-14,0,48),9)
+profileStatus.TextWrapped=true; profileStatus.TextColor3=C.muted
+local savingProfile=false
+applyProfileBtn.MouseButton1Click:Connect(function()
+    if savingProfile then return end
+    local name=announcementNameInput.Text:gsub("^%s+",""):gsub("%s+$","")
+    local source=profilePictureInput.Text:gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")
+    if name=="" then
+        profileStatus.Text="Enter an announcement name."; profileStatus.TextColor3=C.orange; return
+    end
+    if source=="" then
+        profileStatus.Text="Enter a Roblox username or user ID for the picture."; profileStatus.TextColor3=C.orange; return
+    end
+    savingProfile=true
+    applyProfileBtn.Text="Looking up profile..."
+    local userId,accountName
+    local ok=pcall(function()
+        if source:lower()==profile.Username:lower() or source==tostring(profile.UserId) then
+            userId=profile.UserId; accountName=profile.Username
+        elseif source:match("^%d+$") then
+            userId=tonumber(source)
+            if not userId or userId<1 or userId>9007199254740991 then error("Invalid user ID") end
+            accountName=Players:GetNameFromUserIdAsync(userId)
+        else
+            userId=Players:GetUserIdFromNameAsync(source)
+            accountName=source
+        end
+    end)
+    savingProfile=false
+    applyProfileBtn.Text="Apply announcement profile"
+    if not ok or not userId or not accountName then
+        profileStatus.Text="Could not find that Roblox account. Check the username or user ID and try again."
+        profileStatus.TextColor3=C.red
+        return
+    end
+    profile.Name=name
+    profile.UserId=userId
+    profile.Username=accountName
+    announcementNameInput.Text=name
+    profilePictureInput.Text=accountName
+    profilePreview.Image="rbxthumb://type=AvatarHeadShot&id="..userId.."&w=150&h=150"
+    profileStatus.Text="Profile saved. New announcements will use this name and picture."
+    profileStatus.TextColor3=C.green
+end)
 end
 Builders.Names()
 Builders.Names=nil
@@ -2937,7 +3011,7 @@ local function command(raw)
     raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,C.muted); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
     if cmd=="/help" then line("/announcement <message>"); line("/globalAnnouncement <message>"); line("/teleport <player>"); line("/invite <player>"); line("/giveadmin <player>"); line("/givecoowner <player>"); line("/givevps <player> (or /giveps)"); line("/players"); return end
     if cmd=="/players" then local n={}; for _,p in ipairs(Players:GetPlayers()) do table.insert(n,p.Name) end; line("Players: "..table.concat(n,", ")); return end
-    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.orange); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(P.UserId,Display,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..rest); line("Announcement shown."); return end
+    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.orange); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..rest); line("Announcement shown."); return end
     if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.orange); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(P.UserId,Display,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Use /help.",C.red)
 end
 ci.FocusLost:Connect(function(enter) if enter then local t=ci.Text; ci.Text=""; command(t) end end); local function pre(t) ci.Text=t; ci:CaptureFocus() end; qh.MouseButton1Click:Connect(function() command("/help") end); qa.MouseButton1Click:Connect(function() pre("/announcement ") end); qg.MouseButton1Click:Connect(function() pre("/globalAnnouncement ") end); qt.MouseButton1Click:Connect(function() pre("/teleport ") end); qi.MouseButton1Click:Connect(function() pre("/invite ") end); qad.MouseButton1Click:Connect(function() pre("/giveadmin ") end); qcow.MouseButton1Click:Connect(function() pre("/givecoowner ") end); qv.MouseButton1Click:Connect(function() pre("/givevps ") end); qp.MouseButton1Click:Connect(function() command("/players") end); line(P.Name.." has joined the server."); line("TAB = open / close console.",C.blue); line("Quick commands restored.",C.blue)
