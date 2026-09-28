@@ -220,26 +220,26 @@ local function window(name,title,sub,w,h,pos)
     local st=label(hd,sub,UDim2.fromOffset(14,30),UDim2.new(1,-55,0,17),9); st.TextColor3=C.muted
     local cl=button(hd,"X",UDim2.new(1,-40,0,10),UDim2.fromOffset(28,28),true); cl.TextSize=12; cl.MouseButton1Click:Connect(function() f.Visible=false end)
     if name=="ConsolePanel" then
-        -- The console has its own neutral command-prompt theme.
+        -- Dark terminal with restrained purple header accents.
         f.BackgroundColor3=Color3.fromRGB(12,12,12)
-        hd.BackgroundColor3=Color3.fromRGB(24,24,24)
+        hd.BackgroundColor3=Color3.fromRGB(23,19,29)
         hd.Size=UDim2.new(1,0,0,48)
         for _,child in ipairs(f:GetChildren()) do
             if child:IsA("UICorner") then child.CornerRadius=UDim.new(0,3) end
-            if child:IsA("UIStroke") then child.Color=Color3.fromRGB(65,65,65); child.Transparency=.2 end
+            if child:IsA("UIStroke") then child.Color=Color3.fromRGB(112,75,155); child.Transparency=.2 end
         end
         hd:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,3)
         for _,child in ipairs(ac:GetChildren()) do child:Destroy() end
         ac.Position=UDim2.new(0,0,1,-1); ac.Size=UDim2.new(1,0,0,1)
-        ac.BackgroundColor3=Color3.fromRGB(55,55,55)
+        ac.BackgroundColor3=Color3.fromRGB(128,78,184)
         tt.Position=UDim2.fromOffset(12,4); tt.Size=UDim2.new(1,-54,0,20)
         tt.Font=Enum.Font.Code; tt.TextSize=14; tt.TextColor3=Color3.fromRGB(235,235,235)
         st.Position=UDim2.fromOffset(12,25); st.Size=UDim2.new(1,-54,0,16)
-        st.Font=Enum.Font.Code; st.TextSize=11; st.TextColor3=Color3.fromRGB(155,155,155)
+        st.Font=Enum.Font.Code; st.TextSize=11; st.TextColor3=Color3.fromRGB(185,165,208)
         cl.Position=UDim2.new(1,-38,0,9); cl.Size=UDim2.fromOffset(26,26)
         cl.Font=Enum.Font.Code; cl.TextSize=14
-        cl:SetAttribute("RestingColor",Color3.fromRGB(24,24,24))
-        cl:SetAttribute("HoverColor",Color3.fromRGB(60,60,60))
+        cl:SetAttribute("RestingColor",Color3.fromRGB(23,19,29))
+        cl:SetAttribute("HoverColor",Color3.fromRGB(62,43,82))
         cl:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,2)
     end
     drag(hd,f); return f
@@ -3012,8 +3012,8 @@ Builders.Collectors()
 Builders.Collectors=nil
 
 function Builders.Console()
--- Flat, neutral terminal styling, scoped to this console.
-local consoleText=Color3.fromRGB(225,225,225)
+-- Green command text with muted shortcuts and placeholders.
+local consoleText=C.green
 local consoleMuted=Color3.fromRGB(155,155,155)
 local out=Instance.new("ScrollingFrame")
 out.Position=UDim2.fromOffset(12,56)
@@ -3081,9 +3081,9 @@ local qcow=q("/givecoowner")
 local qv=q("/givevps")
 local function findPlayer(s) s=string.lower(tostring(s)); for _,p in ipairs(Players:GetPlayers()) do if string.lower(p.Name)==s or string.lower(p.DisplayName)==s then return p end end; for _,p in ipairs(Players:GetPlayers()) do if string.sub(string.lower(p.Name),1,string.len(s))==s then return p end end end
 local function command(raw)
-    raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,consoleMuted); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
-    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.orange); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..rest); line("Announcement shown."); return end
-    if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.orange); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Choose a shortcut below.",C.red)
+    raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,consoleText); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
+    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.red); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..rest); line("Announcement shown."); return end
+    if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.red); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Choose a shortcut below.",C.red)
 end
 ci.FocusLost:Connect(function(enter)
     if enter then local t=ci.Text; ci.Text=""; command(t) end
