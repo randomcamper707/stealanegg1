@@ -113,7 +113,77 @@ local function corner(o,r) local x=Instance.new("UICorner"); x.CornerRadius=UDim
 local function stroke(o,a) local x=Instance.new("UIStroke"); x.Color=C.border; x.Thickness=1; x.Transparency=a or .2; x.Parent=o; return x end
 local function grad(o) local x=Instance.new("UIGradient"); x.Color=ColorSequence.new(Color3.fromRGB(110,35,205),Color3.fromRGB(177,69,253)); x.Rotation=15; x.Parent=o end
 local function label(par,t,p,s,z) local x=Instance.new("TextLabel"); x.BackgroundTransparency=1; x.Position=p; x.Size=s; x.Text=t or ""; x.TextColor3=C.white; x.Font=Enum.Font.GothamMedium; x.TextSize=z or 11; x.TextXAlignment=Enum.TextXAlignment.Left; x.TextYAlignment=Enum.TextYAlignment.Center; x.Parent=par; return x end
-local function button(par,t,p,s,dark) local x=Instance.new("TextButton"); x.Position=p; x.Size=s; x.BackgroundColor3=dark and C.card2 or C.purple; x.BorderSizePixel=0; x.Text=t; x.TextColor3=C.white; x.Font=Enum.Font.GothamBold; x.TextSize=11; x.Parent=par; corner(x,8); if not dark then grad(x) end; return x end
+local function button(par,t,p,s,dark)
+    local x=Instance.new("TextButton")
+    x.Position=p; x.Size=s
+    x.BackgroundColor3=dark and C.card2 or C.purple
+    x.BorderSizePixel=0; x.AutoButtonColor=false
+    x.Text=t; x.TextColor3=C.white; x.Font=Enum.Font.GothamBold; x.TextSize=11
+    x.Parent=par; corner(x,8)
+    if not dark then grad(x) end
+
+    -- Animate a separate value so hover never overwrites a control's state color.
+    local baseColor=x.BackgroundColor3
+    local renderedColor=baseColor
+    local hovering=false
+    local animation
+    local color=Instance.new("Color3Value")
+    color.Name="HoverColor"; color.Value=baseColor; color.Parent=x
+    local gradients={}
+    local function render(value)
+        renderedColor=value
+        x.BackgroundColor3=value
+    end
+    color.Changed:Connect(render)
+    x:GetPropertyChangedSignal("BackgroundColor3"):Connect(function()
+        if x.BackgroundColor3==renderedColor then return end
+        baseColor=x.BackgroundColor3
+        if hovering then
+            render(color.Value)
+        else
+            if animation then animation:Cancel() end
+            color.Value=baseColor
+            renderedColor=baseColor
+        end
+    end)
+    local function setHover(value)
+        if hovering==value then return end
+        hovering=value
+        if animation then animation:Cancel() end
+        if hovering then
+            baseColor=x.BackgroundColor3
+            gradients={}
+            for _,child in ipairs(x:GetChildren()) do
+                if child:IsA("UIGradient") then
+                    gradients[child]=child.Enabled
+                    child.Enabled=false
+                end
+            end
+        else
+            for gradient,enabled in pairs(gradients) do
+                if gradient.Parent==x then gradient.Enabled=enabled end
+            end
+            gradients={}
+        end
+        color.Value=x.BackgroundColor3
+        animation=TweenService:Create(color,TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+            Value=hovering and Color3.fromRGB(100,49,160) or baseColor
+        })
+        animation:Play()
+    end
+    x.MouseEnter:Connect(function() setHover(true) end)
+    x.MouseLeave:Connect(function() setHover(false) end)
+    -- Closing a panel or switching pages must also release its hover state.
+    local ancestor=x
+    while ancestor and ancestor:IsA("GuiObject") do
+        local watched=ancestor
+        watched:GetPropertyChangedSignal("Visible"):Connect(function()
+            if not watched.Visible then setHover(false) end
+        end)
+        ancestor=ancestor.Parent
+    end
+    return x
+end
 local function textbox(par,ph,p,s,txt) local x=Instance.new("TextBox"); x.Position=p; x.Size=s; x.BackgroundColor3=C.card2; x.BorderSizePixel=0; x.Text=txt or ""; x.PlaceholderText=ph or ""; x.PlaceholderColor3=C.muted; x.TextColor3=C.white; x.Font=Enum.Font.GothamMedium; x.TextSize=11; x.ClearTextOnFocus=false; x.Parent=par; corner(x,8); stroke(x,.45); return x end
 local function card(par,p,s) local x=Instance.new("Frame"); x.Position=p; x.Size=s; x.BackgroundColor3=C.card; x.BorderSizePixel=0; x.Parent=par; corner(x,10); stroke(x,.55); return x end
 local function section(par,t,y) local x=label(par,t,UDim2.fromOffset(8,y),UDim2.new(1,-16,0,17),9); x.TextColor3=C.muted; x.Font=Enum.Font.GothamBold; return x end
@@ -2692,51 +2762,13 @@ local preview=Instance.new("ImageLabel"); preview.Position=UDim2.fromOffset(12,7
 local morphLabel=label(Morph,"ROBLOX USERNAME",UDim2.fromOffset(102,76),UDim2.new(1,-114,0,18),10); morphLabel.TextColor3=C.muted; morphLabel.Font=Enum.Font.GothamBold
 local morphInput=textbox(Morph,"Enter exact username",UDim2.fromOffset(102,101),UDim2.new(1,-114,0,43),"")
 local morphBtn=button(Morph,"MORPH",UDim2.fromOffset(12,158),UDim2.new(.62,-18,0,37),true)
--- Keep the label crisp: a UIGradient on a TextButton also tints its text.
-local setMorphSelected
-do
-    local idleColor=C.card2 -- Match the Reset button.
-    local idleBorder=C.border
-    local selected=false
-    local hovering=false
-    morphBtn.BackgroundColor3=idleColor
-    morphBtn.BackgroundTransparency=0
-    morphBtn.AutoButtonColor=false
-    morphBtn.TextColor3=C.white
-    morphBtn.TextTransparency=0
-    morphBtn.TextStrokeTransparency=1
-    morphBtn.TextSize=13
-    morphBtn.TextScaled=false
-    local outline=stroke(morphBtn,.3)
-    outline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
-    outline.Color=idleBorder
-    local fillTween,borderTween
-    local function setHover(hovered)
-        hovering=hovered
-        local highlighted=hovering or selected
-        if fillTween then fillTween:Cancel() end
-        if borderTween then borderTween:Cancel() end
-        local transition=TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
-        fillTween=TweenService:Create(morphBtn,transition,{
-            BackgroundColor3=highlighted and Color3.fromRGB(100,49,160) or idleColor
-        })
-        borderTween=TweenService:Create(outline,transition,{
-            Color=highlighted and Color3.fromRGB(164,110,220) or idleBorder,
-            Transparency=highlighted and .1 or .3
-        })
-        fillTween:Play()
-        borderTween:Play()
-    end
-    setMorphSelected=function(value)
-        selected=value
-        setHover(hovering)
-    end
-    morphBtn.MouseEnter:Connect(function() setHover(true) end)
-    morphBtn.MouseLeave:Connect(function() setHover(false) end)
-    Morph:GetPropertyChangedSignal("Visible"):Connect(function()
-        if not Morph.Visible then setHover(false) end
-    end)
-end
+-- Larger, fully opaque label; shared button styling handles hover.
+morphBtn.TextTransparency=0
+morphBtn.TextStrokeTransparency=1
+morphBtn.TextSize=13
+morphBtn.TextScaled=false
+local morphOutline=stroke(morphBtn,.3)
+morphOutline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,158),UDim2.new(.38,-12,0,37),true)
 local roleLabel=label(Morph,"OVERHEAD ROLE",UDim2.fromOffset(12,203),UDim2.new(1,-24,0,16),9); roleLabel.TextColor3=C.muted; roleLabel.Font=Enum.Font.GothamBold
 local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true)
@@ -2764,13 +2796,11 @@ end)
 morphBtn.MouseButton1Click:Connect(function()
     local u=morphInput.Text:gsub("^%s+",""):gsub("%s+$","")
     if u=="" then morphStatus.Text="Enter a Roblox username."; morphStatus.TextColor3=C.orange; return end
-    setMorphSelected(true)
     morphBtn.Text="LOADING..."
     local ok,msg=doMorph(u); morphStatus.Text=msg; morphStatus.TextColor3=ok and C.green or C.red
     morphBtn.Text="MORPH"
 end)
 resetMorphBtn.MouseButton1Click:Connect(function()
-    setMorphSelected(false)
     resetMorph()
     selectOwnAvatar()
     morphStatus.Text="Original appearance restored."
