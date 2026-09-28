@@ -137,7 +137,7 @@ local function button(par,t,p,s,dark)
     local function paint()
         if animation then animation:Cancel() end
         animation=TweenService:Create(x,TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
-            BackgroundColor3=hovering and Color3.fromRGB(100,49,160) or x:GetAttribute("RestingColor"),
+            BackgroundColor3=hovering and (x:GetAttribute("HoverColor") or Color3.fromRGB(100,49,160)) or x:GetAttribute("RestingColor"),
             BackgroundTransparency=hovering and 0 or idleTransparency
         })
         animation.Completed:Connect(function(state)
@@ -219,6 +219,29 @@ local function window(name,title,sub,w,h,pos)
     local tt=label(hd,title,UDim2.fromOffset(14,7),UDim2.new(1,-55,0,24),14); tt.Font=Enum.Font.GothamBold
     local st=label(hd,sub,UDim2.fromOffset(14,30),UDim2.new(1,-55,0,17),9); st.TextColor3=C.muted
     local cl=button(hd,"X",UDim2.new(1,-40,0,10),UDim2.fromOffset(28,28),true); cl.TextSize=12; cl.MouseButton1Click:Connect(function() f.Visible=false end)
+    if name=="ConsolePanel" then
+        -- The console has its own neutral command-prompt theme.
+        f.BackgroundColor3=Color3.fromRGB(12,12,12)
+        hd.BackgroundColor3=Color3.fromRGB(24,24,24)
+        hd.Size=UDim2.new(1,0,0,48)
+        for _,child in ipairs(f:GetChildren()) do
+            if child:IsA("UICorner") then child.CornerRadius=UDim.new(0,3) end
+            if child:IsA("UIStroke") then child.Color=Color3.fromRGB(65,65,65); child.Transparency=.2 end
+        end
+        hd:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,3)
+        for _,child in ipairs(ac:GetChildren()) do child:Destroy() end
+        ac.Position=UDim2.new(0,0,1,-1); ac.Size=UDim2.new(1,0,0,1)
+        ac.BackgroundColor3=Color3.fromRGB(55,55,55)
+        tt.Position=UDim2.fromOffset(12,4); tt.Size=UDim2.new(1,-54,0,20)
+        tt.Font=Enum.Font.Code; tt.TextSize=14; tt.TextColor3=Color3.fromRGB(235,235,235)
+        st.Position=UDim2.fromOffset(12,25); st.Size=UDim2.new(1,-54,0,16)
+        st.Font=Enum.Font.Code; st.TextSize=11; st.TextColor3=Color3.fromRGB(155,155,155)
+        cl.Position=UDim2.new(1,-38,0,9); cl.Size=UDim2.fromOffset(26,26)
+        cl.Font=Enum.Font.Code; cl.TextSize=14
+        cl:SetAttribute("RestingColor",Color3.fromRGB(24,24,24))
+        cl:SetAttribute("HoverColor",Color3.fromRGB(60,60,60))
+        cl:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,2)
+    end
     drag(hd,f); return f
 end
 
@@ -229,7 +252,7 @@ local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
 Morph.BackgroundTransparency=Main.BackgroundTransparency
 BotsPanel.BackgroundTransparency=Main.BackgroundTransparency
-local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",710,410,UDim2.new(.5,0,.5,0)); Console.Visible=false
+local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
 -- Remove any overlay left by older versions.
 local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
@@ -2989,23 +3012,92 @@ Builders.Collectors()
 Builders.Collectors=nil
 
 function Builders.Console()
--- Console.
-local out=Instance.new("ScrollingFrame"); out.Position=UDim2.fromOffset(11,72); out.Size=UDim2.new(1,-22,1,-152); out.BackgroundColor3=Color3.fromRGB(4,5,11); out.BorderSizePixel=0; out.CanvasSize=UDim2.new(); out.ScrollBarThickness=4; out.ScrollBarImageColor3=C.purple; out.Parent=Console; corner(out,8); local OL=Instance.new("UIListLayout"); OL.Padding=UDim.new(0,2); OL.Parent=out
-local function line(t,col) local x=label(out,t,UDim2.new(),UDim2.new(1,-8,0,19),14); x.Font=Enum.Font.Code; x.TextColor3=col or C.green; task.defer(function() out.CanvasSize=UDim2.new(0,0,0,OL.AbsoluteContentSize.Y+8); out.CanvasPosition=Vector2.new(0,OL.AbsoluteContentSize.Y) end) end
-local ci=textbox(Console,"enter a command",UDim2.new(0,11,1,-71),UDim2.new(1,-22,0,34),""); ci.Font=Enum.Font.Code; ci.TextXAlignment=Enum.TextXAlignment.Left
-local quick=Instance.new("ScrollingFrame"); quick.Position=UDim2.new(0,11,1,-32); quick.Size=UDim2.new(1,-22,0,25); quick.BackgroundTransparency=1; quick.BorderSizePixel=0; quick.ScrollingDirection=Enum.ScrollingDirection.X; quick.CanvasSize=UDim2.fromOffset(950,0); quick.ScrollBarThickness=2; quick.Parent=Console; local QL=Instance.new("UIListLayout"); QL.FillDirection=Enum.FillDirection.Horizontal; QL.Padding=UDim.new(0,5); QL.Parent=quick
-local function q(t,w) local b=button(quick,t,UDim2.new(),UDim2.fromOffset(w,23),true); b.Font=Enum.Font.Code; b.TextSize=10; return b end
-local qh=q("/help",53); local qa=q("/announcement",105); local qg=q("/globalAnnouncement",138); local qt=q("/teleport",74); local qi=q("/invite",62); local qad=q("/giveadmin",83); local qcow=q("/givecoowner",102); local qv=q("/givevps",76); local qp=q("/players",70)
+-- Flat, neutral terminal styling, scoped to this console.
+local consoleText=Color3.fromRGB(225,225,225)
+local consoleMuted=Color3.fromRGB(155,155,155)
+local out=Instance.new("ScrollingFrame")
+out.Position=UDim2.fromOffset(12,56)
+out.Size=UDim2.new(1,-24,1,-130)
+out.BackgroundTransparency=1; out.BorderSizePixel=0
+out.CanvasSize=UDim2.new()
+out.ScrollBarThickness=3; out.ScrollBarImageColor3=Color3.fromRGB(90,90,90)
+out.Parent=Console
+local OL=Instance.new("UIListLayout")
+OL.Padding=UDim.new(0,3); OL.SortOrder=Enum.SortOrder.LayoutOrder; OL.Parent=out
+local entryCount=0
+local function line(t,col)
+    entryCount=entryCount+1
+    local x=label(out,t,UDim2.new(),UDim2.new(1,-8,0,18),13)
+    x.Font=Enum.Font.Code; x.TextColor3=col or consoleText
+    x.TextWrapped=true; x.AutomaticSize=Enum.AutomaticSize.Y
+    x.TextYAlignment=Enum.TextYAlignment.Top; x.LayoutOrder=entryCount
+end
+OL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    out.CanvasSize=UDim2.fromOffset(0,OL.AbsoluteContentSize.Y+6)
+    out.CanvasPosition=Vector2.new(0,math.max(0,OL.AbsoluteContentSize.Y-out.AbsoluteSize.Y+6))
+end)
+
+local prompt=Instance.new("Frame")
+prompt.Position=UDim2.new(0,12,1,-66); prompt.Size=UDim2.new(1,-24,0,28)
+prompt.BackgroundTransparency=1; prompt.Parent=Console
+local promptMark=label(prompt,">",UDim2.fromOffset(0,0),UDim2.fromOffset(20,28),14)
+promptMark.Font=Enum.Font.Code; promptMark.TextColor3=consoleText
+local ci=Instance.new("TextBox")
+ci.Position=UDim2.fromOffset(22,0); ci.Size=UDim2.new(1,-22,1,0)
+ci.BackgroundTransparency=1; ci.BorderSizePixel=0
+ci.Text=""; ci.PlaceholderText="Enter a command..."
+ci.PlaceholderColor3=consoleMuted; ci.TextColor3=consoleText
+ci.Font=Enum.Font.Code; ci.TextSize=14
+ci.ClearTextOnFocus=false; ci.TextXAlignment=Enum.TextXAlignment.Left
+ci.Parent=prompt
+
+local quick=Instance.new("ScrollingFrame")
+quick.Position=UDim2.new(0,12,1,-30); quick.Size=UDim2.new(1,-24,0,22)
+quick.BackgroundTransparency=1; quick.BorderSizePixel=0
+quick.ScrollingDirection=Enum.ScrollingDirection.X; quick.CanvasSize=UDim2.new()
+quick.ScrollBarThickness=2; quick.ScrollBarImageColor3=Color3.fromRGB(90,90,90)
+quick.Parent=Console
+local QL=Instance.new("UIListLayout")
+QL.FillDirection=Enum.FillDirection.Horizontal; QL.Padding=UDim.new(0,4); QL.Parent=quick
+QL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    quick.CanvasSize=UDim2.fromOffset(QL.AbsoluteContentSize.X,0)
+end)
+local function q(t)
+    local width=math.ceil(TextService:GetTextSize(t,11,Enum.Font.Code,Vector2.new(1000,20)).X)+14
+    local b=button(quick,t,UDim2.new(),UDim2.fromOffset(width,20),true)
+    b.Font=Enum.Font.Code; b.TextSize=11; b.TextColor3=consoleMuted
+    b:SetAttribute("RestingColor",Color3.fromRGB(12,12,12))
+    b:SetAttribute("HoverColor",Color3.fromRGB(42,42,42))
+    b.BackgroundTransparency=1
+    b:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,2)
+    return b
+end
+local qa=q("/announcement")
+local qg=q("/globalAnnouncement")
+local qt=q("/teleport")
+local qi=q("/invite")
+local qad=q("/giveadmin")
+local qcow=q("/givecoowner")
+local qv=q("/givevps")
 local function findPlayer(s) s=string.lower(tostring(s)); for _,p in ipairs(Players:GetPlayers()) do if string.lower(p.Name)==s or string.lower(p.DisplayName)==s then return p end end; for _,p in ipairs(Players:GetPlayers()) do if string.sub(string.lower(p.Name),1,string.len(s))==s then return p end end end
 local function command(raw)
-    raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,C.muted); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
-    if cmd=="/help" then line("/announcement <message>"); line("/globalAnnouncement <message>"); line("/teleport <player>"); line("/invite <player>"); line("/giveadmin <player>"); line("/givecoowner <player>"); line("/givevps <player> (or /giveps)"); line("/players"); return end
-    if cmd=="/players" then local n={}; for _,p in ipairs(Players:GetPlayers()) do table.insert(n,p.Name) end; line("Players: "..table.concat(n,", ")); return end
+    raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,consoleMuted); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
     if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.orange); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..rest); line("Announcement shown."); return end
-    if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.orange); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Use /help.",C.red)
+    if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.orange); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Choose a shortcut below.",C.red)
 end
-ci.FocusLost:Connect(function(enter) if enter then local t=ci.Text; ci.Text=""; command(t) end end); local function pre(t) ci.Text=t; ci:CaptureFocus() end; qh.MouseButton1Click:Connect(function() command("/help") end); qa.MouseButton1Click:Connect(function() pre("/announcement ") end); qg.MouseButton1Click:Connect(function() pre("/globalAnnouncement ") end); qt.MouseButton1Click:Connect(function() pre("/teleport ") end); qi.MouseButton1Click:Connect(function() pre("/invite ") end); qad.MouseButton1Click:Connect(function() pre("/giveadmin ") end); qcow.MouseButton1Click:Connect(function() pre("/givecoowner ") end); qv.MouseButton1Click:Connect(function() pre("/givevps ") end); qp.MouseButton1Click:Connect(function() command("/players") end); line(P.Name.." has joined the server."); line("TAB = open / close console.",C.blue); line("Quick commands restored.",C.blue)
-
+ci.FocusLost:Connect(function(enter)
+    if enter then local t=ci.Text; ci.Text=""; command(t) end
+end)
+local function pre(t) ci.Text=t; ci:CaptureFocus() end
+qa.MouseButton1Click:Connect(function() pre("/announcement ") end)
+qg.MouseButton1Click:Connect(function() pre("/globalAnnouncement ") end)
+qt.MouseButton1Click:Connect(function() pre("/teleport ") end)
+qi.MouseButton1Click:Connect(function() pre("/invite ") end)
+qad.MouseButton1Click:Connect(function() pre("/giveadmin ") end)
+qcow.MouseButton1Click:Connect(function() pre("/givecoowner ") end)
+qv.MouseButton1Click:Connect(function() pre("/givevps ") end)
+line(P.Name.." has joined the server.")
+line("Enter a command or choose a shortcut below.",consoleMuted)
 end
 Builders.Console()
 Builders.Console=nil
