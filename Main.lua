@@ -223,7 +223,7 @@ local function window(name,title,sub,w,h,pos)
 end
 
 -- Create every important panel immediately before any game scan.
-local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",380,500,UDim2.new(.22,0,.52,0))
+local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",344,224,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
@@ -2402,21 +2402,22 @@ local EggSize=100
 local Pattern=PATTERNS[1]
 
 local Nav=Instance.new("Frame")
-Nav.Position=UDim2.fromOffset(11,70)
-Nav.Size=UDim2.new(1,-22,0,34)
+Nav.Position=UDim2.fromOffset(10,66)
+Nav.Size=UDim2.new(1,-20,0,28)
 Nav.BackgroundTransparency=1
 Nav.Parent=Main
-local BackBtn=button(Nav,"Back",UDim2.fromOffset(0,0),UDim2.fromOffset(68,29),true)
+local BackBtn=button(Nav,"Back",UDim2.fromOffset(0,0),UDim2.fromOffset(60,27),true)
 BackBtn:SetAttribute("RestingColor",C.purple)
 BackBtn.BackgroundTransparency=.76
 local backOutline=stroke(BackBtn,.68); backOutline.Color=C.purple2
-local PageTitle=label(Nav,"",UDim2.fromOffset(80,0),UDim2.new(1,-80,0,31),13)
+local PageTitle=label(Nav,"",UDim2.fromOffset(70,0),UDim2.new(1,-70,0,27),13)
 PageTitle.Font=Enum.Font.GothamBold
 
 local AdminHost=Instance.new("Frame")
-AdminHost.Position=UDim2.fromOffset(11,112)
-AdminHost.Size=UDim2.new(1,-22,1,-123)
+AdminHost.Position=UDim2.fromOffset(10,100)
+AdminHost.Size=UDim2.new(1,-20,1,-110)
 AdminHost.BackgroundTransparency=1
+AdminHost.ClipsDescendants=true
 AdminHost.Parent=Main
 local AdminPages={}
 local PageStack={}
@@ -2451,9 +2452,16 @@ local function showAdminPage(name,push)
     for n,p in pairs(AdminPages) do p.Visible=(n==name) end
     PageTitle.Text=name
     Nav.Visible=(name~="Home")
-    Main.Size=UDim2.fromOffset(name=="Home" and 344 or 380,name=="Home" and 260 or 500)
-    AdminHost.Position=UDim2.fromOffset(11,name=="Home" and 70 or 112)
-    AdminHost.Size=UDim2.new(1,-22,1,name=="Home" and -80 or -123)
+    -- Size each branch to its controls instead of leaving a tall empty window.
+    local heights={
+        Home=224, ["Spawn eggs"]=398, ["Mixed egg layouts"]=352,
+        Announcements=336, ["Admin Abuse"]=404, Names=286,
+        ["Avatar Name"]=330, ["Announcements Profile"]=384, Settings=328
+    }
+    Main.Size=UDim2.fromOffset(344,heights[name] or 398)
+    local top=name=="Home" and 68 or 100
+    AdminHost.Position=UDim2.fromOffset(10,top)
+    AdminHost.Size=UDim2.new(1,-20,1,-top-10)
 end
 
 BackBtn.MouseButton1Click:Connect(function()
@@ -2481,7 +2489,7 @@ for i,item in ipairs(homeItems) do
     local row=math.floor((i-1)/2)
     local col=(i-1)%2
     local isCombined=(item[1]=="Admin Abuse")
-    local b=button(HomePage,item[1],UDim2.new(isCombined and 0 or col*.5,4,0,row*54+8),isCombined and UDim2.new(1,-8,0,44) or UDim2.new(.5,-8,0,44),true)
+    local b=button(HomePage,item[1],UDim2.new(isCombined and 0 or col*.5,4,0,row*46+4),isCombined and UDim2.new(1,-8,0,36) or UDim2.new(.5,-8,0,36),true)
     b.TextSize=11
     b:SetAttribute("RestingColor",C.purple)
     b.BackgroundTransparency=.76
@@ -2534,9 +2542,9 @@ end
 
 function Builders.SpawnEggs()
 -- SPAWN EGGS page
-local chooseBtn=button(EggsPage,"Choose egg",UDim2.fromOffset(4,7),UDim2.new(.5,-8,0,50),true)
-local mixedBtn=button(EggsPage,"Mixed eggs",UDim2.new(.5,4,0,7),UDim2.new(.5,-8,0,50),true)
-local selectedEggLabel=label(EggsPage,"Selected: MIXED",UDim2.fromOffset(5,61),UDim2.new(1,-10,0,20),10)
+local chooseBtn=button(EggsPage,"Choose egg",UDim2.fromOffset(4,4),UDim2.new(.5,-8,0,34),true)
+local mixedBtn=button(EggsPage,"Mixed eggs",UDim2.new(.5,4,0,4),UDim2.new(.5,-8,0,34),true)
+local selectedEggLabel=label(EggsPage,"Selected: MIXED",UDim2.fromOffset(5,42),UDim2.new(1,-10,0,18),10)
 selectedEggLabel.TextColor3=C.purple2
 chooseBtn.MouseButton1Click:Connect(function()
     EggIndex=EggIndex+1
@@ -2546,17 +2554,15 @@ chooseBtn.MouseButton1Click:Connect(function()
 end)
 mixedBtn.MouseButton1Click:Connect(function() EggIndex=1; selectedEggLabel.Text="Selected: MIXED" end)
 
-local patternBtn=button(EggsPage,"Layout: ORIGINAL 6x20",UDim2.fromOffset(4,88),UDim2.new(1,-8,0,34),true)
+local patternBtn=button(EggsPage,"Layout: ORIGINAL 6x20",UDim2.fromOffset(4,64),UDim2.new(1,-8,0,30),true)
 patternBtn.MouseButton1Click:Connect(function() showAdminPage("Mixed egg layouts",true) end)
 
-section(EggsPage,"QUANTITY",129)
+section(EggsPage,"QUANTITY",101)
 local amountValues={200,250,300,350,400,450,500}
 local amountButtons={}
 for i,v in ipairs(amountValues) do
     local value=v
-    local row=(i<=4) and 0 or 1
-    local col=(row==0) and (i-1) or (i-5)
-    local b=button(EggsPage,tostring(value),UDim2.fromOffset(4+col*85,150+row*31),UDim2.fromOffset(78,26),true)
+    local b=button(EggsPage,tostring(value),UDim2.new((i-1)/7,3,0,124),UDim2.new(1/7,-6,0,26),true)
     amountButtons[value]=b
     b.MouseButton1Click:Connect(function()
         Amount=value
@@ -2566,10 +2572,10 @@ end
 amountButtons[200]:SetAttribute("RestingColor",C.purple)
 
 local sizeValue=function() return EggSize end
-sizeValue=intSlider(EggsPage,217,25,500,5,100,"Egg scale",function(v) EggSize=v end)
-local spawnBtn=button(EggsPage,"Spawn eggs BEHIND ME",UDim2.fromOffset(4,275),UDim2.new(1,-8,0,38),false)
-local clearEggBtn=button(EggsPage,"Clear spawned eggs",UDim2.fromOffset(4,320),UDim2.new(1,-8,0,34),true)
-local spawnStatus=label(EggsPage,"Spawns behind your current position, facing the same direction as you.",UDim2.fromOffset(5,361),UDim2.new(1,-10,0,42),9)
+sizeValue=intSlider(EggsPage,158,25,500,5,100,"Egg scale",function(v) EggSize=v end)
+local spawnBtn=button(EggsPage,"Spawn behind me",UDim2.fromOffset(4,210),UDim2.new(.5,-8,0,34),false)
+local clearEggBtn=button(EggsPage,"Clear eggs",UDim2.new(.5,4,0,210),UDim2.new(.5,-8,0,34),true)
+local spawnStatus=label(EggsPage,"Spawns eggs behind you, facing your direction.",UDim2.fromOffset(5,250),UDim2.new(1,-10,0,36),11)
 spawnStatus.TextWrapped=true; spawnStatus.TextColor3=C.muted
 spawnBtn.MouseButton1Click:Connect(function()
     spawnBtn.Text="SPAWNING..."
@@ -2582,14 +2588,14 @@ spawnBtn.MouseButton1Click:Connect(function()
     else
         local ok,made,cols,rows,fallbacks=spawnEggs(en,Amount,EggSize,Pattern,nil,"GENERAL")
         if ok then
-            spawnStatus.Text="Spawned "..tostring(made).." / "..tostring(Amount).." real egg visuals - "..Pattern.." - "..tostring(cols).." per row / "..tostring(rows).." rows."
+            spawnStatus.Text=tostring(made).." eggs spawned: "..tostring(rows).." rows, "..tostring(cols).." per row."
             spawnStatus.TextColor3=C.green
             notice(P.UserId,Display,": spawned",tostring(made).." EGGS","")
         else
             spawnStatus.Text=tostring(made); spawnStatus.TextColor3=C.red
         end
     end
-    spawnBtn.Text="Spawn eggs BEHIND ME"
+    spawnBtn.Text="Spawn behind me"
 end)
 clearEggBtn.MouseButton1Click:Connect(function() local n=clearSpawnedEggs(); spawnStatus.Text="Cleared "..n.." spawned egg(s)."; spawnStatus.TextColor3=C.green end)
 
@@ -2603,15 +2609,16 @@ local patternDescriptions={
     ["ALTERNATING ROWS"]="Whole rows alternate between two egg types.",
     ["DIAGONAL SEQUENCE"]="Each row shifts the sequence by one, making diagonal bands."
 }
-local patStatus=label(PatternPage,"MIXED EGGS - select a pattern",UDim2.fromOffset(5,3),UDim2.new(1,-10,0,25),11); patStatus.Font=Enum.Font.GothamBold
+local patStatus=label(PatternPage,"Choose a mixed egg layout",UDim2.fromOffset(5,0),UDim2.new(1,-10,0,22),11); patStatus.Font=Enum.Font.GothamBold
 for i,n in ipairs(PATTERNS) do
     local patternName=n
     local row=math.floor((i-1)/2); local col=(i-1)%2
     local wide=(i==arrlen(PATTERNS) and (arrlen(PATTERNS)%2==1))
-    local pos=wide and UDim2.fromOffset(4,35+row*58) or UDim2.new(col*.5,col==0 and 4 or 4,0,35+row*58)
-    local sz=wide and UDim2.new(1,-8,0,49) or UDim2.new(.5,-8,0,49)
+    local pos=wide and UDim2.fromOffset(4,30+row*42) or UDim2.new(col*.5,col==0 and 4 or 4,0,30+row*42)
+    local sz=wide and UDim2.new(1,-8,0,36) or UDim2.new(.5,-8,0,36)
     local b=button(PatternPage,patternName, pos, sz,true)
     b.TextSize=10
+    b.TextWrapped=true
     b.MouseButton1Click:Connect(function()
         Pattern=patternName
         patternBtn.Text="Layout: "..patternName
@@ -2619,7 +2626,7 @@ for i,n in ipairs(PATTERNS) do
         showAdminPage("Spawn eggs",false)
     end)
 end
-local patInfo=label(PatternPage,"Every layout is map-centered, physically spaced, and kept inside the detected floor as much as possible.",UDim2.new(0,5,1,-56),UDim2.new(1,-10,0,50),9)
+local patInfo=label(PatternPage,"Choose how mixed egg types repeat across rows.",UDim2.fromOffset(5,202),UDim2.new(1,-10,0,38),11)
 patInfo.TextWrapped=true; patInfo.TextColor3=C.muted
 
 end
@@ -2628,18 +2635,18 @@ Builders.SpawnEggs=nil
 
 function Builders.Announcements()
 -- ANNOUNCEMENTS
-section(AnnouncePage,"ANNOUNCEMENTS",8)
-local annBox=textbox(AnnouncePage,"Type your announcement...",UDim2.fromOffset(5,38),UDim2.new(1,-10,0,52),"")
-local annSend=button(AnnouncePage,"Send announcement",UDim2.fromOffset(5,101),UDim2.new(1,-10,0,38),false)
-local annGlobal=button(AnnouncePage,"Send GLOBAL announcement",UDim2.fromOffset(5,146),UDim2.new(1,-10,0,36),true)
-local annClear=button(AnnouncePage,"Clear announcement",UDim2.fromOffset(5,189),UDim2.new(1,-10,0,36),true)
-local annStatus=label(AnnouncePage,"Centered banner uses the approved verified badge.",UDim2.fromOffset(7,235),UDim2.new(1,-14,0,42),9); annStatus.TextWrapped=true; annStatus.TextColor3=C.muted
+section(AnnouncePage,"ANNOUNCEMENTS",4)
+local annBox=textbox(AnnouncePage,"Type your announcement...",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,42),"")
+local annSend=button(AnnouncePage,"Send announcement",UDim2.fromOffset(5,78),UDim2.new(1,-10,0,34),false)
+local annGlobal=button(AnnouncePage,"Send global announcement",UDim2.fromOffset(5,118),UDim2.new(1,-10,0,32),true)
+local annClear=button(AnnouncePage,"Clear announcement",UDim2.fromOffset(5,156),UDim2.new(1,-10,0,30),true)
+local annStatus=label(AnnouncePage,"Uses the name and picture saved in Names.",UDim2.fromOffset(7,194),UDim2.new(1,-14,0,32),11); annStatus.TextWrapped=true; annStatus.TextColor3=C.muted
 local function sendAnnouncement(global)
     local msg=annBox.Text
     if msg=="" then annStatus.Text="Type an announcement first."; annStatus.TextColor3=C.orange; return end
     callRemote(global and "GlobalAnnouncement" or "Announcement",msg)
     notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..msg)
-    annStatus.Text=global and "Global announcement shown locally / remote called if configured." or "Announcement shown."
+    annStatus.Text=global and "Global announcement displayed." or "Announcement shown."
     annStatus.TextColor3=C.green
 end
 annSend.MouseButton1Click:Connect(function() sendAnnouncement(false) end)
@@ -2654,50 +2661,50 @@ Builders.Announcements=nil
 function Builders.AdminAbuse()
 -- METEOR EVENT: the first section of the combined scrollable page.
 local AdminList=Instance.new("UIListLayout")
-AdminList.Padding=UDim.new(0,9)
+AdminList.Padding=UDim.new(0,7)
 AdminList.SortOrder=Enum.SortOrder.LayoutOrder
 AdminList.Parent=AdminAbusePage
 local EventsPage=Instance.new("Frame")
 EventsPage.Name="MeteorControls"
-EventsPage.Size=UDim2.new(1,-8,0,322)
+EventsPage.Size=UDim2.new(1,-8,0,254)
 EventsPage.BackgroundTransparency=1
 EventsPage.LayoutOrder=1
 EventsPage.Parent=AdminAbusePage
-local eventTitle=label(EventsPage,"DRILL MONSTER METEOR",UDim2.fromOffset(5,4),UDim2.new(1,-10,0,26),13); eventTitle.Font=Enum.Font.GothamBold
-local eventDesc=label(EventsPage,"4x Drill Monster + 10 Drilla eggs. If the monster model is visible to the client it is cloned; otherwise the eggs/meteor still run.",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,70),10); eventDesc.TextWrapped=true; eventDesc.TextYAlignment=Enum.TextYAlignment.Top
-local meteorStatus=label(EventsPage,"Meteor display: cleared",UDim2.fromOffset(5,108),UDim2.new(1,-10,0,24),10); meteorStatus.TextColor3=C.muted
-local countdownBtn=button(EventsPage,"Start countdown - 00:50",UDim2.fromOffset(5,143),UDim2.new(1,-10,0,38),false)
-local dropMeteorBtn=button(EventsPage,"Drop meteor now",UDim2.fromOffset(5,188),UDim2.new(1,-10,0,36),true)
-local timerBox=textbox(EventsPage,"Timer seconds (1-600)",UDim2.fromOffset(5,232),UDim2.new(.5,-8,0,36),"50")
-local setTimerBtn=button(EventsPage,"Set timer",UDim2.new(.5,3,0,232),UDim2.new(.5,-8,0,36),true)
-local clearMeteorBtn=button(EventsPage,"Clear / cancel",UDim2.fromOffset(5,276),UDim2.new(1,-10,0,36),true)
+local eventTitle=label(EventsPage,"DRILL MONSTER METEOR",UDim2.fromOffset(5,2),UDim2.new(1,-10,0,22),12); eventTitle.Font=Enum.Font.GothamBold
+local eventDesc=label(EventsPage,"Drops a meteor, 10 Drilla eggs, and up to 4 Drill Monsters.",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,42),11); eventDesc.TextWrapped=true; eventDesc.TextYAlignment=Enum.TextYAlignment.Top
+local meteorStatus=label(EventsPage,"No meteor active.",UDim2.fromOffset(5,76),UDim2.new(1,-10,0,20),10); meteorStatus.TextColor3=C.muted
+local countdownBtn=button(EventsPage,"Start countdown - 00:50",UDim2.fromOffset(5,102),UDim2.new(1,-10,0,32),false)
+local dropMeteorBtn=button(EventsPage,"Drop meteor now",UDim2.fromOffset(5,140),UDim2.new(1,-10,0,32),true)
+local timerBox=textbox(EventsPage,"Timer seconds (1-600)",UDim2.fromOffset(5,178),UDim2.new(.5,-8,0,32),"50")
+local setTimerBtn=button(EventsPage,"Set timer",UDim2.new(.5,3,0,178),UDim2.new(.5,-8,0,32),true)
+local clearMeteorBtn=button(EventsPage,"Clear / cancel",UDim2.fromOffset(5,216),UDim2.new(1,-10,0,30),true)
 countdownBtn.MouseButton1Click:Connect(function()
     local seconds=tonumber(timerBox.Text) or 50
     startMeteorCountdown(seconds,function(s) countdownBtn.Text="Countdown - "..string.format("%02d:%02d",math.floor(s/60),s%60); meteorStatus.Text="Meteor countdown active"; meteorStatus.TextColor3=C.orange end)
 end)
 dropMeteorBtn.MouseButton1Click:Connect(function() local ok,msg=dropMeteorNow(); meteorStatus.Text=msg; meteorStatus.TextColor3=ok and C.green or C.red end)
 setTimerBtn.MouseButton1Click:Connect(function() local s=math.clamp(tonumber(timerBox.Text) or 50,1,600); timerBox.Text=tostring(s); countdownBtn.Text="Start countdown - "..string.format("%02d:%02d",math.floor(s/60),s%60) end)
-clearMeteorBtn.MouseButton1Click:Connect(function() clearMeteor(); meteorStatus.Text="Meteor display: cleared"; meteorStatus.TextColor3=C.muted; countdownBtn.Text="Start countdown - 00:50" end)
+clearMeteorBtn.MouseButton1Click:Connect(function() clearMeteor(); meteorStatus.Text="No meteor active."; meteorStatus.TextColor3=C.muted; countdownBtn.Text="Start countdown - 00:50" end)
 
 -- BOOSTS: all existing controls follow the meteor section.
-local boostHeader=label(AdminAbusePage,"BOOSTS - local announce controls; configured remotes are called when present.",UDim2.new(),UDim2.new(1,-8,0,36),9)
+local boostHeader=label(AdminAbusePage,"BOOSTS - announce or clear an effect.",UDim2.new(),UDim2.new(1,-8,0,28),11)
 boostHeader.TextWrapped=true; boostHeader.TextColor3=C.muted; boostHeader.LayoutOrder=2
 for index,name in ipairs(BOOST_NAMES) do
     local row=Instance.new("Frame")
-    row.Size=UDim2.new(1,-8,0,86)
+    row.Size=UDim2.new(1,-8,0,68)
     row.BackgroundColor3=C.card
     row.BorderSizePixel=0
     row.Parent=AdminAbusePage
     row.LayoutOrder=index+2
     corner(row,10); stroke(row,.62)
-    local nm=label(row,name,UDim2.fromOffset(10,6),UDim2.new(1,-20,0,24),11); nm.Font=Enum.Font.GothamBold
-    local state=label(row,"OFF",UDim2.fromOffset(10,39),UDim2.fromOffset(72,32),11); state.TextXAlignment=Enum.TextXAlignment.Center; state.Font=Enum.Font.GothamBold
-    local announce=button(row,"Announce",UDim2.fromOffset(89,36),UDim2.fromOffset(110,36),false)
-    local clear=button(row,"Clear",UDim2.new(1,-118,0,36),UDim2.fromOffset(108,36),true)
+    local nm=label(row,name,UDim2.fromOffset(8,4),UDim2.new(1,-20,0,20),11); nm.Font=Enum.Font.GothamBold
+    local state=label(row,"OFF",UDim2.fromOffset(8,32),UDim2.fromOffset(50,28),11); state.TextXAlignment=Enum.TextXAlignment.Center; state.Font=Enum.Font.GothamBold
+    local announce=button(row,"Announce",UDim2.fromOffset(66,30),UDim2.new(.5,-42,0,30),false)
+    local clear=button(row,"Clear",UDim2.new(.5,34,0,30),UDim2.new(.5,-42,0,30),true)
     announce.MouseButton1Click:Connect(function() announceBoost(name,true); state.Text="ON"; state.TextColor3=C.green end)
     clear.MouseButton1Click:Connect(function() announceBoost(name,false); state.Text="OFF"; state.TextColor3=C.white end)
 end
-local clearAllBoosts=button(AdminAbusePage,"Clear all bottom effects",UDim2.new(),UDim2.new(1,-8,0,40),true)
+local clearAllBoosts=button(AdminAbusePage,"Clear all boost effects",UDim2.new(),UDim2.new(1,-8,0,32),true)
 clearAllBoosts.LayoutOrder=#BOOST_NAMES+3
 clearAllBoosts.MouseButton1Click:Connect(function() for _,n in ipairs(BOOST_NAMES) do if BoostState[n] then announceBoost(n,false) end end end)
 AdminList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() AdminAbusePage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
@@ -2711,42 +2718,42 @@ function Builders.Names()
 -- Names is a menu; the original avatar controls remain on their own page.
 local avatarNamesPage=newAdminPage("Avatar Name",false)
 local announcementProfilePage=newAdminPage("Announcements Profile",false)
-section(NamesPage,"NAME SETTINGS",8)
-local avatarNamesBtn=button(NamesPage,"Avatar Name",UDim2.fromOffset(5,37),UDim2.new(1,-10,0,44),true)
-local avatarNamesHint=label(NamesPage,"Custom display name and username label above your avatar.",UDim2.fromOffset(9,86),UDim2.new(1,-18,0,34),10)
+section(NamesPage,"NAME SETTINGS",4)
+local avatarNamesBtn=button(NamesPage,"Avatar Name",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,34),true)
+local avatarNamesHint=label(NamesPage,"Edit the name and label above your avatar.",UDim2.fromOffset(9,68),UDim2.new(1,-18,0,24),11)
 avatarNamesHint.TextWrapped=true; avatarNamesHint.TextColor3=C.muted
-local announcementProfileBtn=button(NamesPage,"Announcements Profile",UDim2.fromOffset(5,139),UDim2.new(1,-10,0,44),true)
-local announcementProfileHint=label(NamesPage,"Choose the name and profile picture shown with announcements.",UDim2.fromOffset(9,188),UDim2.new(1,-18,0,38),10)
+local announcementProfileBtn=button(NamesPage,"Announcements Profile",UDim2.fromOffset(5,102),UDim2.new(1,-10,0,34),true)
+local announcementProfileHint=label(NamesPage,"Set your announcement name and picture.",UDim2.fromOffset(9,142),UDim2.new(1,-18,0,28),11)
 announcementProfileHint.TextWrapped=true; announcementProfileHint.TextColor3=C.muted
 avatarNamesBtn.MouseButton1Click:Connect(function() showAdminPage("Avatar Name",true) end)
 announcementProfileBtn.MouseButton1Click:Connect(function() showAdminPage("Announcements Profile",true) end)
 
-section(avatarNamesPage,"CUSTOM DISPLAY NAME",8)
-local displayInput=textbox(avatarNamesPage,"Display name",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,42),Display)
-section(avatarNamesPage,"CUSTOM USERNAME LABEL",88)
-local usernameInput=textbox(avatarNamesPage,"Username",UDim2.fromOffset(5,114),UDim2.new(1,-10,0,42),Username)
-local applyNameBtn=button(avatarNamesPage,"Apply names",UDim2.fromOffset(5,171),UDim2.new(1,-10,0,40),false)
-local nameStatus=label(avatarNamesPage,"These change only the custom overhead display, not the Roblox account.",UDim2.fromOffset(7,223),UDim2.new(1,-14,0,50),9); nameStatus.TextWrapped=true; nameStatus.TextColor3=C.muted
+section(avatarNamesPage,"CUSTOM DISPLAY NAME",4)
+local displayInput=textbox(avatarNamesPage,"Display name",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,36),Display)
+section(avatarNamesPage,"CUSTOM USERNAME LABEL",76)
+local usernameInput=textbox(avatarNamesPage,"Username",UDim2.fromOffset(5,100),UDim2.new(1,-10,0,36),Username)
+local applyNameBtn=button(avatarNamesPage,"Apply names",UDim2.fromOffset(5,146),UDim2.new(1,-10,0,34),false)
+local nameStatus=label(avatarNamesPage,"Updates the name and label above your avatar.",UDim2.fromOffset(7,190),UDim2.new(1,-14,0,30),11); nameStatus.TextWrapped=true; nameStatus.TextColor3=C.muted
 applyNameBtn.MouseButton1Click:Connect(function() if displayInput.Text~="" then Display=displayInput.Text end; if usernameInput.Text~="" then Username=usernameInput.Text:gsub("^@","") end; applyTag(); nameStatus.Text="Custom display updated."; nameStatus.TextColor3=C.green end)
 
 -- Announcement identity is independent of the character's overhead identity.
 local profile=CFG.AnnouncementProfile
-section(announcementProfilePage,"ANNOUNCEMENT NAME",8)
-local announcementNameInput=textbox(announcementProfilePage,"Name shown on announcements",UDim2.fromOffset(5,34),UDim2.new(1,-10,0,42),profile.Name)
-section(announcementProfilePage,"ANNOUNCEMENT PROFILE PICTURE",90)
+section(announcementProfilePage,"ANNOUNCEMENT NAME",4)
+local announcementNameInput=textbox(announcementProfilePage,"Name shown on announcements",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,36),profile.Name)
+section(announcementProfilePage,"ANNOUNCEMENT PROFILE PICTURE",76)
 local profilePreview=Instance.new("ImageLabel")
-profilePreview.Position=UDim2.fromOffset(5,116)
-profilePreview.Size=UDim2.fromOffset(78,78)
+profilePreview.Position=UDim2.fromOffset(5,100)
+profilePreview.Size=UDim2.fromOffset(64,64)
 profilePreview.BackgroundColor3=C.card2
 profilePreview.BorderSizePixel=0
 profilePreview.Image="rbxthumb://type=AvatarHeadShot&id="..profile.UserId.."&w=150&h=150"
 profilePreview.Parent=announcementProfilePage
 corner(profilePreview,10)
-local profilePictureInput=textbox(announcementProfilePage,"Roblox username or user ID",UDim2.fromOffset(95,116),UDim2.new(1,-100,0,42),profile.Username)
-local profilePictureHint=label(announcementProfilePage,"Use an exact Roblox username or user ID for the avatar picture.",UDim2.fromOffset(97,164),UDim2.new(1,-104,0,36),9)
+local profilePictureInput=textbox(announcementProfilePage,"Username or user ID",UDim2.fromOffset(82,100),UDim2.new(1,-87,0,36),profile.Username)
+local profilePictureHint=label(announcementProfilePage,"Use a Roblox username or user ID for the picture.",UDim2.fromOffset(84,142),UDim2.new(1,-89,0,36),11)
 profilePictureHint.TextWrapped=true; profilePictureHint.TextColor3=C.muted
-local applyProfileBtn=button(announcementProfilePage,"Apply announcement profile",UDim2.fromOffset(5,217),UDim2.new(1,-10,0,40),true)
-local profileStatus=label(announcementProfilePage,"These settings change the sender name and picture on new announcements.",UDim2.fromOffset(7,269),UDim2.new(1,-14,0,48),9)
+local applyProfileBtn=button(announcementProfilePage,"Apply announcement profile",UDim2.fromOffset(5,190),UDim2.new(1,-10,0,34),true)
+local profileStatus=label(announcementProfilePage,"Applies to announcements and console notices.",UDim2.fromOffset(7,232),UDim2.new(1,-14,0,42),11)
 profileStatus.TextWrapped=true; profileStatus.TextColor3=C.muted
 local savingProfile=false
 applyProfileBtn.MouseButton1Click:Connect(function()
@@ -2757,7 +2764,7 @@ applyProfileBtn.MouseButton1Click:Connect(function()
         profileStatus.Text="Enter an announcement name."; profileStatus.TextColor3=C.orange; return
     end
     if source=="" then
-        profileStatus.Text="Enter a Roblox username or user ID for the picture."; profileStatus.TextColor3=C.orange; return
+        profileStatus.Text="Enter a username or user ID for the picture."; profileStatus.TextColor3=C.orange; return
     end
     savingProfile=true
     applyProfileBtn.Text="Looking up profile..."
@@ -2777,7 +2784,7 @@ applyProfileBtn.MouseButton1Click:Connect(function()
     savingProfile=false
     applyProfileBtn.Text="Apply announcement profile"
     if not ok or not userId or not accountName then
-        profileStatus.Text="Could not find that Roblox account. Check the username or user ID and try again."
+        profileStatus.Text="Account not found. Check the username or user ID."
         profileStatus.TextColor3=C.red
         return
     end
@@ -2787,7 +2794,7 @@ applyProfileBtn.MouseButton1Click:Connect(function()
     announcementNameInput.Text=name
     profilePictureInput.Text=accountName
     profilePreview.Image="rbxthumb://type=AvatarHeadShot&id="..userId.."&w=150&h=150"
-    profileStatus.Text="Profile saved. New announcements will use this name and picture."
+    profileStatus.Text="Saved. New notices will use this name and picture."
     profileStatus.TextColor3=C.green
 end)
 end
@@ -2796,20 +2803,20 @@ Builders.Names=nil
 
 function Builders.Settings()
 -- SETTINGS
-local mapCard=card(SettingsPage,UDim2.fromOffset(0,0),UDim2.new(1,0,0,152))
-section(mapCard,"MAP CENTER - ALL GENERAL EGGS SPAWN HERE",8)
-local mapStatus=label(mapCard,"Not detected",UDim2.fromOffset(10,32),UDim2.new(1,-20,0,22),10); mapStatus.Font=Enum.Font.GothamBold; mapStatus.TextColor3=C.orange
-local detectMapBtn=button(mapCard,"AUTO DETECT",UDim2.fromOffset(10,64),UDim2.new(.5,-15,0,35),false)
-local setMapBtn=button(mapCard,"SET HERE",UDim2.new(.5,5,0,64),UDim2.new(.5,-15,0,35),true)
-local hideMapMarker=button(mapCard,"Toggle center marker",UDim2.fromOffset(10,106),UDim2.new(1,-20,0,32),true)
+local mapCard=card(SettingsPage,UDim2.fromOffset(0,0),UDim2.new(1,0,0,132))
+section(mapCard,"MAP CENTER",4)
+local mapStatus=label(mapCard,"Not detected",UDim2.fromOffset(10,26),UDim2.new(1,-20,0,20),10); mapStatus.Font=Enum.Font.GothamBold; mapStatus.TextColor3=C.orange
+local detectMapBtn=button(mapCard,"AUTO DETECT",UDim2.fromOffset(10,54),UDim2.new(.5,-15,0,32),false)
+local setMapBtn=button(mapCard,"SET HERE",UDim2.new(.5,5,0,54),UDim2.new(.5,-15,0,32),true)
+local hideMapMarker=button(mapCard,"Toggle center marker",UDim2.fromOffset(10,94),UDim2.new(1,-20,0,30),true)
 local mapMarkerVisible=true
 local function refreshMapStatus() if MapCF then mapStatus.Text="LOCKED - "..MapName; mapStatus.TextColor3=C.green else mapStatus.Text="Not detected"; mapStatus.TextColor3=C.orange end end
 detectMapBtn.MouseButton1Click:Connect(function() local ok,msg=detectMapCenter(); refreshMapStatus(); if not ok then mapStatus.Text=msg; mapStatus.TextColor3=C.red end end)
 setMapBtn.MouseButton1Click:Connect(function() local ok,msg=setMapCenterHere(); refreshMapStatus(); if not ok then mapStatus.Text=msg; mapStatus.TextColor3=C.red end end)
 hideMapMarker.MouseButton1Click:Connect(function() mapMarkerVisible=not mapMarkerVisible; if MapMarker then MapMarker.Transparency=mapMarkerVisible and .72 or 1 end end)
-local rescanBtn=button(SettingsPage,"Rescan egg models",UDim2.fromOffset(0,166),UDim2.new(1,0,0,38),true)
-local settingsInfo=label(SettingsPage,"No account lock is used. Your friend can run the same file; LocalPlayer is resolved at runtime.",UDim2.fromOffset(5,217),UDim2.new(1,-10,0,58),9); settingsInfo.TextWrapped=true; settingsInfo.TextColor3=C.muted
-rescanBtn.MouseButton1Click:Connect(function() EggCache={}; EggTemplateCache={}; settingsInfo.Text="Egg visual cache cleared. Real game egg visuals will be re-detected on the next spawn."; settingsInfo.TextColor3=C.green end)
+local rescanBtn=button(SettingsPage,"Rescan egg models",UDim2.fromOffset(0,140),UDim2.new(1,0,0,32),true)
+local settingsInfo=label(SettingsPage,"Set the map center or refresh the available egg models.",UDim2.fromOffset(5,182),UDim2.new(1,-10,0,36),11); settingsInfo.TextWrapped=true; settingsInfo.TextColor3=C.muted
+rescanBtn.MouseButton1Click:Connect(function() EggCache={}; EggTemplateCache={}; settingsInfo.Text="Egg models will refresh on the next spawn."; settingsInfo.TextColor3=C.green end)
 
 
 -- Start map-center detection after the UI exists. Kept inside this scope so
@@ -2844,7 +2851,7 @@ local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(1/3
 local morphCoownerRole=button(Morph,"CO-OWNER",UDim2.new(1/3,6,0,224),UDim2.new(1/3,-12,0,30),true)
 local morphAdminRole=button(Morph,"ADMIN",UDim2.new(2/3,0,0,224),UDim2.new(1/3,-12,0,30),true)
 addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole)
-local morphStatus=label(Morph,"Visual morph only.",UDim2.fromOffset(12,262),UDim2.new(1,-24,0,18),8); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,262),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
 local previewRequest=0
 local function selectOwnAvatar()
     previewRequest=previewRequest+1
@@ -2915,7 +2922,7 @@ collectorsToggle.MouseButton1Click:Connect(function()
         CollectorsEnabled=false; collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle:SetAttribute("RestingColor",C.card2)
     else
         if arrlen(Bots)==0 then local ok,msg=spawnBots(NPCCount); if not ok then collectorInfo.Text=msg; collectorInfo.TextColor3=C.red; return end else CollectorsEnabled=true end
-        collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle:SetAttribute("RestingColor",C.purple); collectorInfo.Text="Collectors continuously collect -> safe zone -> repeat."; collectorInfo.TextColor3=C.green
+        collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle:SetAttribute("RestingColor",C.purple); collectorInfo.Text="Collectors bring eggs to the safe zone."; collectorInfo.TextColor3=C.green
     end
 end)
 clearNPCBtn.MouseButton1Click:Connect(function() clearBots(); collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle:SetAttribute("RestingColor",C.card2); collectorInfo.Text="NPCs cleared."; collectorInfo.TextColor3=C.muted end)
@@ -2929,7 +2936,7 @@ task.spawn(function()
             for _,b in ipairs(Bots) do if b.model and b.model.Parent then active=active+1 end end
             local eggs=0
             for e,st in pairs(EggState) do if e and e.Parent and not st.delivered then eggs=eggs+1 end end
-            if CollectorsEnabled then collectorInfo.Text="Eggs: "..eggs.." | NPCs: "..active.." | collecting continuously" end
+            if CollectorsEnabled then collectorInfo.Text="Eggs: "..eggs.." | NPCs: "..active.." | collecting" end
         end
     end
 end)
@@ -2941,7 +2948,7 @@ local av1=label(avatarCard,"Different avatars: ON",UDim2.fromOffset(12,37),UDim2
 local av2=label(avatarCard,"Random trail per bot: ON",UDim2.fromOffset(12,68),UDim2.new(1,-24,0,22),11); av2.TextColor3=C.green
 local av3=label(avatarCard,"Displayed speed stat: 200M - 270M",UDim2.fromOffset(12,99),UDim2.new(1,-24,0,22),11); av3.TextColor3=C.green
 local refreshBots=button(avatarCard,"Refresh collector avatars",UDim2.fromOffset(10,139),UDim2.new(1,-20,0,39),false)
-local avatarStatus=label(BotAvatarPage,"The same file works for your friend; avatars resolve against their current server too.",UDim2.fromOffset(5,211),UDim2.new(1,-16,0,50),9); avatarStatus.TextWrapped=true; avatarStatus.TextColor3=C.muted
+local avatarStatus=label(BotAvatarPage,"Refresh to spawn collectors with new avatars.",UDim2.fromOffset(5,211),UDim2.new(1,-16,0,50),9); avatarStatus.TextWrapped=true; avatarStatus.TextColor3=C.muted
 refreshBots.MouseButton1Click:Connect(function() if not safePosition() then avatarStatus.Text="Lock the safe zone first."; avatarStatus.TextColor3=C.orange; return end; local ok,msg=spawnBots(NPCCount); avatarStatus.Text=msg; avatarStatus.TextColor3=ok and C.green or C.red; if ok then CollectorsEnabled=true; collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle:SetAttribute("RestingColor",C.purple) end end)
 BotAvatarPage.CanvasSize=UDim2.fromOffset(0,275)
 
@@ -2950,7 +2957,7 @@ local sy=0
 local sammyHeader=label(BotSammyPage,"SAMMY S7 - 240 MIXED EGGS / 2x",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,26),11); sammyHeader.Font=Enum.Font.GothamBold; sy=sy+32
 local spawnSammyButton=button(BotSammyPage,"Spawn Sammy",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,38),false); sy=sy+45
 local markSpotButton=button(BotSammyPage,"Mark this spot",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,34),true); sy=sy+38
-local spotStatus=label(BotSammyPage,"World spot not marked - map center will be used",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,32),9); spotStatus.TextColor3=C.muted; spotStatus.TextWrapped=true; sy=sy+37
+local spotStatus=label(BotSammyPage,"No spot marked. Uses the map center.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,32),9); spotStatus.TextColor3=C.muted; spotStatus.TextWrapped=true; sy=sy+37
 local sammyEggButton=button(BotSammyPage,"Spawn 240 eggs / refill empty spots",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,38),false); sy=sy+45
 local clearSammyEggs=button(BotSammyPage,"CLEAR SAMMY EGGS",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,35),true); clearSammyEggs:SetAttribute("RestingColor",Color3.fromRGB(120,30,68)); sy=sy+42
 local autoRefillBtn=button(BotSammyPage,"AUTO REFILL: OFF - after 50 gone",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,34),true); sy=sy+41
@@ -2966,7 +2973,7 @@ section(BotSammyPage,"ADVERTISEMENT MESSAGES - CLICK ONE TO SEND",sy); sy=sy+24
 local msg1=button(BotSammyPage,SammyMessages[1],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg1.TextWrapped=true; sy=sy+55
 local msg2=button(BotSammyPage,SammyMessages[2],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg2.TextWrapped=true; sy=sy+55
 local msg3=button(BotSammyPage,SammyMessages[3],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg3.TextWrapped=true; sy=sy+55
-local adHint=label(BotSammyPage,"Click any message above and Sammy will announce it on screen.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,38),9); adHint.TextColor3=C.muted; adHint.TextWrapped=true; sy=sy+44
+local adHint=label(BotSammyPage,"Click a message to announce it as Sammy.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,38),9); adHint.TextColor3=C.muted; adHint.TextWrapped=true; sy=sy+44
 BotSammyPage.CanvasSize=UDim2.fromOffset(0,sy)
 
 spawnSammyButton.MouseButton1Click:Connect(function() if callRemote("SpawnSammy") then sammyPanelStatus.Text="Server Sammy request sent."; sammyPanelStatus.TextColor3=C.green else local ok,msg=spawnSammy(); sammyPanelStatus.Text=msg; sammyPanelStatus.TextColor3=ok and C.green or C.red end end)
@@ -3019,6 +3026,16 @@ ci.FocusLost:Connect(function(enter) if enter then local t=ci.Text; ci.Text=""; 
 end
 Builders.Console()
 Builders.Console=nil
+
+-- Keep short descriptions legible; small text can make spaces look compressed.
+for _,text in ipairs(Gui:GetDescendants()) do
+    if text:IsA("TextLabel") and text.TextWrapped then
+        text.TextSize=math.max(11,text.TextSize)
+        text.LineHeight=1.1
+        text.TextYAlignment=Enum.TextYAlignment.Top
+        text.TextTransparency=0
+    end
+end
 
 local lastTab=0
 UserInputService.InputBegan:Connect(function(input)
