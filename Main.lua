@@ -204,17 +204,34 @@ local function groundHit(pos,ignore)
     local ex={EggFolder,NPCFolder}; if P.Character then table.insert(ex,P.Character) end; if ignore then table.insert(ex,ignore) end; rp.FilterDescendantsInstances=ex
     return workspace:Raycast(pos+Vector3.new(0,250,0),Vector3.new(0,-1000,0),rp)
 end
+
+local function groundHitNear(pos,ignore)
+    -- Short raycast around the active character height. This avoids choosing
+    -- roofs/ceilings that a 250-stud-above ray can hit first.
+    local rp=RaycastParams.new(); rp.FilterType=Enum.RaycastFilterType.Exclude
+    local ex={EggFolder,NPCFolder}; if P.Character then table.insert(ex,P.Character) end; if ignore then table.insert(ex,ignore) end; rp.FilterDescendantsInstances=ex
+    return workspace:Raycast(pos+Vector3.new(0,10,0),Vector3.new(0,-80,0),rp)
+end
 local function groundObject(o,pos,yaw)
-    local hit=groundHit(pos,o); if not hit then return false end
+    -- Prefer the real raycast floor, but never throw an egg away just because
+    -- the game's floor has CanQuery disabled or the executor misses the raycast.
+    local hit=groundHitNear(pos,o)
+    local groundY=hit and hit.Position.Y or pos.Y
     local rot=CFrame.Angles(0,math.rad(yaw or 0),0)
-    -- First place high enough to calculate the bounding box in its final rotation.
-    pivot(o,CFrame.new(pos.X,hit.Position.Y+100,pos.Z)*rot)
-    if o:IsA("Model") then
-        local cf,sz=o:GetBoundingBox(); local bottom=cf.Position.Y-sz.Y/2; local dy=hit.Position.Y-bottom+.02; o:PivotTo(o:GetPivot()+Vector3.new(0,dy,0))
-    else
-        local bottom=o.Position.Y-o.Size.Y/2; o.CFrame=o.CFrame+Vector3.new(0,hit.Position.Y-bottom+.02,0)
-    end
-    return true
+
+    local ok=pcall(function()
+        -- Place high first so GetBoundingBox measures the final rotation cleanly.
+        pivot(o,CFrame.new(pos.X,groundY+100,pos.Z)*rot)
+        if o:IsA("Model") then
+            local cf,sz=o:GetBoundingBox()
+            local bottom=cf.Position.Y-sz.Y/2
+            o:PivotTo(o:GetPivot()+Vector3.new(0,groundY-bottom+.05,0))
+        else
+            local bottom=o.Position.Y-o.Size.Y/2
+            o.CFrame=o.CFrame+Vector3.new(0,groundY-bottom+.05,0)
+        end
+    end)
+    return ok
 end
 
 local function createAvatar(uid)
@@ -241,29 +258,188 @@ local function animate(st,speed)
     end
 end
 
--- Egg resolver: no startup scan. Search only when an egg is selected/spawned.
+-- Egg resolver. Games often store egg visuals inside nested Models, Tools or Folders,
+-- so resolve the matching visual instead of requiring the named object itself to be a Model.
 local EggCache={}
-local function matchObj(o,want)
-    if want[norm(o.Name)] then return true end
-    for _,a in ipairs({"EggName","DisplayName","ItemName","Title","Type","PetName"}) do local v=o:GetAttribute(a); if v and want[norm(v)] then return true end end
+
+local function eggTextMatches(value,want)
+    local n=norm(value)
+    if n=="" then return false end
+    if want[n] then return true end
+    -- Only allow the object's name to CONTAIN a configured alias.
+    -- Do not do the reverse: a generic child named "Egg" must never match every egg type.
+    for alias in pairs(want) do
+        if #alias>=5 and #n>=#alias and n:find(alias,1,true) then return true end
+    end
     return false
 end
-local function findEgg(name)
-    local c=EggCache[name]; if c and c.Parent then return c end
-    local want={}; for _,a in ipairs(ALIAS[name] or {name}) do want[norm(a)]=true end
-    for _,container in ipairs({ReplicatedStorage,workspace}) do
-        local all=container:GetDescendants()
-        for _,o in ipairs(all) do
-            if o:IsA("Model") and not o:IsDescendantOf(EggFolder) and not o:IsDescendantOf(NPCFolder) and o:FindFirstChildWhichIsA("BasePart",true) and matchObj(o,want) then EggCache[name]=o; return o end
+
+local function matchObj(o,want)
+    if eggTextMatches(o.Name,want) then return true end
+    for _,a in ipairs({"EggName","DisplayName","ItemName","Title","Type","PetName","Name"}) do
+        local v=o:GetAttribute(a)
+        if v~=nil and eggTextMatches(v,want) then return true end
+    end
+    if o:IsA("StringValue") and eggTextMatches(o.Value,want) then return true end
+    return false
+end
+
+local function usableEggSource(o,container)
+    if not o or o==EggFolder or o==NPCFolder then return nil end
+    if o:IsDescendantOf(EggFolder) or o:IsDescendantOf(NPCFolder) then return nil end
+
+    if o:IsA("Model") and o:FindFirstChildWhichIsA("BasePart",true) then return o end
+    if o:IsA("BasePart") then
+        local model=o:FindFirstAncestorOfClass("Model")
+        if model and model~=P.Character and model:IsDescendantOf(container)
+            and model:FindFirstChildWhichIsA("BasePart",true) then
+            return model
         end
-        for _,o in ipairs(all) do
-            if o:IsA("BasePart") and not o:FindFirstAncestorOfClass("Model") and not o:IsDescendantOf(EggFolder) and matchObj(o,want) then EggCache[name]=o; return o end
+        return o
+    end
+
+    local cur=o.Parent
+    while cur and cur~=container do
+        if cur:IsA("Model") and cur~=P.Character and cur:FindFirstChildWhichIsA("BasePart",true) then
+            return cur
+        elseif cur:IsA("Tool") then
+            local handle=cur:FindFirstChildWhichIsA("BasePart",true)
+            if handle then return handle end
+        end
+        cur=cur.Parent
+    end
+
+    if o:IsA("Folder") or o:IsA("Tool") then
+        local model=o:FindFirstChildWhichIsA("Model",true)
+        if model and model:FindFirstChildWhichIsA("BasePart",true) then return model end
+        local part=o:FindFirstChildWhichIsA("BasePart",true)
+        if part then return part end
+    end
+    return nil
+end
+
+local function findEgg(name)
+    local cached=EggCache[name]
+    if cached and cached.Parent then return cached end
+
+    local want={}
+    for _,a in ipairs(ALIAS[name] or {name}) do want[norm(a)]=true end
+
+    for _,container in ipairs({ReplicatedStorage,workspace}) do
+        for _,o in ipairs(container:GetDescendants()) do
+            if not o:IsDescendantOf(EggFolder) and not o:IsDescendantOf(NPCFolder) and matchObj(o,want) then
+                local source=usableEggSource(o,container)
+                if source then
+                    EggCache[name]=source
+                    return source
+                end
+            end
         end
     end
     return nil
 end
-local function availableEggs() local a={}; for i=2,arrlen(EGGS) do if findEgg(EGGS[i]) then table.insert(a,EGGS[i]) end end; return a end
--- Map-center detection. General egg spawning is anchored to this map frame, never the player.
+
+-- Build a stripped visual template from the REAL egg object already replicated by the game.
+-- Scripts, sounds, particles and interaction objects are removed once so large batches
+-- can keep the original mesh/texture/decal appearance without cloning the heavy behavior.
+local EggTemplateCache={}
+
+local function stripEggTemplate(o)
+    local remove={}
+    for _,x in ipairs(o:GetDescendants()) do
+        if x:IsA("Script") or x:IsA("LocalScript") or x:IsA("ModuleScript")
+            or x:IsA("ProximityPrompt") or x:IsA("ClickDetector")
+            or x:IsA("Humanoid") or x:IsA("Animator")
+            or x:IsA("Sound") or x:IsA("ParticleEmitter")
+            or x:IsA("Trail") or x:IsA("Beam")
+            or x:IsA("BodyMover") or x:IsA("Constraint") then
+            table.insert(remove,x)
+        elseif x:IsA("BasePart") then
+            x.Anchored=true
+            x.CanCollide=false
+            x.CanTouch=false
+            x.CanQuery=true
+            x.Massless=true
+            x.CastShadow=false
+        end
+    end
+    for _,x in ipairs(remove) do pcall(function() x:Destroy() end) end
+end
+
+local function templateInfo(name)
+    local cached=EggTemplateCache[name]
+    if cached~=nil then return cached or nil end
+
+    local source=findEgg(name)
+    if not source then
+        EggTemplateCache[name]=false
+        return nil
+    end
+
+    local ok,clone=pcall(function() return source:Clone() end)
+    if not ok or not clone then
+        EggTemplateCache[name]=false
+        return nil
+    end
+
+    clone.Name=name
+    stripEggTemplate(clone)
+
+    local root=rootOf(clone)
+    if not root then
+        pcall(function() clone:Destroy() end)
+        EggTemplateCache[name]=false
+        return nil
+    end
+
+    local info={template=clone,bottomOffset=0,size=Vector3.new(4,4,4)}
+    if clone:IsA("Model") then
+        pcall(function() clone:PivotTo(CFrame.new()) end)
+        local okBox,cf,sz=pcall(function()
+            local c,z=clone:GetBoundingBox()
+            return c,z
+        end)
+        if not okBox or not cf or not sz or sz.Magnitude<.1 or math.max(sz.X,sz.Y,sz.Z)>80 then
+            pcall(function() clone:Destroy() end)
+            EggTemplateCache[name]=false
+            return nil
+        end
+        info.bottomOffset=cf.Position.Y-sz.Y/2
+        info.size=sz
+    else
+        clone.CFrame=CFrame.new()
+        if clone.Size.Magnitude<.1 or math.max(clone.Size.X,clone.Size.Y,clone.Size.Z)>80 then
+            pcall(function() clone:Destroy() end)
+            EggTemplateCache[name]=false
+            return nil
+        end
+        info.bottomOffset=-clone.Size.Y/2
+        info.size=clone.Size
+    end
+
+    clone.Parent=nil
+    EggTemplateCache[name]=info
+    return info
+end
+
+local function availableEggs()
+    local a={}
+    for i=2,arrlen(EGGS) do
+        local name=EGGS[i]
+        if templateInfo(name) then table.insert(a,name) end
+    end
+    return a
+end
+
+-- Safe-zone state is declared before map/layout code so GENERAL egg spawning
+-- can always reserve a no-spawn band around the Safe Zone.
+local SafeObj=nil
+local SafePos=nil
+local SafeName="Not locked"
+local Marker=nil
+local detectSafe=nil
+
+-- Map-center detection. General egg spawning is anchored to the map frame.
 local MapFloor=nil
 local MapCF=nil
 local MapSize=nil
@@ -288,42 +464,111 @@ local function updateMapMarker()
     MapMarker=m
 end
 
+local function reservedZoneName(value)
+    local n=norm(value)
+    return n:find("safezone",1,true)
+        or n:find("eggdropoff",1,true)
+        or n:find("deposit",1,true)
+        or n:find("playerspawn",1,true)
+        or n:find("spawnzone",1,true)
+        or n:find("lobby",1,true)
+        or n:find("playerbase",1,true)
+        or n:find("homebase",1,true)
+        or n:find("plot",1,true)
+end
+
 local function floorCandidateScore(o)
     if not o:IsA("BasePart") or not o.Anchored or not o.CanCollide or o.Transparency>=.98 then return -1 end
     local s=o.Size
     if s.X<20 or s.Z<20 then return -1 end
     local score=s.X*s.Z
+    local aspect=math.max(s.X,s.Z)/math.max(1,math.min(s.X,s.Z))
+    score=score*(1+math.min(2.5,math.max(0,aspect-1))*.28)
     if s.Y<=18 then score=score*1.5 end
     local n=norm(o.Name)
     if n:find("floor",1,true) or n:find("ground",1,true) or n:find("arena",1,true) or n:find("map",1,true) then score=score*1.8 end
     if n:find("wall",1,true) or n:find("roof",1,true) or n:find("ceiling",1,true) then score=score*.08 end
+    -- Safe/spawn/base pieces can be large floors too. They are valid ground,
+    -- but they must not win map detection over the actual arena.
+    if reservedZoneName(n) then score=score*.08 end
     return score
 end
 
 local function detectMapCenter()
+    local root=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+    local playerPos=root and root.Position or Vector3.zero
+    local nearHit=root and groundHitNear(root.Position,nil) or nil
+    local playY=nearHit and nearHit.Position.Y or playerPos.Y
+
     local best=nil
-    local bestScore=-1
+    local bestScore=-math.huge
+    local under=(nearHit and nearHit.Instance and nearHit.Instance:IsA("BasePart")) and nearHit.Instance or nil
+
+    -- Scan every plausible floor. The old version gave the part directly under
+    -- the player an unbeatable score, which meant standing in the Safe Zone
+    -- could make the Safe Zone itself become "the map".
     for _,o in ipairs(workspace:GetDescendants()) do
         if o:IsA("BasePart") and not o:IsDescendantOf(EggFolder) and not o:IsDescendantOf(NPCFolder) then
-            local s=floorCandidateScore(o)
-            if s>bestScore then bestScore=s; best=o end
+            local belongsToSafe=SafeObj and (o==SafeObj or (SafeObj:IsA("Model") and o:IsDescendantOf(SafeObj)))
+            local base=belongsToSafe and -1 or floorCandidateScore(o)
+            if base>=0 then
+                local topY=o.CFrame:PointToWorldSpace(Vector3.new(0,o.Size.Y/2,0)).Y
+                local vertical=math.abs(topY-playY)
+                if vertical<=18 then
+                    local horizontal=Vector3.new(o.Position.X-playerPos.X,0,o.Position.Z-playerPos.Z).Magnitude
+                    local score=base-(vertical*800)-(math.max(0,horizontal-300)*65)
+
+                    -- A normal arena floor beneath the player gets only a small
+                    -- bonus. A Safe/Spawn/Plot floor beneath the player gets none.
+                    if o==under and not reservedZoneName(o.Name) then
+                        score=score*1.18
+                    end
+
+                    if horizontal<=600 and score>bestScore then
+                        bestScore=score
+                        best=o
+                    end
+                end
+            end
         end
     end
+
     if not best then
-        local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-        if not r then return false,"Map floor could not be detected." end
-        local hit=groundHit(r.Position,nil)
-        local pos=hit and hit.Position or r.Position
+        local pos=nearHit and nearHit.Position or (root and root.Position or Vector3.zero)
         MapFloor=nil
         MapCF=CFrame.new(pos)
-        MapSize=Vector3.new(140,1,220)
+        MapSize=Vector3.new(155,1,250)
         MapName="Fallback center"
         updateMapMarker()
         return true,MapName
     end
+
     MapFloor=best
-    MapCF=best.CFrame
-    MapSize=best.Size
+
+    -- Align the spawn grid to the floor itself, not to the player's camera/facing.
+    -- The LONGER floor axis is always treated as the row/depth direction. This
+    -- keeps rows ruler-straight even if the player is standing at an angle.
+    local topCenter=best.CFrame:PointToWorldSpace(Vector3.new(0,best.Size.Y/2,0))
+    local look=Vector3.new(best.CFrame.LookVector.X,0,best.CFrame.LookVector.Z)
+    local right=Vector3.new(best.CFrame.RightVector.X,0,best.CFrame.RightVector.Z)
+    if look.Magnitude<.01 then look=Vector3.new(0,0,-1) else look=look.Unit end
+    if right.Magnitude<.01 then right=Vector3.new(1,0,0) else right=right.Unit end
+
+    local forward
+    local width
+    local depth
+    if best.Size.Z>=best.Size.X then
+        forward=look
+        width=best.Size.X
+        depth=best.Size.Z
+    else
+        forward=right
+        width=best.Size.Z
+        depth=best.Size.X
+    end
+
+    MapCF=CFrame.lookAt(topCenter,topCenter+forward)
+    MapSize=Vector3.new(width,best.Size.Y,depth)
     MapName=best.Name
     updateMapMarker()
     return true,MapName
@@ -332,8 +577,8 @@ end
 local function setMapCenterHere()
     local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
     if not r then return false,"Character unavailable." end
-    local hit=groundHit(r.Position,nil)
-    local pos=hit and hit.Position or r.Position
+    local hit=groundHitNear(r.Position,nil)
+    local pos=hit and hit.Position or (r.Position-Vector3.new(0,3,0))
     MapFloor=nil
     MapCF=CFrame.new(pos)
     MapSize=Vector3.new(140,1,220)
@@ -343,65 +588,413 @@ local function setMapCenterHere()
 end
 
 local function getMapFrame()
-    if MapFloor and MapFloor.Parent then MapCF=MapFloor.CFrame; MapSize=MapFloor.Size end
-    if not MapCF then detectMapCenter() end
-    return MapCF or CFrame.new(), MapSize or Vector3.new(140,1,220)
-end
+    if MapFloor and MapFloor.Parent then
+        local topCenter=MapFloor.CFrame:PointToWorldSpace(Vector3.new(0,MapFloor.Size.Y/2,0))
+        local look=Vector3.new(MapFloor.CFrame.LookVector.X,0,MapFloor.CFrame.LookVector.Z)
+        local right=Vector3.new(MapFloor.CFrame.RightVector.X,0,MapFloor.CFrame.RightVector.Z)
+        if look.Magnitude<.01 then look=Vector3.new(0,0,-1) else look=look.Unit end
+        if right.Magnitude<.01 then right=Vector3.new(1,0,0) else right=right.Unit end
 
-local function physicalLayout(count,sizeValue,baseCF,bounds)
-    local scale=math.clamp(sizeValue,25,500)/100
-    local usableX=math.max(35,bounds.X*.78)
-    local usableZ=math.max(45,bounds.Z*.72)
-    local desiredX=math.max(6,5+scale*3.8)
-    local desiredZ=math.max(7,6+scale*4.2)
-    local maxCols=math.max(6,math.floor(usableX/desiredX))
-    maxCols=math.min(20,maxCols)
-    local maxRows=math.max(1,math.floor(usableZ/desiredZ))
-    local cols=math.min(count,maxCols)
-    local neededRows=math.ceil(count/cols)
-    if neededRows>maxRows then
-        local neededCols=math.ceil(count/maxRows)
-        cols=math.min(24,math.max(cols,neededCols))
-        neededRows=math.ceil(count/cols)
+        local forward
+        local width
+        local depth
+        if MapFloor.Size.Z>=MapFloor.Size.X then
+            forward=look
+            width=MapFloor.Size.X
+            depth=MapFloor.Size.Z
+        else
+            forward=right
+            width=MapFloor.Size.Z
+            depth=MapFloor.Size.X
+        end
+
+        MapCF=CFrame.lookAt(topCenter,topCenter+forward)
+        MapSize=Vector3.new(width,MapFloor.Size.Y,depth)
     end
-    local rows=neededRows
-    local spaceX=math.min(desiredX,usableX/math.max(cols,1))
-    local spaceZ=math.min(desiredZ,usableZ/math.max(rows,1))
-    spaceX=math.max(4.5,spaceX)
-    spaceZ=math.max(4.8,spaceZ)
-    return cols,rows,spaceX,spaceZ
+    if not MapCF then detectMapCenter() end
+    return MapCF or CFrame.new(), MapSize or Vector3.new(155,1,250)
 end
 
-local function layoutPosition(index,count,sizeValue,baseCF,bounds)
-    local cols,rows,sx,sz=physicalLayout(count,sizeValue,baseCF,bounds)
+local COMPACT_SPAWN_BOUNDS=Vector3.new(155,1,250)
+
+local function safeClearanceRadius()
+    -- Hard minimum keeps GENERAL eggs out of the white Safe Zone even when the
+    -- game's Safe Zone object has an unhelpful name or auto-detection misses it.
+    local radius=70
+    if SafeObj and SafeObj.Parent then
+        if SafeObj:IsA("BasePart") then
+            radius=math.max(radius,math.max(SafeObj.Size.X,SafeObj.Size.Z)*.5+18)
+        elseif SafeObj:IsA("Model") then
+            local ok,_,sz=pcall(function() return SafeObj:GetBoundingBox() end)
+            if ok and sz then
+                radius=math.max(radius,math.max(sz.X,sz.Z)*.5+18)
+            end
+        end
+    end
+    return math.clamp(radius,70,110)
+end
+
+local function playableGroundHit(pos,referenceY)
+    local hit=groundHitNear(pos,nil)
+    if not hit then return nil end
+    if referenceY and math.abs(hit.Position.Y-referenceY)>16 then return nil end
+    return hit
+end
+
+local function findPlayableSpawnFrame()
+    local root=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return nil,nil end
+
+    -- Always try to learn the Safe Zone, but do not depend on it. The player's
+    -- current position is also treated as a hard no-spawn anchor because the
+    -- user normally presses Spawn while standing in the Safe Zone.
+    if not SafePos and detectSafe then pcall(function() detectSafe() end) end
+
+    local under=groundHitNear(root.Position,nil)
+    local groundY=under and under.Position.Y or (root.Position.Y-3)
+    local forward=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
+    if forward.Magnitude<.01 then forward=Vector3.new(0,0,-1) else forward=forward.Unit end
+    local right=Vector3.new(-forward.Z,0,forward.X)
+
+    local dirs={
+        forward,
+        (forward+right).Unit,
+        (forward-right).Unit,
+        right,
+        -right,
+        (-forward+right).Unit,
+        (-forward-right).Unit,
+        -forward
+    }
+
+    local startDistance=safeClearanceRadius()
+    local maxDistance=340
+    local step=8
+    local best=nil
+
+    for index,dir in ipairs(dirs) do
+        local first=nil
+        local last=nil
+        local valid=0
+        local misses=0
+        local floorVotes={}
+
+        for d=startDistance,maxDistance,step do
+            local probe=root.Position+dir*d
+            local hit=playableGroundHit(Vector3.new(probe.X,root.Position.Y,probe.Z),groundY)
+            if hit then
+                if not first then first=d end
+                last=d
+                valid=valid+1
+                misses=0
+                floorVotes[hit.Instance]=(floorVotes[hit.Instance] or 0)+1
+            elseif first then
+                misses=misses+1
+                if misses>=2 then break end
+            end
+        end
+
+        if first and last and valid>=6 then
+            local run=last-first
+            local endPoint=root.Position+dir*last
+            local safeAnchor=SafePos or root.Position
+            local away=(Vector3.new(endPoint.X,0,endPoint.Z)-Vector3.new(safeAnchor.X,0,safeAnchor.Z)).Magnitude
+
+            -- Prefer the direction the player is looking, but geometry/run length
+            -- still wins when the actual arena clearly continues another way.
+            local facingBonus=math.max(-1,math.min(1,dir:Dot(forward)))*22
+            local score=run+away*.12+facingBonus
+
+            local votedFloor=nil
+            local votedCount=0
+            for floorPart,n in pairs(floorVotes) do
+                if n>votedCount then votedCount=n; votedFloor=floorPart end
+            end
+
+            if not best or score>best.score then
+                best={dir=dir,first=first,last=last,score=score,floor=votedFloor}
+            end
+        end
+    end
+
+    if not best then return nil,nil end
+
+    local dir=best.dir
+
+    -- If the sampled play floor is a real rectangular floor piece, snap rows to
+    -- its closest horizontal axis so rows stay perfectly straight, never wonky.
+    if best.floor and best.floor:IsA("BasePart") then
+        local look=Vector3.new(best.floor.CFrame.LookVector.X,0,best.floor.CFrame.LookVector.Z)
+        local rgt=Vector3.new(best.floor.CFrame.RightVector.X,0,best.floor.CFrame.RightVector.Z)
+        if look.Magnitude>.01 then look=look.Unit end
+        if rgt.Magnitude>.01 then rgt=rgt.Unit end
+        local axis=(math.abs(dir:Dot(look))>=math.abs(dir:Dot(rgt))) and look or rgt
+        if axis.Magnitude>.01 then
+            if axis:Dot(dir)<0 then axis=-axis end
+            dir=axis
+        end
+    end
+
+    -- Re-scan along the straightened direction so the near edge ALWAYS starts
+    -- outside the Safe Zone and the far edge reaches the end of usable ground.
+    local first=nil
+    local last=nil
+    local misses=0
+    for d=startDistance,maxDistance,step do
+        local probe=root.Position+dir*d
+        local hit=playableGroundHit(Vector3.new(probe.X,root.Position.Y,probe.Z),groundY)
+        if hit then
+            if not first then first=d end
+            last=d
+            misses=0
+        elseif first then
+            misses=misses+1
+            if misses>=2 then break end
+        end
+    end
+    if not first or not last or (last-first)<45 then return nil,nil end
+
+    -- Measure usable width at several points down the play area. Taking the
+    -- narrowest sample prevents rows clipping into side walls while still using
+    -- nearly all of the actual map width.
+    local side=Vector3.new(-dir.Z,0,dir.X)
+    local minHalfWidth=math.huge
+    for _,frac in ipairs({.18,.38,.58,.78}) do
+        local d=first+(last-first)*frac
+        local centerProbe=root.Position+dir*d
+        local left=0
+        local rightWidth=0
+        for s=6,100,6 do
+            local p=centerProbe-side*s
+            if playableGroundHit(Vector3.new(p.X,root.Position.Y,p.Z),groundY) then left=s else break end
+        end
+        for s=6,100,6 do
+            local p=centerProbe+side*s
+            if playableGroundHit(Vector3.new(p.X,root.Position.Y,p.Z),groundY) then rightWidth=s else break end
+        end
+        local half=math.min(left,rightWidth)
+        if half>=18 then minHalfWidth=math.min(minHalfWidth,half) end
+    end
+
+    local width
+    if minHalfWidth<math.huge then
+        width=math.clamp(minHalfWidth*2,55,170)
+    else
+        width=155
+    end
+
+    local nearEdge=first+4
+    local farEdge=last-4
+    local depth=farEdge-nearEdge
+    if depth<45 then return nil,nil end
+
+    local centerDistance=(nearEdge+farEdge)/2
+    local center=root.Position+dir*centerDistance
+    center=Vector3.new(center.X,groundY,center.Z)
+
+    return CFrame.lookAt(center,center+dir),Vector3.new(width,1,depth)
+end
+
+local function spawnAvoidAnchor(mapCF,mapBounds)
+    -- Fallback exclusion used only if geometry sampling cannot identify the
+    -- playable corridor. It still enforces a large Safe Zone/player buffer.
+    local anchor=SafePos
+    local clearance=safeClearanceRadius()
+
+    if SafeObj and SafeObj.Parent then
+        if SafeObj:IsA("BasePart") then
+            anchor=SafeObj.Position
+        elseif SafeObj:IsA("Model") then
+            anchor=SafeObj:GetPivot().Position
+        end
+    end
+
+    local root=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+    if not anchor and root then anchor=root.Position end
+    return anchor,clearance
+end
+
+local function visibleSpawnFrame(preferredCF,count,pattern,sizeValue)
+    if preferredCF then
+        return preferredCF,COMPACT_SPAWN_BOUNDS
+    end
+
+    -- GENERAL spawn path: determine the real playable ground beyond the Safe
+    -- Zone first. This is intentionally independent of object names.
+    local playCF,playBounds=findPlayableSpawnFrame()
+    if playCF and playBounds then
+        return playCF,playBounds
+    end
+
+    -- Geometry fallback: use detected map floor, but carve out a large band
+    -- around the Safe Zone/player. Never silently fall back to the full map.
+    if not SafePos and detectSafe then pcall(function() detectSafe() end) end
+    if MapFloor and SafeObj and
+        (MapFloor==SafeObj or (SafeObj:IsA("Model") and MapFloor:IsDescendantOf(SafeObj))) then
+        MapFloor=nil
+        MapCF=nil
+        MapSize=nil
+        detectMapCenter()
+    end
+
+    local mapCF,mapBounds=getMapFrame()
+    if not mapCF then return CFrame.new(),COMPACT_SPAWN_BOUNDS end
+    mapBounds=mapBounds or COMPACT_SPAWN_BOUNDS
+
+    local anchor,clearance=spawnAvoidAnchor(mapCF,mapBounds)
+    if anchor then
+        local scale=math.clamp(tonumber(sizeValue) or 100,25,500)/100
+        local edgeMargin=math.max(6,4+scale*1.5)
+        local minZ=-mapBounds.Z/2+edgeMargin
+        local maxZ= mapBounds.Z/2-edgeMargin
+        local localAnchor=mapCF:PointToObjectSpace(anchor)
+        local exMin=localAnchor.Z-clearance
+        local exMax=localAnchor.Z+clearance
+
+        local leftA=minZ
+        local leftB=math.min(maxZ,exMin)
+        local rightA=math.max(minZ,exMax)
+        local rightB=maxZ
+        local leftLen=math.max(0,leftB-leftA)
+        local rightLen=math.max(0,rightB-rightA)
+
+        local a,b
+        if leftLen>=rightLen then a,b=leftA,leftB else a,b=rightA,rightB end
+        if a and b and (b-a)>=45 then
+            local centerZ=(a+b)/2
+            local regionDepth=b-a
+            return mapCF*CFrame.new(0,0,centerZ),Vector3.new(mapBounds.X,mapBounds.Y,regionDepth)
+        end
+    end
+
+    -- Last resort: place the field in front of the player, beyond the hard
+    -- no-spawn radius. This is safer than ever spawning on top of the Safe Zone.
+    local root=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+    if root then
+        local dir=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
+        if dir.Magnitude<.01 then dir=Vector3.new(0,0,-1) else dir=dir.Unit end
+        local clearance=safeClearanceRadius()
+        local depth=180
+        local center=root.Position+dir*(clearance+depth/2)
+        local hit=groundHitNear(center,nil)
+        if hit then center=hit.Position else center=Vector3.new(center.X,root.Position.Y-3,center.Z) end
+        return CFrame.lookAt(center,center+dir),Vector3.new(140,1,depth)
+    end
+
+    return mapCF,mapBounds
+end
+
+local function physicalLayout(count,sizeValue,baseCF,bounds,pattern,footprintX,footprintZ)
+    local scale=math.clamp(sizeValue,25,500)/100
+    local cols
+    if pattern=="ORIGINAL 6x20" then
+        cols=20
+    elseif pattern=="ONE TYPE PER ROW" then
+        cols=16
+    elseif pattern=="SPLIT ROWS 3+3" then
+        cols=18
+    elseif pattern=="PAIRS 2+2+2" then
+        cols=18
+    elseif pattern=="MIRRORED ROWS" then
+        cols=20
+    elseif pattern=="ALTERNATING ROWS" then
+        cols=16
+    elseif pattern=="DIAGONAL SEQUENCE" then
+        cols=20
+    else
+        cols=20
+    end
+    cols=math.min(cols,count)
+    local rows=math.ceil(count/math.max(cols,1))
+
+    -- Base spacing on the REAL visual footprint of the selected eggs. This gives
+    -- a small visible air gap even when the egg scale changes or a larger egg type
+    -- is mixed in, instead of guessing one spacing value for every model.
+    local actualX=math.max(1,tonumber(footprintX) or (4*scale))
+    local actualZ=math.max(1,tonumber(footprintZ) or (4*scale))
+    local gapX=math.max(1.15,.65*scale)
+    local gapZ=math.max(1.75,.9*scale)
+    local naturalX=math.max(7.25,actualX+gapX)
+    local naturalZ=math.max(9.0,actualZ+gapZ)
+    local usableWidth=((bounds and bounds.X) or COMPACT_SPAWN_BOUNDS.X)*.985
+    local usableDepth=((bounds and bounds.Z) or COMPACT_SPAWN_BOUNDS.Z)*.97
+
+    local sx=naturalX
+    local sz=naturalZ
+
+    if cols>1 then
+        local fitX=usableWidth/(cols-1)
+        if fitX<naturalX then
+            sx=fitX
+        else
+            sx=math.min(fitX,naturalX*1.12)
+        end
+    end
+
+    if rows>1 then
+        local fitZ=usableDepth/(rows-1)
+        if fitZ<naturalZ then
+            -- If a very large batch physically cannot keep the ideal gap,
+            -- fitting inside the non-safe play area wins over spilling into it.
+            sz=fitZ
+        else
+            -- Use more of the playable length, but cap expansion so row gaps
+            -- remain deliberate rather than huge.
+            sz=math.min(fitZ,naturalZ*1.55)
+        end
+    end
+
+    return cols,rows,sx,sz
+end
+local function layoutPosition(index,count,sizeValue,baseCF,bounds,pattern,footprintX,footprintZ)
+    local cols,rows,sx,sz=physicalLayout(count,sizeValue,baseCF,bounds,pattern,footprintX,footprintZ)
     local row=math.floor((index-1)/cols)
     local col=(index-1)%cols
-    local x=(col-(cols-1)/2)*sx
+
+    -- Centre an incomplete final row instead of leaving all of its empty space
+    -- on one side of the map.
+    local rowStart=row*cols
+    local rowCols=math.min(cols,count-rowStart)
+    local x=(col-(rowCols-1)/2)*sx
     local z=(row-(rows-1)/2)*sz
     local pos=(baseCF*CFrame.new(x,0,z)).Position
-    return pos,row,col,cols,rows,sx,sz
+    return pos,row,col,cols,rows,sx,sz,rowCols
 end
 
 local function mixedEggFor(pattern,mix,row,col,index,cols)
     local n=arrlen(mix)
     if n==0 then return nil end
-    if pattern=="ONE TYPE PER ROW" then
-        return mix[(row%n)+1]
+    local function at(i) return mix[(i%n)+1] end
+
+    if pattern=="ORIGINAL 6x20" then
+        -- 20 eggs across. Each row uses a six-type sequence and repeats it:
+        -- A B C D E F A B C D E F ...
+        return at(row*6+(col%6))
+    elseif pattern=="ONE TYPE PER ROW" then
+        -- AAAAA... / BBBBB... / CCCCC...
+        return at(row)
     elseif pattern=="SPLIT ROWS 3+3" then
-        local g=math.floor(col/3)
-        return mix[((row*2+g)%n)+1]
+        -- Exactly AAA BBB AAA BBB ... across the row.
+        -- The next row advances to the next pair of egg types.
+        local half=math.floor((col%6)/3)
+        return at(row*2+half)
     elseif pattern=="PAIRS 2+2+2" then
-        local g=math.floor(col/2)
-        return mix[((row*3+g)%n)+1]
+        -- Exactly AA BB CC AA BB CC ... across the row.
+        -- The next row advances to the next trio of egg types.
+        local pair=math.floor((col%6)/2)
+        return at(row*3+pair)
     elseif pattern=="MIRRORED ROWS" then
-        local k=(row%2==0) and col or (cols-1-col)
-        return mix[(k%n)+1]
+        -- Row 1 runs left-to-right; row 2 is the exact reverse; repeat.
+        local sequenceCol=(row%2==0) and col or (cols-1-col)
+        return at(sequenceCol)
     elseif pattern=="ALTERNATING ROWS" then
-        return mix[((row%2)%n)+1]
+        -- Full rows alternate A / B / A / B ...
+        return at(row%2)
     elseif pattern=="DIAGONAL SEQUENCE" then
-        return mix[((row+col)%n)+1]
+        -- Shift the sequence by one type on every new row.
+        return at(row+col)
     end
-    return mix[((index-1)%n)+1]
+    return at(index-1)
 end
 
 local EggState={}; local HeldEgg=nil
@@ -418,10 +1011,33 @@ local function weldEgg(o)
     for _,p in ipairs(o:GetDescendants()) do if p:IsA("BasePart") and p~=r and not p:FindFirstChild("SAE_Weld") then local w=Instance.new("WeldConstraint"); w.Name="SAE_Weld"; w.Part0=r; w.Part1=p; w.Parent=p end end
 end
 local function carryEgg(egg,carrier,key,model)
-    local st=EggState[egg]; if not st or st.carried or st.delivered then return false end
-    st.carried=true; st.claim=key; st.carrier=key; if st.prompt then st.prompt.Enabled=false end
-    eggPhysics(egg,true); pivot(egg,carrier.CFrame*CFrame.new(1.7,-.35,-2.7)); weldEgg(egg); local er=rootOf(egg); if not er then st.carried=false; st.claim=nil; return false end
-    eggPhysics(egg,false); local w=Instance.new("WeldConstraint"); w.Name="SAE_CarryWeld"; w.Part0=carrier; w.Part1=er; w.Parent=er; return true
+    local st=EggState[egg]
+    if not st or st.carried or st.delivered then return false end
+    st.carried=true
+    st.claim=key
+    st.carrier=key
+    if st.prompt then st.prompt.Enabled=false end
+
+    local visualHeight=4
+    pcall(function()
+        if egg:IsA("Model") then visualHeight=egg:GetExtentsSize().Y
+        elseif egg:IsA("BasePart") then visualHeight=egg.Size.Y end
+    end)
+    local lift=.9+math.clamp(visualHeight*.10,0,1.4)
+
+    eggPhysics(egg,true)
+    pivot(egg,carrier.CFrame*CFrame.new(0,lift,-2.8))
+    weldEgg(egg)
+    local er=rootOf(egg)
+    if not er then st.carried=false; st.claim=nil; return false end
+
+    eggPhysics(egg,false)
+    local w=Instance.new("WeldConstraint")
+    w.Name="SAE_CarryWeld"
+    w.Part0=carrier
+    w.Part1=er
+    w.Parent=er
+    return true
 end
 local function dropEgg(egg,pos,delivered)
     if not egg or not egg.Parent then return end; local r=rootOf(egg); if r then local w=r:FindFirstChild("SAE_CarryWeld"); if w then w:Destroy() end end
@@ -432,65 +1048,168 @@ local function dropHeld()
     local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); if not r then return end; local e=HeldEgg; HeldEgg=nil; dropEgg(e,r.Position+r.CFrame.LookVector*6,false); Carry.Visible=false
 end
 CarryDrop.MouseButton1Click:Connect(dropHeld)
+local EggByRoot={}
+local PickupPrompt=Instance.new("ProximityPrompt")
+PickupPrompt.Name="SAE_PickupPrompt"
+PickupPrompt.ActionText="Pick Up Egg"
+PickupPrompt.ObjectText="Egg"
+PickupPrompt.KeyboardKeyCode=Enum.KeyCode.E
+PickupPrompt.HoldDuration=.05
+PickupPrompt.MaxActivationDistance=12
+PickupPrompt.RequiresLineOfSight=false
+PickupPrompt.Enabled=false
+
 local function registerEgg(egg,name,scale)
-    local r=rootOf(egg); if not r then return end; local pr=Instance.new("ProximityPrompt"); pr.ActionText="Pick Up Egg"; pr.ObjectText=name; pr.KeyboardKeyCode=Enum.KeyCode.E; pr.HoldDuration=.05; pr.MaxActivationDistance=12; pr.RequiresLineOfSight=false; pr.Parent=r
-    EggState[egg]={name=name,scale=scale,prompt=pr,carried=false,delivered=false,claim=nil}
-    pr.Triggered:Connect(function() if HeldEgg then return end; local cr=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); if cr and carryEgg(egg,cr,"PLAYER",P.Character) then HeldEgg=egg; CarryName.Text="CARRYING: "..name; Carry.Visible=true end end)
+    local r=rootOf(egg)
+    if not r then return end
+    EggState[egg]={name=name,scale=scale,prompt=nil,carried=false,delivered=false,claim=nil}
+    EggByRoot[r]=egg
 end
+
+PickupPrompt.Triggered:Connect(function()
+    local r=PickupPrompt.Parent
+    local egg=r and EggByRoot[r] or nil
+    if not egg or HeldEgg then return end
+    local cr=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+    if cr and carryEgg(egg,cr,"PLAYER",P.Character) then
+        HeldEgg=egg
+        CarryName.Text="CARRYING: "..(EggState[egg] and EggState[egg].name or egg.Name)
+        Carry.Visible=true
+        PickupPrompt.Enabled=false
+    end
+end)
+
+-- Only one live prompt is needed, even for 500 eggs. It follows the nearest egg.
+task.spawn(function()
+    while Gui.Parent do
+        task.wait(.12)
+        if HeldEgg then
+            PickupPrompt.Enabled=false
+        else
+            local cr=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+            local nearest=nil
+            local nearestRoot=nil
+            local best=12
+            if cr then
+                for egg,st in pairs(EggState) do
+                    if egg and egg.Parent and not st.carried and not st.delivered then
+                        local r=rootOf(egg)
+                        if r then
+                            local d=(r.Position-cr.Position).Magnitude
+                            if d<best then
+                                best=d
+                                nearest=egg
+                                nearestRoot=r
+                            end
+                        end
+                    end
+                end
+            end
+            if nearest and nearestRoot then
+                if PickupPrompt.Parent~=nearestRoot then PickupPrompt.Parent=nearestRoot end
+                PickupPrompt.ObjectText=EggState[nearest].name or nearest.Name
+                PickupPrompt.Enabled=true
+            else
+                PickupPrompt.Enabled=false
+            end
+        end
+    end
+end)
+
 local function spawnEggs(name,count,size,pattern,customCF,batchTag)
     local mix=nil
     if name=="MIXED" then
         mix=availableEggs()
-        if arrlen(mix)==0 then return false,"No matching egg models are replicated to this client." end
-    elseif not findEgg(name) then
-        return false,name.." model is not replicated to this client."
+        if arrlen(mix)==0 then
+            return false,"None of the configured egg visuals are replicated to this client."
+        end
+    elseif not templateInfo(name) then
+        return false,name.." visual is not replicated to this client."
     end
 
     count=math.clamp(tonumber(count) or 1,1,500)
     size=math.clamp(tonumber(size) or 100,25,500)
     pattern=pattern or PATTERNS[1]
 
-    local baseCF,bounds=getMapFrame()
-    if customCF then
-        baseCF=customCF
-        bounds=Vector3.new(110,1,150)
+    -- Measure this batch before placing it. For MIXED we use the largest visual
+    -- footprint in the available set so no larger egg silently closes the gap.
+    local baseFootX=4
+    local baseFootZ=4
+    local function includeFootprint(eggName)
+        local inf=eggName and templateInfo(eggName) or nil
+        local sz=inf and inf.size or nil
+        if sz then
+            baseFootX=math.max(baseFootX,sz.X)
+            baseFootZ=math.max(baseFootZ,sz.Z)
+        end
     end
+    if name=="MIXED" then
+        for _,eggName in ipairs(mix) do includeFootprint(eggName) end
+    else
+        includeFootprint(name)
+    end
+    local visualScale=size/100
+    local footprintX=baseFootX*visualScale
+    local footprintZ=baseFootZ*visualScale
+
+    local baseCF,bounds=visibleSpawnFrame(customCF,count,pattern,size)
+    local centerHit=groundHitNear(baseCF.Position,nil)
+    local baseY=centerHit and centerHit.Position.Y or baseCF.Position.Y
+    local forward=Vector3.new(baseCF.LookVector.X,0,baseCF.LookVector.Z)
+    if forward.Magnitude<.01 then forward=Vector3.new(0,0,-1) else forward=forward.Unit end
+    baseCF=CFrame.lookAt(Vector3.new(baseCF.Position.X,baseY,baseCF.Position.Z),
+        Vector3.new(baseCF.Position.X,baseY,baseCF.Position.Z)+forward)
 
     local made=0
     local lastCols=0
     local lastRows=0
+
     for i=1,count do
-        local wanted,row,col,cols,rows=layoutPosition(i,count,size,baseCF,bounds)
-        lastCols=cols; lastRows=rows
+        local wanted,row,col,cols,rows,_,_,rowCols=layoutPosition(i,count,size,baseCF,bounds,pattern,footprintX,footprintZ)
+        lastCols=cols
+        lastRows=rows
+
         local en=name
-        if name=="MIXED" then en=mixedEggFor(pattern,mix,row,col,i,cols) end
-        local t=en and findEgg(en) or nil
-        if t then
-            pcall(function()
-                local c=t:Clone()
-                c.Name=en
-                if batchTag then c:SetAttribute("SAE_Batch",batchTag) end
-                c.Parent=EggFolder
-                local s=scaleEgg(c,size)
-                eggPhysics(c,true)
-                if groundObject(c,wanted,0) then
-                    registerEgg(c,en,s)
-                    made=made+1
-                else
-                    c:Destroy()
-                end
+        if name=="MIXED" then en=mixedEggFor(pattern,mix,row,col,i,rowCols or cols) end
+
+        local info=en and templateInfo(en) or nil
+        if info then
+            local ok=pcall(function()
+                local egg=info.template:Clone()
+                egg.Name=en
+                if batchTag then egg:SetAttribute("SAE_Batch",batchTag) end
+                egg.Parent=EggFolder
+
+                local scale=scaleEgg(egg,size)
+                eggPhysics(egg,true)
+
+                local y=baseY-(info.bottomOffset*scale)+.08
+                local cf=CFrame.new(wanted.X,y,wanted.Z)
+                pivot(egg,cf)
+
+                registerEgg(egg,en,scale)
+                made=made+1
             end)
         end
-        if i%20==0 then task.wait() end
+
+        if i%25==0 then task.wait() end
     end
-    if made<=0 then return false,"No eggs could be placed on the detected floor." end
-    return true,made,lastCols,lastRows
+
+    if made<=0 then
+        return false,"The game egg visuals were found, but none could be cloned."
+    end
+    return true,made,lastCols,lastRows,0
 end
 
 local function clearSpawnedEggs(batchTag)
     local removed=0
     for _,e in ipairs(EggFolder:GetChildren()) do
         if (not batchTag) or e:GetAttribute("SAE_Batch")==batchTag then
+            local r=rootOf(e)
+            if r then
+                if PickupPrompt.Parent==r then PickupPrompt.Enabled=false; PickupPrompt.Parent=nil end
+                EggByRoot[r]=nil
+            end
             EggState[e]=nil
             pcall(function() e:Destroy() end)
             removed=removed+1
@@ -1101,7 +1820,16 @@ local function refreshSammyTag()
 end
 
 local function placeNPC(m,pos,dir)
-    local r=m:FindFirstChild("HumanoidRootPart"); local h=m:FindFirstChildOfClass("Humanoid"); if not r or not h then return end; local hit=groundHit(pos,m); local y=hit and hit.Position.Y+h.HipHeight+r.Size.Y/2 or pos.Y; local d=Vector3.new(dir.X,0,dir.Z); if d.Magnitude<.1 then d=Vector3.new(0,0,-1) else d=d.Unit end; m:PivotTo(CFrame.lookAt(Vector3.new(pos.X,y,pos.Z),Vector3.new(pos.X,y,pos.Z)+d)); r.AssemblyLinearVelocity=Vector3.zero; r.AssemblyAngularVelocity=Vector3.zero
+    local r=m:FindFirstChild("HumanoidRootPart")
+    local h=m:FindFirstChildOfClass("Humanoid")
+    if not r or not h then return end
+    local hit=groundHitNear(pos,m)
+    local y=hit and hit.Position.Y+h.HipHeight+r.Size.Y/2 or pos.Y
+    local d=Vector3.new(dir.X,0,dir.Z)
+    if d.Magnitude<.1 then d=Vector3.new(0,0,-1) else d=d.Unit end
+    m:PivotTo(CFrame.lookAt(Vector3.new(pos.X,y,pos.Z),Vector3.new(pos.X,y,pos.Z)+d))
+    r.AssemblyLinearVelocity=Vector3.zero
+    r.AssemblyAngularVelocity=Vector3.zero
 end
 local function despawnSammy() SammyGen=SammyGen+1; if Sammy then Sammy:Destroy(); Sammy=nil end end
 local function spawnSammy()
@@ -1125,36 +1853,56 @@ local function spawnSammy()
 end
 
 local function sammyBatchCenter()
-    if SammySpot then return SammySpot end
-    local cf=getMapFrame()
-    return cf
+    if SammySpot then return select(1,visibleSpawnFrame(SammySpot)) end
+    if Sammy and Sammy.Parent then
+        local r=Sammy:FindFirstChild("HumanoidRootPart")
+        if r then
+            local hit=groundHitNear(r.Position,Sammy)
+            local p=hit and hit.Position or (r.Position-Vector3.new(0,3,0))
+            return select(1,visibleSpawnFrame(CFrame.new(p)))
+        end
+    end
+    return select(1,visibleSpawnFrame(nil))
 end
 
 local function spawnSammyBatch(refillOnly)
-    local current=countBatch("SAMMY240")
     local target=240
-    local need=refillOnly and math.max(0,target-current) or target
     if not refillOnly then clearSpawnedEggs("SAMMY240") end
-    if need<=0 then return true,"Sammy batch is already full." end
+
     local cf=sammyBatchCenter()
-    local ok,made=spawnEggs("MIXED",need,200,"DIAGONAL SEQUENCE",cf,"SAMMY240")
-    if ok then return true,"Sammy batch: "..tostring(countBatch("SAMMY240")).." / 240 eggs." end
-    return false,tostring(made)
+    for attempt=1,3 do
+        local current=countBatch("SAMMY240")
+        local need=math.max(0,target-current)
+        if need<=0 then
+            return true,"Sammy batch: 240 / 240 eggs."
+        end
+
+        local ok,msg=spawnEggs("MIXED",need,200,"DIAGONAL SEQUENCE",cf,"SAMMY240")
+        if not ok and attempt==3 then
+            return false,"Sammy batch stopped at "..tostring(countBatch("SAMMY240")).." / 240. "..tostring(msg)
+        end
+        task.wait()
+    end
+
+    local final=countBatch("SAMMY240")
+    return final>=target, final>=target and "Sammy batch: 240 / 240 eggs." or ("Sammy batch: "..tostring(final).." / 240 eggs.")
 end
 
 local function markSammySpot()
     local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
     if not r then return false,"Character unavailable." end
-    local hit=groundHit(r.Position,nil)
-    local p=hit and hit.Position or r.Position
+    local hit=groundHitNear(r.Position,nil)
+    local p=hit and hit.Position or (r.Position-Vector3.new(0,3,0))
     SammySpot=CFrame.new(p)
     return true,"Sammy egg spot marked."
 end
 
 local function sammyBanner(message)
+    local msg=tostring(message or "")
+    if msg=="" then return end
     local id=P.UserId
     pcall(function() id=Players:GetUserIdFromNameAsync(CFG.SammyUsername) end)
-    notice(id,"Sammy",":", "ANNOUNCEMENT", "- "..tostring(message))
+    notice(id,"Sammy","says:","",msg)
 end
 
 -- Refill and advertising workers. They are idle unless the related switches are ON.
@@ -1180,14 +1928,14 @@ task.spawn(function()
     end
 end)
 
--- Safe zone and bots.
-local SafeObj=nil; local SafePos=nil; local SafeName="Not locked"; local Marker=nil
+-- Safe zone and bots. State was declared before the map/layout code so egg
+-- spawning can reserve this area before collectors are started.
 local function objPos(o) if not o then return nil end; if o:IsA("BasePart") then return o.Position elseif o:IsA("Model") then return o:GetPivot().Position end end
-local function safePosition() if SafeObj and SafeObj.Parent then local p=objPos(SafeObj); if p then local hit=groundHit(p,nil); SafePos=hit and hit.Position or p end end; return SafePos end
+local function safePosition() if SafeObj and SafeObj.Parent then local p=objPos(SafeObj); if p then local hit=groundHitNear(p,nil); SafePos=hit and hit.Position or p end end; return SafePos end
 local function marker()
     if Marker then Marker:Destroy(); Marker=nil end; local p=safePosition(); if not p then return end; local x=Instance.new("Part"); x.Name="SAE_SafeZoneMarker"; x.Size=Vector3.new(8,.08,8); x.Anchored=true; x.CanCollide=false; x.CanTouch=false; x.CanQuery=false; x.Material=Enum.Material.Neon; x.Color=Color3.fromRGB(80,255,120); x.Transparency=.82; x.Position=p+Vector3.new(0,.08,0); x.Parent=workspace; Marker=x
 end
-local function detectSafe()
+detectSafe=function()
     local pr=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); local pp=pr and pr.Position or Vector3.zero; local best=nil; local score=-1e9
     for _,o in ipairs(workspace:GetDescendants()) do
         if (o:IsA("BasePart") or o:IsA("Model")) and not o:IsDescendantOf(EggFolder) and not o:IsDescendantOf(NPCFolder) then
@@ -1197,21 +1945,95 @@ local function detectSafe()
     end
     if not best then return false,"Safe zone not auto-detected. Stand in it and press SET HERE." end; SafeObj=best; SafePos=objPos(best); SafeName=best.Name; marker(); return true,SafeName
 end
-local function setSafeHere() local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); if not r then return false,"Character unavailable." end; local hit=groundHit(r.Position,nil); SafeObj=nil; SafePos=hit and hit.Position or r.Position; SafeName="Manual Safe Zone"; marker(); return true,SafeName end
+local function setSafeHere() local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); if not r then return false,"Character unavailable." end; local hit=groundHitNear(r.Position,nil); SafeObj=nil; SafePos=hit and hit.Position or (r.Position-Vector3.new(0,3,0)); SafeName="Manual Safe Zone"; marker(); return true,SafeName end
 
 local Bots={}
-local function botPool() local a={}; for _,p in ipairs(Players:GetPlayers()) do if p~=P then table.insert(a,p.UserId) end end; return a end
-local function fallbackBot(i)
-    local d=Players:GetHumanoidDescriptionFromUserId(P.UserId):Clone(); local cols={Color3.fromRGB(245,205,48),Color3.fromRGB(80,175,255),Color3.fromRGB(255,120,120),Color3.fromRGB(125,255,150),Color3.fromRGB(185,120,255),Color3.fromRGB(255,180,90),Color3.fromRGB(105,225,220),Color3.fromRGB(220,220,220),Color3.fromRGB(255,115,220),Color3.fromRGB(150,195,255)}; local c=cols[((i-1)%arrlen(cols))+1]
-    pcall(function() d.HeadColor=c; d.LeftArmColor=c; d.RightArmColor=c; d.LeftLegColor=c; d.RightLegColor=c; d.TorsoColor=c; d.HeightScale=.9+(i%5)*.03; d.WidthScale=.9+(i%3)*.04 end)
-    return Players:CreateHumanoidModelFromDescription(d,Enum.HumanoidRigType.R15)
+
+-- Collector bots are generated locally and do NOT depend on how many real
+-- players are in the server. Selecting 1-10 always attempts that exact count.
+local BaseBotDescription=nil
+local function getBaseBotDescription()
+    if BaseBotDescription then return BaseBotDescription end
+    local desc=nil
+    pcall(function() desc=Players:GetHumanoidDescriptionFromUserId(P.UserId) end)
+    BaseBotDescription=desc or Instance.new("HumanoidDescription")
+    return BaseBotDescription
 end
-local function botAvatar(i,pool) local uid=pool[i]; if uid then local ok,m=pcall(function() return createAvatar(uid) end); if ok and m then return m end end; return fallbackBot(i) end
+
+local function fallbackBot(i)
+    local d=getBaseBotDescription():Clone()
+    local cols={
+        Color3.fromRGB(245,205,48),Color3.fromRGB(80,175,255),Color3.fromRGB(255,120,120),
+        Color3.fromRGB(125,255,150),Color3.fromRGB(185,120,255),Color3.fromRGB(255,180,90),
+        Color3.fromRGB(105,225,220),Color3.fromRGB(220,220,220),Color3.fromRGB(255,115,220),
+        Color3.fromRGB(150,195,255)
+    }
+    local c=cols[((i-1)%arrlen(cols))+1]
+    pcall(function()
+        d.HeadColor=c
+        d.LeftArmColor=c
+        d.RightArmColor=c
+        d.LeftLegColor=c
+        d.RightLegColor=c
+        d.TorsoColor=c
+        d.HeightScale=.94+((i-1)%4)*.025
+        d.WidthScale=.92+((i-1)%3)*.035
+        d.HeadScale=.95+((i-1)%3)*.025
+    end)
+
+    local model=nil
+    local ok=pcall(function()
+        model=Players:CreateHumanoidModelFromDescription(d,Enum.HumanoidRigType.R15)
+    end)
+    if ok and model then return model end
+
+    -- Last-resort clone: still independent of other players in the server.
+    local ch=P.Character
+    if ch then
+        local oldArchivable=ch.Archivable
+        ch.Archivable=true
+        pcall(function() model=ch:Clone() end)
+        ch.Archivable=oldArchivable
+        if model then
+            for _,o in ipairs(model:GetDescendants()) do
+                if o:IsA("Script") or o:IsA("LocalScript") or o:IsA("Tool") then
+                    pcall(function() o:Destroy() end)
+                end
+            end
+            return model
+        end
+    end
+    return nil
+end
+
+local function botAvatar(i)
+    return fallbackBot(i)
+end
+
 local function botTag(m,id,trailName,stat)
-    local head=m:FindFirstChild("Head"); if not head then return end; local g=Instance.new("BillboardGui"); g.Size=UDim2.fromOffset(270,65); g.StudsOffset=Vector3.new(0,3.5,0); g.AlwaysOnTop=true; g.Parent=head
-    local a=label(g,id[1],UDim2.new(),UDim2.new(1,0,0,26),21); a.TextXAlignment=Enum.TextXAlignment.Center; a.Font=Enum.Font.GothamBold; a.TextStrokeTransparency=0
-    local b=label(g,"@"..id[2],UDim2.fromOffset(0,27),UDim2.new(1,0,0,18),14); b.TextXAlignment=Enum.TextXAlignment.Center; b.TextColor3=Color3.fromRGB(220,220,225)
-    local c=label(g,trailName.." - "..math.floor(stat/1000000).."M",UDim2.fromOffset(0,46),UDim2.new(1,0,0,15),10); c.TextXAlignment=Enum.TextXAlignment.Center; c.TextColor3=C.muted
+    local head=m:FindFirstChild("Head")
+    if not head then return end
+
+    local g=Instance.new("BillboardGui")
+    g.Name="SAE_BotTag"
+    g.Size=UDim2.fromOffset(220,46)
+    g.StudsOffset=Vector3.new(0,3.25,0)
+    g.AlwaysOnTop=true
+    g.MaxDistance=70
+    g.Parent=head
+
+    local a=label(g,id[1],UDim2.fromOffset(0,0),UDim2.new(1,0,0,23),17)
+    a.TextXAlignment=Enum.TextXAlignment.Center
+    a.Font=Enum.Font.GothamMedium
+    a.TextStrokeTransparency=.55
+    a.TextStrokeColor3=Color3.new(0,0,0)
+
+    local b=label(g,"@"..id[2],UDim2.fromOffset(0,23),UDim2.new(1,0,0,18),13)
+    b.TextXAlignment=Enum.TextXAlignment.Center
+    b.Font=Enum.Font.Gotham
+    b.TextColor3=Color3.fromRGB(205,205,210)
+    b.TextStrokeTransparency=.72
+    b.TextStrokeColor3=Color3.new(0,0,0)
 end
 local CollectorsEnabled=false
 
@@ -1307,7 +2129,7 @@ local function botBrain(d)
                 if target then
                     local er=rootOf(target)
                     if er then
-                        local hit=groundHit(er.Position,m)
+                        local hit=groundHitNear(er.Position,m)
                         h:MoveTo(hit and hit.Position or er.Position)
                         local hd=horizontalDistance(r.Position,er.Position)
                         if hd<=12 then
@@ -1344,11 +2166,65 @@ local function botBrain(d)
 end
 
 local function spawnBots(n)
-    if not safePosition() then detectSafe() end; if not safePosition() then return false,"Lock the safe zone first." end; clearBots(); CollectorsEnabled=true; n=math.clamp(n,1,10); local pr=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); if not pr then return false,"Character unavailable." end; local pool=botPool()
+    if not safePosition() then detectSafe() end
+    local safe=safePosition()
+    if not safe then return false,"Lock the safe zone first." end
+
+    clearBots()
+    CollectorsEnabled=true
+    n=math.clamp(n,1,10)
+    local eggTarget=nil
+    local nearest=nearestEgg(safe,"BOT_SPAWN_LOOK")
+    local er=nearest and rootOf(nearest) or nil
+    if er then eggTarget=er.Position end
+    if not eggTarget then eggTarget=select(1,getMapFrame()).Position end
+
+    local dir=Vector3.new(eggTarget.X-safe.X,0,eggTarget.Z-safe.Z)
+    if dir.Magnitude<.1 then dir=Vector3.new(0,0,-1) else dir=dir.Unit end
+    local right=Vector3.new(-dir.Z,0,dir.X)
+
     for i=1,n do
-        local ok,m=pcall(function() return botAvatar(i,pool) end); if ok and m then m.Name="Egg Bot "..i; m.Parent=NPCFolder; local h=m:FindFirstChildOfClass("Humanoid"); local r=m:FindFirstChild("HumanoidRootPart"); if h and r then h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None; h.NameDisplayDistance=0; h.HealthDisplayDistance=0; h.AutoRotate=true; r.Anchored=false; local id=BOT_NAMES[((i-1)%arrlen(BOT_NAMES))+1]; local tr=TRAILS[math.random(1,arrlen(TRAILS))]; local stat=math.random(200,270)*1000000; local speed=90+((stat-200000000)/70000000)*35; placeNPC(m,pr.Position-pr.CFrame.LookVector*(5+math.ceil(i/2))+pr.CFrame.RightVector*((i%2==0) and 5 or -5),pr.CFrame.LookVector); local trail=addTrail(m,tr); local d={model=m,key="BOT_"..i.."_"..id[2],speed=speed,trail=trail,anim=animations(h)}; botTag(m,id,tr[1],stat); table.insert(Bots,d); botBrain(d) else m:Destroy() end end; task.wait(.04)
+        local ok,m=pcall(function() return botAvatar(i) end)
+        if (not ok) or (not m) then
+            ok,m=pcall(function() return fallbackBot(i) end)
+        end
+        if ok and m then
+            m.Name="Egg Bot "..i
+            m.Parent=NPCFolder
+            local h=m:FindFirstChildOfClass("Humanoid")
+            local r=m:FindFirstChild("HumanoidRootPart")
+            if h and r then
+                h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
+                h.NameDisplayDistance=0
+                h.HealthDisplayDistance=0
+                h.AutoRotate=true
+                r.Anchored=false
+
+                local id=BOT_NAMES[((i-1)%arrlen(BOT_NAMES))+1]
+                local tr=TRAILS[math.random(1,arrlen(TRAILS))]
+                local stat=math.random(200,270)*1000000
+                local speed=90+((stat-200000000)/70000000)*35
+
+                -- Spawn in a small formation INSIDE the safe zone.
+                local row=math.floor((i-1)/4)
+                local col=(i-1)%4
+                local lateral=(col-1.5)*3.4
+                local backward=row*3.2
+                local spawnPos=safe+right*lateral-dir*backward
+                placeNPC(m,spawnPos,dir)
+
+                local trail=addTrail(m,tr)
+                local d={model=m,key="BOT_"..i.."_"..id[2],speed=speed,trail=trail,anim=animations(h)}
+                botTag(m,id,tr[1],stat)
+                table.insert(Bots,d)
+                botBrain(d)
+            else
+                m:Destroy()
+            end
+        end
+        task.wait(.04)
     end
-    return true,tostring(arrlen(Bots)).." bots spawned - Safe Zone: "..SafeName
+    return true,tostring(arrlen(Bots)).." bots spawned from Safe Zone: "..SafeName
 end
 
 -- Reference-script style boost/event controls. Without a configured legitimate server remote,
@@ -1611,12 +2487,13 @@ section(EggsPage,"QUANTITY",129)
 local amountValues={200,250,300,350,400,450,500}
 local amountButtons={}
 for i,v in ipairs(amountValues) do
+    local value=v
     local row=(i<=4) and 0 or 1
     local col=(row==0) and (i-1) or (i-5)
-    local b=button(EggsPage,tostring(v),UDim2.fromOffset(4+col*85,150+row*31),UDim2.fromOffset(78,26),true)
-    amountButtons[v]=b
+    local b=button(EggsPage,tostring(value),UDim2.fromOffset(4+col*85,150+row*31),UDim2.fromOffset(78,26),true)
+    amountButtons[value]=b
     b.MouseButton1Click:Connect(function()
-        Amount=v
+        Amount=value
         for k,x in pairs(amountButtons) do x.BackgroundColor3=(k==Amount) and C.purple or C.card2 end
     end)
 end
@@ -1624,52 +2501,55 @@ amountButtons[200].BackgroundColor3=C.purple
 
 local sizeValue=function() return EggSize end
 sizeValue=intSlider(EggsPage,217,25,500,5,100,"Egg scale",function(v) EggSize=v end)
-local spawnBtn=button(EggsPage,"Spawn eggs in MAP CENTER",UDim2.fromOffset(4,275),UDim2.new(1,-8,0,38),false)
+local spawnBtn=button(EggsPage,"Spawn eggs BEHIND ME",UDim2.fromOffset(4,275),UDim2.new(1,-8,0,38),false)
 local clearEggBtn=button(EggsPage,"Clear spawned eggs",UDim2.fromOffset(4,320),UDim2.new(1,-8,0,34),true)
-local spawnStatus=label(EggsPage,"Map center is used regardless of where you stand.",UDim2.fromOffset(5,361),UDim2.new(1,-10,0,42),9)
+local spawnStatus=label(EggsPage,"Spawns behind your current position, facing the same direction as you.",UDim2.fromOffset(5,361),UDim2.new(1,-10,0,42),9)
 spawnStatus.TextWrapped=true; spawnStatus.TextColor3=C.muted
 spawnBtn.MouseButton1Click:Connect(function()
     spawnBtn.Text="SPAWNING..."
     local en=EGGS[EggIndex]
-    if callRemote("SpawnEggs",{Egg=en,Quantity=Amount,Size=EggSize,Pattern=Pattern,MapCenter=true}) then
+    -- Each click is one clean batch, so choosing 500 means exactly 500 GENERAL eggs.
+    clearSpawnedEggs("GENERAL")
+    if callRemote("SpawnEggs",{Egg=en,Quantity=Amount,Size=EggSize,Pattern=Pattern,BehindPlayer=true}) then
         spawnStatus.Text="Server spawn request sent."
         spawnStatus.TextColor3=C.green
     else
-        local ok,made,cols,rows=spawnEggs(en,Amount,EggSize,Pattern,nil,"GENERAL")
+        local ok,made,cols,rows,fallbacks=spawnEggs(en,Amount,EggSize,Pattern,nil,"GENERAL")
         if ok then
-            spawnStatus.Text=tostring(made).." eggs - centered - "..tostring(cols).." per row / "..tostring(rows).." rows."
+            spawnStatus.Text="Spawned "..tostring(made).." / "..tostring(Amount).." real egg visuals - "..Pattern.." - "..tostring(cols).." per row / "..tostring(rows).." rows."
             spawnStatus.TextColor3=C.green
             notice(P.UserId,Display,": spawned",tostring(made).." EGGS","")
         else
             spawnStatus.Text=tostring(made); spawnStatus.TextColor3=C.red
         end
     end
-    spawnBtn.Text="Spawn eggs in MAP CENTER"
+    spawnBtn.Text="Spawn eggs BEHIND ME"
 end)
 clearEggBtn.MouseButton1Click:Connect(function() local n=clearSpawnedEggs(); spawnStatus.Text="Cleared "..n.." spawned egg(s)."; spawnStatus.TextColor3=C.green end)
 
 -- mixed layout page from the reference screenshots
 local patternDescriptions={
-    ["ORIGINAL 6x20"]="Classic rows; mixed egg types cycle across the row.",
-    ["ONE TYPE PER ROW"]="Each physical row uses one egg type.",
-    ["SPLIT ROWS 3+3"]="Egg types change in groups of three across each row.",
-    ["PAIRS 2+2+2"]="Egg types repeat in pairs across each row.",
-    ["MIRRORED ROWS"]="Every second row reverses the type sequence.",
-    ["ALTERNATING ROWS"]="Rows alternate between egg types.",
-    ["DIAGONAL SEQUENCE"]="Egg types shift diagonally from row to row."
+    ["ORIGINAL 6x20"]="20 eggs across; a six-type sequence repeats through each row.",
+    ["ONE TYPE PER ROW"]="Every egg in one row is the same type; the next row changes type.",
+    ["SPLIT ROWS 3+3"]="Three of one type, then three of the next type, repeating across the row.",
+    ["PAIRS 2+2+2"]="Two of type A, two of type B, two of type C, repeating across the row.",
+    ["MIRRORED ROWS"]="Every second row reverses the left-to-right sequence.",
+    ["ALTERNATING ROWS"]="Whole rows alternate between two egg types.",
+    ["DIAGONAL SEQUENCE"]="Each row shifts the sequence by one, making diagonal bands."
 }
 local patStatus=label(PatternPage,"MIXED EGGS - select a pattern",UDim2.fromOffset(5,3),UDim2.new(1,-10,0,25),11); patStatus.Font=Enum.Font.GothamBold
 for i,n in ipairs(PATTERNS) do
+    local patternName=n
     local row=math.floor((i-1)/2); local col=(i-1)%2
     local wide=(i==arrlen(PATTERNS) and (arrlen(PATTERNS)%2==1))
     local pos=wide and UDim2.fromOffset(4,35+row*58) or UDim2.new(col*.5,col==0 and 4 or 4,0,35+row*58)
     local sz=wide and UDim2.new(1,-8,0,49) or UDim2.new(.5,-8,0,49)
-    local b=button(PatternPage,n, pos, sz,true)
+    local b=button(PatternPage,patternName, pos, sz,true)
     b.TextSize=10
     b.MouseButton1Click:Connect(function()
-        Pattern=n
-        patternBtn.Text="Layout: "..n
-        patStatus.Text=n.." selected"
+        Pattern=patternName
+        patternBtn.Text="Layout: "..patternName
+        patStatus.Text=patternName.." selected"
         showAdminPage("Spawn eggs",false)
     end)
 end
@@ -1790,13 +2670,14 @@ setMapBtn.MouseButton1Click:Connect(function() local ok,msg=setMapCenterHere(); 
 hideMapMarker.MouseButton1Click:Connect(function() mapMarkerVisible=not mapMarkerVisible; if MapMarker then MapMarker.Transparency=mapMarkerVisible and .72 or 1 end end)
 local rescanBtn=button(SettingsPage,"Rescan egg models",UDim2.fromOffset(0,166),UDim2.new(1,0,0,38),true)
 local settingsInfo=label(SettingsPage,"No account lock is used. Your friend can run the same file; LocalPlayer is resolved at runtime.",UDim2.fromOffset(5,217),UDim2.new(1,-10,0,58),9); settingsInfo.TextWrapped=true; settingsInfo.TextColor3=C.muted
-rescanBtn.MouseButton1Click:Connect(function() EggCache={}; settingsInfo.Text="Egg model cache cleared. Models will be re-detected on the next spawn."; settingsInfo.TextColor3=C.green end)
+rescanBtn.MouseButton1Click:Connect(function() EggCache={}; EggTemplateCache={}; settingsInfo.Text="Egg visual cache cleared. Real game egg visuals will be re-detected on the next spawn."; settingsInfo.TextColor3=C.green end)
 
 
 -- Start map-center detection after the UI exists. Kept inside this scope so
 -- refreshMapStatus does not have to remain a top-level local.
 task.spawn(function()
     task.wait(.6)
+    if detectSafe then pcall(function() detectSafe() end) end
     detectMapCenter()
     refreshMapStatus()
 end)
@@ -1935,12 +2816,11 @@ local tagNone=button(BotSammyPage,"No tag",UDim2.fromOffset(0,sy),UDim2.new(1/3,
 local tagAdmin=button(BotSammyPage,"Admin",UDim2.new(1/3,2,0,sy),UDim2.new(1/3,-6,0,34),true)
 local tagCreator=button(BotSammyPage,"Creator",UDim2.new(2/3,4,0,sy),UDim2.new(1/3,-10,0,34),true); sy=sy+42
 local sammyPanelStatus=label(BotSammyPage,"Ready to spawn Sammy.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,33),9); sammyPanelStatus.TextColor3=C.muted; sy=sy+42
-section(BotSammyPage,"ADVERTISEMENT MESSAGES",sy); sy=sy+24
-local msg1=textbox(BotSammyPage,"Message 1",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,46),SammyMessages[1]); sy=sy+53
-local msg2=textbox(BotSammyPage,"Message 2",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,46),SammyMessages[2]); sy=sy+53
-local msg3=textbox(BotSammyPage,"Message 3",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,46),SammyMessages[3]); sy=sy+53
-local saveMessages=button(BotSammyPage,"Save all 3",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,36),false); sy=sy+45
-local adHint=label(BotSammyPage,"Save then use Test banner or ADVERTISE.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,32),9); adHint.TextColor3=C.muted; sy=sy+38
+section(BotSammyPage,"ADVERTISEMENT MESSAGES - CLICK ONE TO SEND",sy); sy=sy+24
+local msg1=button(BotSammyPage,SammyMessages[1],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg1.TextWrapped=true; sy=sy+55
+local msg2=button(BotSammyPage,SammyMessages[2],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg2.TextWrapped=true; sy=sy+55
+local msg3=button(BotSammyPage,SammyMessages[3],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg3.TextWrapped=true; sy=sy+55
+local adHint=label(BotSammyPage,"Click any message above and Sammy will announce it on screen.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,38),9); adHint.TextColor3=C.muted; adHint.TextWrapped=true; sy=sy+44
 BotSammyPage.CanvasSize=UDim2.fromOffset(0,sy)
 
 spawnSammyButton.MouseButton1Click:Connect(function() if callRemote("SpawnSammy") then sammyPanelStatus.Text="Server Sammy request sent."; sammyPanelStatus.TextColor3=C.green else local ok,msg=spawnSammy(); sammyPanelStatus.Text=msg; sammyPanelStatus.TextColor3=ok and C.green or C.red end end)
@@ -1954,7 +2834,16 @@ sammyDirect.FocusLost:Connect(function(enter) if enter and sammyDirect.Text~="" 
 sammyRemove.MouseButton1Click:Connect(function() despawnSammy(); sammyPanelStatus.Text="Sammy removed."; sammyPanelStatus.TextColor3=C.muted end)
 local function setSammyMode(mode) SammyTagMode=mode; refreshSammyTag(); tagNone.BackgroundColor3=(mode=="NONE") and C.purple or C.card2; tagAdmin.BackgroundColor3=(mode=="ADMIN") and C.purple or C.card2; tagCreator.BackgroundColor3=(mode=="CREATOR") and C.purple or C.card2 end
 tagNone.MouseButton1Click:Connect(function() setSammyMode("NONE") end); tagAdmin.MouseButton1Click:Connect(function() setSammyMode("ADMIN") end); tagCreator.MouseButton1Click:Connect(function() setSammyMode("CREATOR") end)
-saveMessages.MouseButton1Click:Connect(function() SammyMessages[1]=msg1.Text; SammyMessages[2]=msg2.Text; SammyMessages[3]=msg3.Text; adHint.Text="Saved all 3 messages."; adHint.TextColor3=C.green end)
+local function sendSammyAd(index)
+    local msg=SammyMessages[index]
+    if not msg or msg=="" then return end
+    sammyBanner(msg)
+    adHint.Text="Sammy announced message "..tostring(index).."."
+    adHint.TextColor3=C.green
+end
+msg1.MouseButton1Click:Connect(function() sendSammyAd(1) end)
+msg2.MouseButton1Click:Connect(function() sendSammyAd(2) end)
+msg3.MouseButton1Click:Connect(function() sendSammyAd(3) end)
 showBotPage("Collectors")
 refreshSafeUI()
 
