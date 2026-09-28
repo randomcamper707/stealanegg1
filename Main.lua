@@ -151,7 +151,6 @@ local function button(par,t,p,s,dark)
         hovering=value
         if animation then animation:Cancel() end
         if hovering then
-            baseColor=x.BackgroundColor3
             gradients={}
             for _,child in ipairs(x:GetChildren()) do
                 if child:IsA("UIGradient") then
