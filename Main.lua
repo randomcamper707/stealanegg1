@@ -1279,7 +1279,8 @@ end
 -- Character tag.
 local CoownerColor=Color3.fromRGB(112,43,180)
 local CreatorColor=Color3.fromRGB(246,79,126)
-local DeveloperColor=Color3.fromRGB(109,176,255)
+local DeveloperColor=Color3.fromRGB(255,148,58)
+local RoleLabels={OWNER="Owner",["CO-OWNER"]="Co-Owner",ADMIN="⚙️ Admin",["CONTENT CREATOR"]="🎬 Content Creator",DEVELOPER="🔨 Developer"}
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
 local TagAdornee=nil
 local TagShineTween=nil
@@ -1311,14 +1312,15 @@ local function applyTag()
     g.AlwaysOnTop=true
     g.Parent=head
 
-    local roleText=Role=="CONTENT CREATOR" and "🎬 Content Creator" or (Role=="DEVELOPER" and "⚙️ Developer" or ("["..Role.."]"))
+    local roleText=RoleLabels[Role] or Role
     local a=label(g,roleText,UDim2.new(),UDim2.new(1,0,0,27),20)
     a.Font=Enum.Font.GothamBlack
     a.TextXAlignment=Enum.TextXAlignment.Center
     a.TextStrokeTransparency=0
     a.TextStrokeColor3=Color3.new(0,0,0)
-    a.TextColor3=Role=="OWNER" and Color3.fromRGB(235,18,35) or (Role=="CO-OWNER" and CoownerColor or (Role=="CONTENT CREATOR" and CreatorColor or (Role=="DEVELOPER" and DeveloperColor or C.purple2)))
-    if Role=="OWNER" or Role=="CO-OWNER" then
+    local roleColor=Role=="OWNER" and Color3.fromRGB(235,18,35) or (Role=="CO-OWNER" and CoownerColor or (Role=="CONTENT CREATOR" and CreatorColor or (Role=="DEVELOPER" and DeveloperColor or C.purple2)))
+    a.TextColor3=roleColor
+    if RoleLabels[Role] then
         -- Keep the dark outline separate from the moving color highlight.
         local shine=label(g,roleText,a.Position,a.Size,20)
         shine.Font=a.Font
@@ -1326,18 +1328,14 @@ local function applyTag()
         shine.TextColor3=C.white
         shine.TextStrokeTransparency=1
         local gradient=Instance.new("UIGradient")
-        gradient.Color=Role=="CO-OWNER" and ColorSequence.new({
-            ColorSequenceKeypoint.new(0,CoownerColor),
-            ColorSequenceKeypoint.new(.42,Color3.fromRGB(145,66,205)),
-            ColorSequenceKeypoint.new(.5,Color3.fromRGB(225,202,255)),
-            ColorSequenceKeypoint.new(.58,Color3.fromRGB(145,66,205)),
-            ColorSequenceKeypoint.new(1,CoownerColor)
-        }) or ColorSequence.new({
-            ColorSequenceKeypoint.new(0,Color3.fromRGB(225,18,33)),
-            ColorSequenceKeypoint.new(.42,Color3.fromRGB(255,36,48)),
-            ColorSequenceKeypoint.new(.5,Color3.fromRGB(255,220,220)),
-            ColorSequenceKeypoint.new(.58,Color3.fromRGB(255,36,48)),
-            ColorSequenceKeypoint.new(1,Color3.fromRGB(225,18,33))
+        local shineMid=roleColor:Lerp(Color3.new(1,1,1),.28)
+        local shinePeak=roleColor:Lerp(Color3.new(1,1,1),.88)
+        gradient.Color=ColorSequence.new({
+            ColorSequenceKeypoint.new(0,roleColor),
+            ColorSequenceKeypoint.new(.42,shineMid),
+            ColorSequenceKeypoint.new(.5,shinePeak),
+            ColorSequenceKeypoint.new(.58,shineMid),
+            ColorSequenceKeypoint.new(1,roleColor)
         })
         gradient.Rotation=15
         gradient.Offset=Vector2.new(-1,0)
@@ -1389,7 +1387,7 @@ local function setRole(role)
         if selector.creator then selector.creator:SetAttribute("RestingColor",role=="CONTENT CREATOR" and CreatorColor or C.card2) end
         if selector.developer then selector.developer:SetAttribute("RestingColor",role=="DEVELOPER" and DeveloperColor or C.card2) end
         if selector.status then
-            selector.status.Text=role.." tag applied."
+            selector.status.Text=(RoleLabels[role] or role).." tag applied."
             selector.status.TextColor3=C.green
         end
     end
@@ -2193,11 +2191,11 @@ local morphOutline=stroke(morphBtn,.3)
 morphOutline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,158),UDim2.new(.38,-12,0,37),true)
 local roleLabel=label(Morph,"OVERHEAD ROLE",UDim2.fromOffset(12,203),UDim2.new(1,-24,0,16),9); roleLabel.TextColor3=C.muted; roleLabel.Font=Enum.Font.GothamBold
-local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true)
-local morphCoownerRole=button(Morph,"CO-OWNER",UDim2.new(1/3,6,0,224),UDim2.new(1/3,-12,0,30),true)
-local morphAdminRole=button(Morph,"ADMIN",UDim2.new(2/3,0,0,224),UDim2.new(1/3,-12,0,30),true)
+local morphOwnerRole=button(Morph,"Owner",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true)
+local morphCoownerRole=button(Morph,"Co-Owner",UDim2.new(1/3,6,0,224),UDim2.new(1/3,-12,0,30),true)
+local morphAdminRole=button(Morph,"⚙️ Admin",UDim2.new(2/3,0,0,224),UDim2.new(1/3,-12,0,30),true); morphAdminRole.TextSize=9
 local morphCreatorRole=button(Morph,"🎬 Content Creator",UDim2.fromOffset(12,260),UDim2.new(.5,-18,0,30),true); morphCreatorRole.TextSize=9
-local morphDeveloperRole=button(Morph,"⚙️ Developer",UDim2.new(.5,6,0,260),UDim2.new(.5,-18,0,30),true); morphDeveloperRole.TextSize=9
+local morphDeveloperRole=button(Morph,"🔨 Developer",UDim2.new(.5,6,0,260),UDim2.new(.5,-18,0,30),true); morphDeveloperRole.TextSize=9
 local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,296),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
 addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole,morphCreatorRole,morphDeveloperRole,morphStatus)
 local previewRequest=0
