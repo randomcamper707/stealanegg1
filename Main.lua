@@ -230,7 +230,7 @@ end
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","DEVELOPER CONTROL PANEL","Main control panel",344,172,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
-local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,326,UDim2.new(.74,0,.28,0))
+local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,432,UDim2.new(.74,0,.28,0))
 Morph.BackgroundTransparency=Main.BackgroundTransparency
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
@@ -1277,10 +1277,9 @@ local function countBatch(tag)
 end
 
 -- Character tag.
-local CoownerColor=Color3.fromRGB(112,43,180)
-local CreatorColor=Color3.fromRGB(246,79,126)
-local DeveloperColor=Color3.fromRGB(255,148,58)
-local RoleLabels={OWNER="Owner",["CO-OWNER"]="Co-Owner",ADMIN="⚙️ Admin",["CONTENT CREATOR"]="🎬 Content Creator",DEVELOPER="🔨 Developer"}
+local TagTextColor=C.white
+local RoleLabels={OWNER="Owner",["CO-OWNER"]="Co-Owner",ADMIN="Admin",["CONTENT CREATOR"]="Content Creator",DEVELOPER="Developer"}
+local RoleIcons={OWNER="👑",["CO-OWNER"]="👑",ADMIN="⚙️",["CONTENT CREATOR"]="🎬",DEVELOPER="🔨"}
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
 local TagAdornee=nil
 local TagShineTween=nil
@@ -1313,29 +1312,47 @@ local function applyTag()
     g.Parent=head
 
     local roleText=RoleLabels[Role] or Role
-    local a=label(g,roleText,UDim2.new(),UDim2.new(1,0,0,27),20)
+    local roleHeader=Instance.new("Frame")
+    roleHeader.BackgroundTransparency=1
+    roleHeader.Size=UDim2.new(1,0,0,27)
+    roleHeader.Parent=g
+    local roleLayout=Instance.new("UIListLayout")
+    roleLayout.FillDirection=Enum.FillDirection.Horizontal
+    roleLayout.HorizontalAlignment=Enum.HorizontalAlignment.Center
+    roleLayout.VerticalAlignment=Enum.VerticalAlignment.Center
+    roleLayout.Padding=UDim.new(0,3)
+    roleLayout.Parent=roleHeader
+    local icon=label(roleHeader,RoleIcons[Role] or "",UDim2.new(),UDim2.fromOffset(24,27),20)
+    icon.LayoutOrder=1
+    icon.Font=Enum.Font.GothamBlack
+    icon.TextXAlignment=Enum.TextXAlignment.Center
+    icon.TextColor3=C.white
+    icon.TextStrokeTransparency=1
+    local roleWidth=math.ceil(TextService:GetTextSize(roleText,20,Enum.Font.GothamBlack,Vector2.new(220,27)).X+2)
+    local a=label(roleHeader,roleText,UDim2.new(),UDim2.fromOffset(math.min(205,roleWidth),27),20)
+    a.LayoutOrder=2
     a.Font=Enum.Font.GothamBlack
-    a.TextXAlignment=Enum.TextXAlignment.Center
+    a.TextXAlignment=Enum.TextXAlignment.Left
     a.TextStrokeTransparency=0
     a.TextStrokeColor3=Color3.new(0,0,0)
-    local roleColor=Role=="OWNER" and Color3.fromRGB(235,18,35) or (Role=="CO-OWNER" and CoownerColor or (Role=="CONTENT CREATOR" and CreatorColor or (Role=="DEVELOPER" and DeveloperColor or C.purple2)))
-    a.TextColor3=roleColor
+    a.TextColor3=TagTextColor
     if RoleLabels[Role] then
-        -- Keep the dark outline separate from the moving color highlight.
-        local shine=label(g,roleText,a.Position,a.Size,20)
+        -- The text shine stays on the words; the emoji remains independent of the color picker.
+        local shine=label(a,roleText,UDim2.new(),UDim2.new(1,0,1,0),20)
         shine.Font=a.Font
-        shine.TextXAlignment=Enum.TextXAlignment.Center
+        shine.TextXAlignment=Enum.TextXAlignment.Left
         shine.TextColor3=C.white
         shine.TextStrokeTransparency=1
         local gradient=Instance.new("UIGradient")
-        local shineMid=roleColor:Lerp(Color3.new(1,1,1),.28)
-        local shinePeak=roleColor:Lerp(Color3.new(1,1,1),.88)
+        local edgeColor=TagTextColor:Lerp(Color3.new(0,0,0),.22)
+        local shineMid=TagTextColor:Lerp(Color3.new(1,1,1),.28)
+        local shinePeak=TagTextColor:Lerp(Color3.new(1,1,1),.88)
         gradient.Color=ColorSequence.new({
-            ColorSequenceKeypoint.new(0,roleColor),
+            ColorSequenceKeypoint.new(0,edgeColor),
             ColorSequenceKeypoint.new(.42,shineMid),
             ColorSequenceKeypoint.new(.5,shinePeak),
             ColorSequenceKeypoint.new(.58,shineMid),
-            ColorSequenceKeypoint.new(1,roleColor)
+            ColorSequenceKeypoint.new(1,edgeColor)
         })
         gradient.Rotation=15
         gradient.Offset=Vector2.new(-1,0)
@@ -1381,11 +1398,11 @@ local function setRole(role)
     Role=role
     applyTag()
     for _,selector in ipairs(RoleSelectors) do
-        selector.owner:SetAttribute("RestingColor",role=="OWNER" and C.red or C.card2)
-        selector.coowner:SetAttribute("RestingColor",role=="CO-OWNER" and CoownerColor or C.card2)
+        selector.owner:SetAttribute("RestingColor",role=="OWNER" and C.purple or C.card2)
+        selector.coowner:SetAttribute("RestingColor",role=="CO-OWNER" and C.purple or C.card2)
         selector.admin:SetAttribute("RestingColor",role=="ADMIN" and C.purple or C.card2)
-        if selector.creator then selector.creator:SetAttribute("RestingColor",role=="CONTENT CREATOR" and CreatorColor or C.card2) end
-        if selector.developer then selector.developer:SetAttribute("RestingColor",role=="DEVELOPER" and DeveloperColor or C.card2) end
+        if selector.creator then selector.creator:SetAttribute("RestingColor",role=="CONTENT CREATOR" and C.purple or C.card2) end
+        if selector.developer then selector.developer:SetAttribute("RestingColor",role=="DEVELOPER" and C.purple or C.card2) end
         if selector.status then
             selector.status.Text=(RoleLabels[role] or role).." tag applied."
             selector.status.TextColor3=C.green
@@ -1394,11 +1411,11 @@ local function setRole(role)
 end
 local function addRoleSelector(owner,coowner,admin,creator,developer,status)
     table.insert(RoleSelectors,{owner=owner,coowner=coowner,admin=admin,creator=creator,developer=developer,status=status})
-    owner:SetAttribute("RestingColor",Role=="OWNER" and C.red or C.card2)
-    coowner:SetAttribute("RestingColor",Role=="CO-OWNER" and CoownerColor or C.card2)
+    owner:SetAttribute("RestingColor",Role=="OWNER" and C.purple or C.card2)
+    coowner:SetAttribute("RestingColor",Role=="CO-OWNER" and C.purple or C.card2)
     admin:SetAttribute("RestingColor",Role=="ADMIN" and C.purple or C.card2)
-    if creator then creator:SetAttribute("RestingColor",Role=="CONTENT CREATOR" and CreatorColor or C.card2) end
-    if developer then developer:SetAttribute("RestingColor",Role=="DEVELOPER" and DeveloperColor or C.card2) end
+    if creator then creator:SetAttribute("RestingColor",Role=="CONTENT CREATOR" and C.purple or C.card2) end
+    if developer then developer:SetAttribute("RestingColor",Role=="DEVELOPER" and C.purple or C.card2) end
     owner.MouseButton1Click:Connect(function() setRole("OWNER") end)
     coowner.MouseButton1Click:Connect(function() setRole("CO-OWNER") end)
     admin.MouseButton1Click:Connect(function() setRole("ADMIN") end)
@@ -2191,13 +2208,55 @@ local morphOutline=stroke(morphBtn,.3)
 morphOutline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,158),UDim2.new(.38,-12,0,37),true)
 local roleLabel=label(Morph,"OVERHEAD ROLE",UDim2.fromOffset(12,203),UDim2.new(1,-24,0,16),9); roleLabel.TextColor3=C.muted; roleLabel.Font=Enum.Font.GothamBold
-local morphOwnerRole=button(Morph,"Owner",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true)
-local morphCoownerRole=button(Morph,"Co-Owner",UDim2.new(1/3,6,0,224),UDim2.new(1/3,-12,0,30),true)
+local morphOwnerRole=button(Morph,"👑 Owner",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true); morphOwnerRole.TextSize=9
+local morphCoownerRole=button(Morph,"👑 Co-Owner",UDim2.new(1/3,6,0,224),UDim2.new(1/3,-12,0,30),true); morphCoownerRole.TextSize=9
 local morphAdminRole=button(Morph,"⚙️ Admin",UDim2.new(2/3,0,0,224),UDim2.new(1/3,-12,0,30),true); morphAdminRole.TextSize=9
 local morphCreatorRole=button(Morph,"🎬 Content Creator",UDim2.fromOffset(12,260),UDim2.new(.5,-18,0,30),true); morphCreatorRole.TextSize=9
 local morphDeveloperRole=button(Morph,"🔨 Developer",UDim2.new(.5,6,0,260),UDim2.new(.5,-18,0,30),true); morphDeveloperRole.TextSize=9
-local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,296),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+local tagColorLabel=section(Morph,"OVERHEAD TEXT COLOR",298)
+local selectedColorLabel=label(Morph,"Text color: White",UDim2.fromOffset(12,316),UDim2.new(1,-24,0,18),10); selectedColorLabel.TextColor3=C.muted
+local tagColorOptions={
+    {Name="White",Color=Color3.fromRGB(245,245,250)}, {Name="Gold",Color=Color3.fromRGB(255,205,75)},
+    {Name="Orange",Color=Color3.fromRGB(255,145,55)}, {Name="Red",Color=Color3.fromRGB(245,70,75)},
+    {Name="Pink",Color=Color3.fromRGB(246,95,160)}, {Name="Purple",Color=Color3.fromRGB(175,105,255)},
+    {Name="Blue",Color=Color3.fromRGB(75,165,255)}, {Name="Green",Color=Color3.fromRGB(85,220,145)}
+}
+local tagColorButtons={}
+local function refreshTagColorSelection()
+    for _,entry in pairs(tagColorButtons) do
+        local selected=entry.color==TagTextColor
+        entry.stroke.Thickness=selected and 2 or 1
+        entry.stroke.Transparency=selected and .05 or .65
+    end
+end
+for i,option in ipairs(tagColorOptions) do
+    local column=(i-1)%4
+    local row=math.floor((i-1)/4)
+    local swatch=Instance.new("TextButton")
+    swatch.Position=UDim2.new(column/4,12,0,338+row*28)
+    swatch.Size=UDim2.new(.25,-8,0,24)
+    swatch.BackgroundColor3=option.Color
+    swatch.BorderSizePixel=0
+    swatch.AutoButtonColor=false
+    swatch.Text=option.Name
+    swatch.TextSize=9
+    swatch.Font=Enum.Font.GothamBold
+    local luminance=option.Color.R*.299+option.Color.G*.587+option.Color.B*.114
+    swatch.TextColor3=luminance>.58 and C.bg or C.white
+    swatch.Parent=Morph
+    corner(swatch,6)
+    local outline=stroke(swatch,.65); outline.Color=C.white
+    tagColorButtons[option.Name]={button=swatch,stroke=outline,color=option.Color}
+    swatch.MouseButton1Click:Connect(function()
+        TagTextColor=option.Color
+        applyTag()
+        selectedColorLabel.Text="Text color: "..option.Name
+        refreshTagColorSelection()
+    end)
+end
+local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,398),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
 addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole,morphCreatorRole,morphDeveloperRole,morphStatus)
+refreshTagColorSelection()
 local previewRequest=0
 local function selectOwnAvatar()
     previewRequest=previewRequest+1
