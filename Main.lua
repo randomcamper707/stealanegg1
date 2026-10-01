@@ -1277,7 +1277,7 @@ local function countBatch(tag)
 end
 
 -- Character tag.
-local TagTextColor=C.white
+local TagTextColor=Color3.fromRGB(245,245,250)
 local RoleLabels={OWNER="Owner",["CO-OWNER"]="Co-Owner",ADMIN="Admin",["CONTENT CREATOR"]="Content Creator",DEVELOPER="Developer"}
 local RoleIcons={OWNER="👑",["CO-OWNER"]="👑",ADMIN="⚙️",["CONTENT CREATOR"]="🎬",DEVELOPER="🔨"}
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
