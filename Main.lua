@@ -228,9 +228,9 @@ local function window(name,title,sub,w,h,pos)
 end
 
 -- Create every important panel immediately before any game scan.
-local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",344,172,UDim2.new(.22,0,.52,0))
+local Main=window("MainPanel","DEVELOPER CONTROL PANEL","Main control panel",344,172,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
-local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
+local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,326,UDim2.new(.74,0,.28,0))
 Morph.BackgroundTransparency=Main.BackgroundTransparency
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
@@ -1278,6 +1278,7 @@ end
 
 -- Character tag.
 local CoownerColor=Color3.fromRGB(112,43,180)
+local CreatorColor=Color3.fromRGB(246,79,126)
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
 local TagAdornee=nil
 local TagShineTween=nil
@@ -1309,13 +1310,13 @@ local function applyTag()
     g.AlwaysOnTop=true
     g.Parent=head
 
-    local roleText="["..Role.."]"
+    local roleText=Role=="CONTENT CREATOR" and "Content Creator" or ("["..Role.."]")
     local a=label(g,roleText,UDim2.new(),UDim2.new(1,0,0,27),20)
     a.Font=Enum.Font.GothamBlack
     a.TextXAlignment=Enum.TextXAlignment.Center
     a.TextStrokeTransparency=0
     a.TextStrokeColor3=Color3.new(0,0,0)
-    a.TextColor3=Role=="OWNER" and Color3.fromRGB(235,18,35) or (Role=="CO-OWNER" and CoownerColor or C.purple2)
+    a.TextColor3=Role=="OWNER" and Color3.fromRGB(235,18,35) or (Role=="CO-OWNER" and CoownerColor or (Role=="CONTENT CREATOR" and CreatorColor or C.purple2))
     if Role=="OWNER" or Role=="CO-OWNER" then
         -- Keep the dark outline separate from the moving color highlight.
         local shine=label(g,roleText,a.Position,a.Size,20)
@@ -1384,20 +1385,23 @@ local function setRole(role)
         selector.owner:SetAttribute("RestingColor",role=="OWNER" and C.red or C.card2)
         selector.coowner:SetAttribute("RestingColor",role=="CO-OWNER" and CoownerColor or C.card2)
         selector.admin:SetAttribute("RestingColor",role=="ADMIN" and C.purple or C.card2)
+        if selector.creator then selector.creator:SetAttribute("RestingColor",role=="CONTENT CREATOR" and CreatorColor or C.card2) end
         if selector.status then
             selector.status.Text=role.." tag applied."
             selector.status.TextColor3=C.green
         end
     end
 end
-local function addRoleSelector(owner,coowner,admin,status)
-    table.insert(RoleSelectors,{owner=owner,coowner=coowner,admin=admin,status=status})
+local function addRoleSelector(owner,coowner,admin,creator,status)
+    table.insert(RoleSelectors,{owner=owner,coowner=coowner,admin=admin,creator=creator,status=status})
     owner:SetAttribute("RestingColor",Role=="OWNER" and C.red or C.card2)
     coowner:SetAttribute("RestingColor",Role=="CO-OWNER" and CoownerColor or C.card2)
     admin:SetAttribute("RestingColor",Role=="ADMIN" and C.purple or C.card2)
+    if creator then creator:SetAttribute("RestingColor",Role=="CONTENT CREATOR" and CreatorColor or C.card2) end
     owner.MouseButton1Click:Connect(function() setRole("OWNER") end)
     coowner.MouseButton1Click:Connect(function() setRole("CO-OWNER") end)
     admin.MouseButton1Click:Connect(function() setRole("ADMIN") end)
+    if creator then creator.MouseButton1Click:Connect(function() setRole("CONTENT CREATOR") end) end
 end
 
 -- Client-side appearance. Keep the real character and its controls untouched.
@@ -1970,7 +1974,7 @@ local function showAdminPage(name,push)
     -- Size each branch to its controls instead of leaving a tall empty window.
     local heights={
         Home=172,
-        Announcements=336, ["Admin Abuse"]=286, ["Boost Effects"]=404, Meteor=364,
+        Announcements=336,
         Names=286, ["Avatar Name"]=330, ["Announcements Profile"]=384
     }
     Main.Size=UDim2.fromOffset(344,heights[name] or 398)
@@ -1986,7 +1990,6 @@ end)
 
 local HomePage=newAdminPage("Home",false)
 local AnnouncePage=newAdminPage("Announcements",false)
-local AdminAbusePage=newAdminPage("Admin Abuse",false)
 local NamesPage=newAdminPage("Names",false)
 
 local Builders={}
@@ -1995,7 +1998,7 @@ function Builders.Home()
 -- HOME
 local homeItems={
     {"Announce","Announcements"},
-    {"Names","Names"},{"Admin Abuse","Admin Abuse"}
+    {"Names","Names"}
 }
 for i,item in ipairs(homeItems) do
     local row=math.floor((i-1)/2)
@@ -2075,70 +2078,6 @@ annBox.FocusLost:Connect(function(enter) if enter then sendAnnouncement(false) e
 end
 Builders.Announcements()
 Builders.Announcements=nil
-
-function Builders.AdminAbuse()
--- A small menu keeps boosts and meteor controls on separate branches.
-local BoostsPage=newAdminPage("Boost Effects",true)
-local EventsPage=newAdminPage("Meteor",false)
-section(AdminAbusePage,"EVENTS AND EFFECTS",4)
-local boostsBtn=button(AdminAbusePage,"Boost Effects",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,34),true)
-local boostsHint=label(AdminAbusePage,"Announce or clear any boost effect.",UDim2.fromOffset(9,68),UDim2.new(1,-18,0,24),11)
-boostsHint.TextWrapped=true; boostsHint.TextColor3=C.muted
-local meteorBtn=button(AdminAbusePage,"Meteor",UDim2.fromOffset(5,102),UDim2.new(1,-10,0,34),true)
-local meteorHint=label(AdminAbusePage,"Start a countdown, drop a meteor, or cancel it.",UDim2.fromOffset(9,142),UDim2.new(1,-18,0,28),11)
-meteorHint.TextWrapped=true; meteorHint.TextColor3=C.muted
-boostsBtn.MouseButton1Click:Connect(function() showAdminPage("Boost Effects",true) end)
-meteorBtn.MouseButton1Click:Connect(function() showAdminPage("Meteor",true) end)
-
-local AdminList=Instance.new("UIListLayout")
-AdminList.Padding=UDim.new(0,7)
-AdminList.SortOrder=Enum.SortOrder.LayoutOrder
-AdminList.Parent=BoostsPage
-
--- METEOR controls.
-local eventTitle=label(EventsPage,"DRILL MONSTER METEOR",UDim2.fromOffset(5,2),UDim2.new(1,-10,0,22),12); eventTitle.Font=Enum.Font.GothamBold
-local eventDesc=label(EventsPage,"Drops a meteor, 10 Drilla eggs, and up to 4 Drill Monsters.",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,42),11); eventDesc.TextWrapped=true; eventDesc.TextYAlignment=Enum.TextYAlignment.Top
-local meteorStatus=label(EventsPage,"No meteor active.",UDim2.fromOffset(5,76),UDim2.new(1,-10,0,20),10); meteorStatus.TextColor3=C.muted
-local countdownBtn=button(EventsPage,"Start countdown - 00:50",UDim2.fromOffset(5,102),UDim2.new(1,-10,0,32),false)
-local dropMeteorBtn=button(EventsPage,"Drop meteor now",UDim2.fromOffset(5,140),UDim2.new(1,-10,0,32),true)
-local timerBox=textbox(EventsPage,"Timer seconds (1-600)",UDim2.fromOffset(5,178),UDim2.new(.5,-8,0,32),"50")
-local setTimerBtn=button(EventsPage,"Set timer",UDim2.new(.5,3,0,178),UDim2.new(.5,-8,0,32),true)
-local clearMeteorBtn=button(EventsPage,"Clear / cancel",UDim2.fromOffset(5,216),UDim2.new(1,-10,0,30),true)
-countdownBtn.MouseButton1Click:Connect(function()
-    local seconds=tonumber(timerBox.Text) or 50
-    startMeteorCountdown(seconds,function(s) countdownBtn.Text="Countdown - "..string.format("%02d:%02d",math.floor(s/60),s%60); meteorStatus.Text="Meteor countdown active"; meteorStatus.TextColor3=C.orange end)
-end)
-dropMeteorBtn.MouseButton1Click:Connect(function() local ok,msg=dropMeteorNow(); meteorStatus.Text=msg; meteorStatus.TextColor3=ok and C.green or C.red end)
-setTimerBtn.MouseButton1Click:Connect(function() local s=math.clamp(tonumber(timerBox.Text) or 50,1,600); timerBox.Text=tostring(s); countdownBtn.Text="Start countdown - "..string.format("%02d:%02d",math.floor(s/60),s%60) end)
-clearMeteorBtn.MouseButton1Click:Connect(function() clearMeteor(); meteorStatus.Text="No meteor active."; meteorStatus.TextColor3=C.muted; countdownBtn.Text="Start countdown - 00:50" end)
-
--- BOOSTS: every existing effect stays in this scrollable branch.
-local boostHeader=label(BoostsPage,"BOOSTS - announce or clear an effect.",UDim2.new(),UDim2.new(1,-8,0,28),11)
-boostHeader.TextWrapped=true; boostHeader.TextColor3=C.muted; boostHeader.LayoutOrder=1
-for index,name in ipairs(BOOST_NAMES) do
-    local row=Instance.new("Frame")
-    row.Size=UDim2.new(1,-8,0,68)
-    row.BackgroundColor3=C.card
-    row.BorderSizePixel=0
-    row.Parent=BoostsPage
-    row.LayoutOrder=index+1
-    corner(row,10); stroke(row,.62)
-    local nm=label(row,name,UDim2.fromOffset(8,4),UDim2.new(1,-20,0,20),11); nm.Font=Enum.Font.GothamBold
-    local state=label(row,"OFF",UDim2.fromOffset(8,32),UDim2.fromOffset(50,28),11); state.TextXAlignment=Enum.TextXAlignment.Center; state.Font=Enum.Font.GothamBold
-    local announce=button(row,"Announce",UDim2.fromOffset(66,30),UDim2.new(.5,-42,0,30),false)
-    local clear=button(row,"Clear",UDim2.new(.5,34,0,30),UDim2.new(.5,-42,0,30),true)
-    announce.MouseButton1Click:Connect(function() announceBoost(name,true); state.Text="ON"; state.TextColor3=C.green end)
-    clear.MouseButton1Click:Connect(function() announceBoost(name,false); state.Text="OFF"; state.TextColor3=C.white end)
-end
-local clearAllBoosts=button(BoostsPage,"Clear all boost effects",UDim2.new(),UDim2.new(1,-8,0,32),true)
-clearAllBoosts.LayoutOrder=#BOOST_NAMES+2
-clearAllBoosts.MouseButton1Click:Connect(function() for _,n in ipairs(BOOST_NAMES) do if BoostState[n] then announceBoost(n,false) end end end)
-AdminList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() BoostsPage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
-task.defer(function() BoostsPage.CanvasSize=UDim2.fromOffset(0,AdminList.AbsoluteContentSize.Y+12) end)
-
-end
-Builders.AdminAbuse()
-Builders.AdminAbuse=nil
 
 function Builders.Names()
 -- Names is a menu; the original avatar controls remain on their own page.
@@ -2250,11 +2189,12 @@ local morphOutline=stroke(morphBtn,.3)
 morphOutline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,158),UDim2.new(.38,-12,0,37),true)
 local roleLabel=label(Morph,"OVERHEAD ROLE",UDim2.fromOffset(12,203),UDim2.new(1,-24,0,16),9); roleLabel.TextColor3=C.muted; roleLabel.Font=Enum.Font.GothamBold
-local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true)
-local morphCoownerRole=button(Morph,"CO-OWNER",UDim2.new(1/3,6,0,224),UDim2.new(1/3,-12,0,30),true)
-local morphAdminRole=button(Morph,"ADMIN",UDim2.new(2/3,0,0,224),UDim2.new(1/3,-12,0,30),true)
-addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole)
-local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,262),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(.5,-18,0,30),true)
+local morphCoownerRole=button(Morph,"CO-OWNER",UDim2.new(.5,6,0,224),UDim2.new(.5,-18,0,30),true)
+local morphAdminRole=button(Morph,"ADMIN",UDim2.fromOffset(12,260),UDim2.new(.5,-18,0,30),true)
+local morphCreatorRole=button(Morph,"Content Creator",UDim2.new(.5,6,0,260),UDim2.new(.5,-18,0,30),true); morphCreatorRole.TextSize=9
+local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,296),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole,morphCreatorRole,morphStatus)
 local previewRequest=0
 local function selectOwnAvatar()
     previewRequest=previewRequest+1
