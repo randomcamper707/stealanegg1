@@ -230,8 +230,14 @@ end
 -- Create every important panel immediately before any game scan.
 local Main=window("MainPanel","DEVELOPER CONTROL PANEL","Main control panel",344,172,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
-local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,432,UDim2.new(.74,0,.28,0))
+local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,360,UDim2.new(.74,0,.28,0))
 Morph.BackgroundTransparency=Main.BackgroundTransparency
+local MorphColorsPage=window("MorphColorsPanel","OVERHEAD TEXT COLORS","Choose a text color",350,250,UDim2.new(.74,0,.36,0))
+MorphColorsPage.BackgroundTransparency=Main.BackgroundTransparency
+MorphColorsPage.Visible=false
+MorphColorsPage:GetPropertyChangedSignal("Visible"):Connect(function()
+    if not MorphColorsPage.Visible then Morph.Visible=true end
+end)
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
 -- Remove any overlay left by older versions.
@@ -244,7 +250,10 @@ local LL=Instance.new("UIListLayout"); LL.Padding=UDim.new(0,7); LL.Parent=Launc
 local bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
 local bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
 bAdmin.MouseButton1Click:Connect(function() Main.Visible=not Main.Visible end)
-bMorph.MouseButton1Click:Connect(function() Morph.Visible=not Morph.Visible end)
+bMorph.MouseButton1Click:Connect(function()
+    if MorphColorsPage.Visible then MorphColorsPage.Visible=false end
+    Morph.Visible=not Morph.Visible
+end)
 
 -- Centered announcement layer.
 local Notify=Instance.new("Frame"); Notify.BackgroundTransparency=1; Notify.Size=UDim2.fromScale(1,1); Notify.Parent=Gui
@@ -2213,8 +2222,11 @@ local morphCoownerRole=button(Morph,"👑 Co-Owner",UDim2.new(1/3,6,0,224),UDim2
 local morphAdminRole=button(Morph,"⚙️ Admin",UDim2.new(2/3,0,0,224),UDim2.new(1/3,-12,0,30),true); morphAdminRole.TextSize=9
 local morphCreatorRole=button(Morph,"🎬 Content Creator",UDim2.fromOffset(12,260),UDim2.new(.5,-18,0,30),true); morphCreatorRole.TextSize=9
 local morphDeveloperRole=button(Morph,"🔨 Developer",UDim2.new(.5,6,0,260),UDim2.new(.5,-18,0,30),true); morphDeveloperRole.TextSize=9
-local tagColorLabel=section(Morph,"OVERHEAD TEXT COLOR",298)
-local selectedColorLabel=label(Morph,"Text color: White",UDim2.fromOffset(12,316),UDim2.new(1,-24,0,18),10); selectedColorLabel.TextColor3=C.muted
+local colorsButton=button(Morph,"COLORS",UDim2.fromOffset(12,300),UDim2.new(1,-24,0,30),true)
+local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,337),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
+addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole,morphCreatorRole,morphDeveloperRole,morphStatus)
+
+local selectedColorLabel=label(MorphColorsPage,"Text color: White",UDim2.fromOffset(12,73),UDim2.new(1,-24,0,18),10); selectedColorLabel.TextColor3=C.muted
 local tagColorOptions={
     {Name="White",Color=Color3.fromRGB(245,245,250)}, {Name="Gold",Color=Color3.fromRGB(255,205,75)},
     {Name="Orange",Color=Color3.fromRGB(255,145,55)}, {Name="Red",Color=Color3.fromRGB(245,70,75)},
@@ -2233,8 +2245,8 @@ for i,option in ipairs(tagColorOptions) do
     local column=(i-1)%4
     local row=math.floor((i-1)/4)
     local swatch=Instance.new("TextButton")
-    swatch.Position=UDim2.new(column/4,12,0,338+row*28)
-    swatch.Size=UDim2.new(.25,-8,0,24)
+    swatch.Position=UDim2.new(column/4,12,0,103+row*34)
+    swatch.Size=UDim2.new(.25,-8,0,28)
     swatch.BackgroundColor3=option.Color
     swatch.BorderSizePixel=0
     swatch.AutoButtonColor=false
@@ -2243,7 +2255,7 @@ for i,option in ipairs(tagColorOptions) do
     swatch.Font=Enum.Font.GothamBold
     local luminance=option.Color.R*.299+option.Color.G*.587+option.Color.B*.114
     swatch.TextColor3=luminance>.58 and C.bg or C.white
-    swatch.Parent=Morph
+    swatch.Parent=MorphColorsPage
     corner(swatch,6)
     local outline=stroke(swatch,.65); outline.Color=C.white
     tagColorButtons[option.Name]={button=swatch,stroke=outline,color=option.Color}
@@ -2254,8 +2266,15 @@ for i,option in ipairs(tagColorOptions) do
         refreshTagColorSelection()
     end)
 end
-local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,398),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
-addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole,morphCreatorRole,morphDeveloperRole,morphStatus)
+local backToMorphButton=button(MorphColorsPage,"BACK",UDim2.fromOffset(12,185),UDim2.new(1,-24,0,30),true)
+backToMorphButton.MouseButton1Click:Connect(function()
+    MorphColorsPage.Visible=false
+    Morph.Visible=true
+end)
+colorsButton.MouseButton1Click:Connect(function()
+    Morph.Visible=false
+    MorphColorsPage.Visible=true
+end)
 refreshTagColorSelection()
 local previewRequest=0
 local function selectOwnAvatar()
