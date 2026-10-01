@@ -45,12 +45,9 @@ end
 
 local CFG = {
     AnnouncementProfile = {Name=P.DisplayName, Username=P.Name, UserId=P.UserId},
-    SammyUsername = "SpyderSammy",
-    MaxBots = 10,
     Remotes = {
-        SpawnEggs=nil, Morph=nil, Announcement=nil, GlobalAnnouncement=nil,
+        Morph=nil, Announcement=nil, GlobalAnnouncement=nil,
         Teleport=nil, Invite=nil, GiveAdmin=nil, GiveCoowner=nil, GiveVPS=nil,
-        SpawnSammy=nil, SpawnBots=nil,
         Boost=nil, ClearBoost=nil, Meteor=nil
     }
 }
@@ -62,7 +59,6 @@ local EGGS = {
     "Void Dragon egg","Rifborn egg","Riftbeasts egg","Shattered Rift egg",
     "Pegasus","ArchAngel","Oni Tiger egg","Kitsune egg"
 }
-local QTY = {200,250,300,350,400,450,500}
 local PATTERNS = {"ORIGINAL 6x20","ONE TYPE PER ROW","SPLIT ROWS 3+3","PAIRS 2+2+2","MIRRORED ROWS","ALTERNATING ROWS","DIAGONAL SEQUENCE"}
 local ALIAS = {
     ["Skeleton Horse"]={"Skeleton Horse","Skeleton Horse Egg","SkeletonHorse","SkeletonHorseEgg"},
@@ -87,19 +83,6 @@ local ALIAS = {
     ["Kitsune egg"]={"Kitsune","Kitsune Egg","KitsuneEgg"}
 }
 
-local BOT_NAMES = {
-    {"Nova","NovaRift_73"},{"Vanta","VantaRush"},{"Echo","EchoMint_8"},{"Aero","AeroByte"},{"Volt","VoltMoss"},
-    {"Lunar","LunarDash_12"},{"Rift","RiftNovaX"},{"Solar","SolarNox"},{"Pixel","PixelArc_9"},{"Neon","NeonVale"}
-}
-local TRAILS = {
-    {"Eternal Trail",ColorSequence.new(Color3.fromRGB(255,30,255),Color3.fromRGB(120,30,255))},
-    {"Divine Trail",ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(255,220,0)),ColorSequenceKeypoint.new(.35,Color3.fromRGB(55,255,80)),ColorSequenceKeypoint.new(.7,Color3.fromRGB(35,210,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(55,80,255))})},
-    {"Moonbloom Trail",ColorSequence.new(Color3.fromRGB(70,255,235),Color3.fromRGB(40,105,255))},
-    {"Red Trail",ColorSequence.new(Color3.fromRGB(255,45,25),Color3.fromRGB(120,0,0))},
-    {"Galaxy Trail",ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(65,15,170)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(210,35,255)),ColorSequenceKeypoint.new(1,Color3.fromRGB(35,75,255))})},
-    {"Secret Trail",ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.fromRGB(250,250,250)),ColorSequenceKeypoint.new(.5,Color3.fromRGB(35,35,35)),ColorSequenceKeypoint.new(1,Color3.fromRGB(245,245,245))})}
-}
-
 local C = {
     bg=Color3.fromRGB(8,8,14), head=Color3.fromRGB(15,11,23), card=Color3.fromRGB(24,18,34),
     card2=Color3.fromRGB(37,25,50), border=Color3.fromRGB(84,57,110), purple=Color3.fromRGB(142,51,236),
@@ -108,7 +91,6 @@ local C = {
 }
 
 local EggFolder=Instance.new("Folder"); EggFolder.Name="SAE_LocalEggs"; EggFolder.Parent=workspace
-local NPCFolder=Instance.new("Folder"); NPCFolder.Name="SAE_LocalNPCs"; NPCFolder.Parent=workspace
 
 local function corner(o,r) local x=Instance.new("UICorner"); x.CornerRadius=UDim.new(0,r or 8); x.Parent=o; return x end
 local function stroke(o,a) local x=Instance.new("UIStroke"); x.Color=C.border; x.Thickness=1; x.Transparency=a or .2; x.Parent=o; return x end
@@ -249,7 +231,6 @@ end
 local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",344,172,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
-local BotsPanel=window("BotPanel","NPC COLLECTORS","Collectors, avatars and Sammy",400,505,UDim2.new(.74,0,.68,0))
 Morph.BackgroundTransparency=Main.BackgroundTransparency
 BotsPanel.BackgroundTransparency=Main.BackgroundTransparency
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
@@ -263,10 +244,8 @@ local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-58); Laun
 local LL=Instance.new("UIListLayout"); LL.Padding=UDim.new(0,7); LL.Parent=Launch
 local bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
 local bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
-local bBots=button(Launch,"NPCS",UDim2.new(),UDim2.fromOffset(102,29),true)
 bAdmin.MouseButton1Click:Connect(function() Main.Visible=not Main.Visible end)
 bMorph.MouseButton1Click:Connect(function() Morph.Visible=not Morph.Visible end)
-bBots.MouseButton1Click:Connect(function() BotsPanel.Visible=not BotsPanel.Visible end)
 
 -- Centered announcement layer.
 local Notify=Instance.new("Frame"); Notify.BackgroundTransparency=1; Notify.Size=UDim2.fromScale(1,1); Notify.Parent=Gui
@@ -290,7 +269,7 @@ local function pivot(o,cf) if o:IsA("Model") then o:PivotTo(cf) elseif o:IsA("Ba
 
 local function groundHit(pos,ignore)
     local rp=RaycastParams.new(); rp.FilterType=Enum.RaycastFilterType.Exclude
-    local ex={EggFolder,NPCFolder}; if P.Character then table.insert(ex,P.Character) end; if ignore then table.insert(ex,ignore) end; rp.FilterDescendantsInstances=ex
+    local ex={EggFolder}; if P.Character then table.insert(ex,P.Character) end; if ignore then table.insert(ex,ignore) end; rp.FilterDescendantsInstances=ex
     return workspace:Raycast(pos+Vector3.new(0,250,0),Vector3.new(0,-1000,0),rp)
 end
 
@@ -298,7 +277,7 @@ local function groundHitNear(pos,ignore)
     -- Short raycast around the active character height. This avoids choosing
     -- roofs/ceilings that a 250-stud-above ray can hit first.
     local rp=RaycastParams.new(); rp.FilterType=Enum.RaycastFilterType.Exclude
-    local ex={EggFolder,NPCFolder}; if P.Character then table.insert(ex,P.Character) end; if ignore then table.insert(ex,ignore) end; rp.FilterDescendantsInstances=ex
+    local ex={EggFolder}; if P.Character then table.insert(ex,P.Character) end; if ignore then table.insert(ex,ignore) end; rp.FilterDescendantsInstances=ex
     return workspace:Raycast(pos+Vector3.new(0,10,0),Vector3.new(0,-80,0),rp)
 end
 local function groundObject(o,pos,yaw)
@@ -330,23 +309,6 @@ local function createAvatar(uid)
     local d=Players:GetHumanoidDescriptionFromUserId(uid)
     return Players:CreateHumanoidModelFromDescription(d,Enum.HumanoidRigType.R15)
 end
-local function animations(h)
-    local a=h:FindFirstChildOfClass("Animator") or Instance.new("Animator",h)
-    local idle=Instance.new("Animation"); local run=Instance.new("Animation")
-    if h.RigType==Enum.HumanoidRigType.R15 then idle.AnimationId="rbxassetid://507766666"; run.AnimationId="rbxassetid://507767714" else idle.AnimationId="rbxassetid://180435571"; run.AnimationId="rbxassetid://180426354" end
-    local it,rt; pcall(function() it=a:LoadAnimation(idle); rt=a:LoadAnimation(run) end); if it then it.Looped=true; it:Play(.1) end; if rt then rt.Looped=true end
-    return {idle=it,run=rt,moving=false}
-end
-local function animate(st,speed)
-    if not st then return end
-    if speed>1.2 then
-        if not st.moving then st.moving=true; if st.idle and st.idle.IsPlaying then st.idle:Stop(.1) end; if st.run and not st.run.IsPlaying then st.run:Play(.1) end end
-        if st.run then st.run:AdjustSpeed(math.clamp(speed/16,.7,3)) end
-    else
-        if st.moving then st.moving=false; if st.run and st.run.IsPlaying then st.run:Stop(.12) end; if st.idle and not st.idle.IsPlaying then st.idle:Play(.12) end end
-    end
-end
-
 -- Egg resolver. Games often store egg visuals inside nested Models, Tools or Folders,
 -- so resolve the matching visual instead of requiring the named object itself to be a Model.
 local EggCache={}
@@ -374,8 +336,8 @@ local function matchObj(o,want)
 end
 
 local function usableEggSource(o,container)
-    if not o or o==EggFolder or o==NPCFolder then return nil end
-    if o:IsDescendantOf(EggFolder) or o:IsDescendantOf(NPCFolder) then return nil end
+    if not o or o==EggFolder then return nil end
+    if o:IsDescendantOf(EggFolder) then return nil end
 
     if o:IsA("Model") and o:FindFirstChildWhichIsA("BasePart",true) then return o end
     if o:IsA("BasePart") then
@@ -597,7 +559,7 @@ local function detectMapCenter()
     -- the player an unbeatable score, which meant standing in the Safe Zone
     -- could make the Safe Zone itself become "the map".
     for _,o in ipairs(workspace:GetDescendants()) do
-        if o:IsA("BasePart") and not o:IsDescendantOf(EggFolder) and not o:IsDescendantOf(NPCFolder) then
+        if o:IsA("BasePart") and not o:IsDescendantOf(EggFolder) then
             local belongsToSafe=SafeObj and (o==SafeObj or (SafeObj:IsA("Model") and o:IsDescendantOf(SafeObj)))
             local base=belongsToSafe and -1 or floorCandidateScore(o)
             if base>=0 then
@@ -1802,7 +1764,7 @@ local function doMorph(user)
             if realHumanoid.FloorMaterial~=Enum.Material.Air then
                 local params=RaycastParams.new()
                 params.FilterType=Enum.RaycastFilterType.Exclude
-                params.FilterDescendantsInstances={character,model,EggFolder,NPCFolder}
+                params.FilterDescendantsInstances={character,model,EggFolder}
                 params.RespectCanCollide=true
                 local hit=workspace:Raycast(realRoot.Position,Vector3.new(0,-12,0),params)
                 if hit then floorY=hit.Position.Y end
@@ -1840,480 +1802,17 @@ local function doMorph(user)
     return true,"Morphed into @"..user.." (local appearance)"
 end
 
--- Trails.
-local function addTrail(m,style)
-    local r=m:FindFirstChild("HumanoidRootPart"); if not r then return nil end; local a=Instance.new("Attachment"); a.Position=Vector3.new(-1,-1,.55); a.Parent=r; local b=Instance.new("Attachment"); b.Position=Vector3.new(1,-1,.55); b.Parent=r
-    local t=Instance.new("Trail"); t.Attachment0=a; t.Attachment1=b; t.Color=style[2]; t.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,.03),NumberSequenceKeypoint.new(1,1)}); t.WidthScale=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(1,0)}); t.Lifetime=.45; t.LightEmission=1; t.FaceCamera=true; t.Enabled=false; t.Parent=r; return t
-end
-
--- Sammy.
-local Sammy=nil
-local SammyGen=0
-local SammyTagMode="NONE"
-local SammySpot=nil
-local SammyAutoRefill=false
-local SammyAdvertise=false
-local SammyMessages={
-    "Chat send a heart me for an invite",
-    "Chat send a swan for a teleport in",
-    "Chat send a boxing gloves for a teleport in"
-}
-
-local function sammyTag(m)
-    local head=m:FindFirstChild("Head")
-    if not head then return end
-    local old=head:FindFirstChild("SAE_SammyTag")
-    if old then old:Destroy() end
-
-    local g=Instance.new("BillboardGui")
-    g.Name="SAE_SammyTag"
-    g.Size=UDim2.fromOffset(280,SammyTagMode=="NONE" and 58 or 82)
-    g.StudsOffset=Vector3.new(0,3.5,0)
-    g.AlwaysOnTop=true
-    g.Parent=head
-
-    local y=0
-    if SammyTagMode~="NONE" then
-        local role=label(g,"["..SammyTagMode.."]",UDim2.fromOffset(0,0),UDim2.new(1,0,0,22),17)
-        role.TextXAlignment=Enum.TextXAlignment.Center
-        role.Font=Enum.Font.GothamBlack
-        role.TextStrokeTransparency=0
-        role.TextColor3=(SammyTagMode=="CREATOR") and Color3.fromRGB(255,70,70) or C.purple2
-        y=22
-    end
-
-    local row=Instance.new("Frame")
-    row.BackgroundTransparency=1
-    row.Position=UDim2.fromOffset(0,y)
-    row.Size=UDim2.new(1,0,0,32)
-    row.Parent=g
-    local l=Instance.new("UIListLayout")
-    l.FillDirection=Enum.FillDirection.Horizontal
-    l.HorizontalAlignment=Enum.HorizontalAlignment.Center
-    l.VerticalAlignment=Enum.VerticalAlignment.Center
-    l.Padding=UDim.new(0,3)
-    l.Parent=row
-    local n=label(row,"Sammy",UDim2.new(),UDim2.fromOffset(0,30),24)
-    n.AutomaticSize=Enum.AutomaticSize.X
-    n.Font=Enum.Font.GothamBold
-    n.TextStrokeTransparency=0
-    -- Keep the exact Roblox verified glyph implementation the user approved.
-    verified(row,23)
-    local u=label(g,"@SpyderSammy",UDim2.fromOffset(0,y+34),UDim2.new(1,0,0,19),16)
-    u.TextXAlignment=Enum.TextXAlignment.Center
-    u.TextColor3=Color3.fromRGB(220,220,220)
-end
-
-local function refreshSammyTag()
-    if Sammy and Sammy.Parent then sammyTag(Sammy) end
-end
-
-local function placeNPC(m,pos,dir)
-    local r=m:FindFirstChild("HumanoidRootPart")
-    local h=m:FindFirstChildOfClass("Humanoid")
-    if not r or not h then return end
-    local hit=groundHitNear(pos,m)
-    local y=hit and hit.Position.Y+h.HipHeight+r.Size.Y/2 or pos.Y
-    local d=Vector3.new(dir.X,0,dir.Z)
-    if d.Magnitude<.1 then d=Vector3.new(0,0,-1) else d=d.Unit end
-    m:PivotTo(CFrame.lookAt(Vector3.new(pos.X,y,pos.Z),Vector3.new(pos.X,y,pos.Z)+d))
-    r.AssemblyLinearVelocity=Vector3.zero
-    r.AssemblyAngularVelocity=Vector3.zero
-end
-local function despawnSammy() SammyGen=SammyGen+1; if Sammy then Sammy:Destroy(); Sammy=nil end end
-local function spawnSammy()
-    despawnSammy(); local uid; if not pcall(function() uid=Players:GetUserIdFromNameAsync(CFG.SammyUsername) end) then return false,"Sammy could not be resolved." end; local m; if not pcall(function() m=createAvatar(uid) end) or not m then return false,"Sammy avatar failed." end
-    m.Name="Sammy"; m.Parent=NPCFolder; local h=m:FindFirstChildOfClass("Humanoid"); local r=m:FindFirstChild("HumanoidRootPart"); if not h or not r then m:Destroy(); return false,"Sammy root missing." end; h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None; h.NameDisplayDistance=0; h.HealthDisplayDistance=0; h.AutoRotate=true; r.Anchored=false
-    for _,o in ipairs(m:GetDescendants()) do if o:IsA("BasePart") and o:FindFirstAncestorOfClass("Accessory") then o.CanCollide=false; o.Massless=true end end
-    local oroot=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); if oroot then placeNPC(m,oroot.Position-oroot.CFrame.LookVector*5+oroot.CFrame.RightVector*3.5,oroot.CFrame.LookVector) end
-    sammyTag(m); local trail=addTrail(m,TRAILS[4]); local anim=animations(h); Sammy=m; SammyGen=SammyGen+1; local gen=SammyGen
-    task.spawn(function()
-        local side=1; local nextSide=os.clock()+7; local nextIdle=os.clock()+3; local idle=nil
-        while Sammy==m and m.Parent and gen==SammyGen do
-            task.wait(.08); local ch=P.Character; local pr=ch and ch:FindFirstChild("HumanoidRootPart"); local ph=ch and ch:FindFirstChildOfClass("Humanoid"); r=m:FindFirstChild("HumanoidRootPart"); h=m:FindFirstChildOfClass("Humanoid"); if pr and ph and r and h then
-                local pv=pr.AssemblyLinearVelocity; local ps=Vector3.new(pv.X,0,pv.Z).Magnitude; h.WalkSpeed=math.max(tonumber(ph.WalkSpeed) or 16,ps); h.JumpPower=ph.JumpPower; h.JumpHeight=ph.JumpHeight; local now=os.clock(); if now>=nextSide then side=(math.random(0,1)==0) and -1 or 1; nextSide=now+math.random(6,10) end
-                if ps>1.5 then idle=nil; local target=pr.Position-pr.CFrame.LookVector*5+pr.CFrame.RightVector*side*3.5; local hit=groundHit(target,m); h:MoveTo(hit and hit.Position or target)
-                else if now>=nextIdle then nextIdle=now+math.random(25,55)/10; if math.random()<.75 then local a=math.random()*math.pi*2; local rad=math.random(30,75)/10; idle=pr.Position+Vector3.new(math.cos(a)*rad,0,math.sin(a)*rad) else idle=nil end end; if idle then local hit=groundHit(idle,m); h:MoveTo(hit and hit.Position or idle) end end
-                local v=r.AssemblyLinearVelocity; local s=Vector3.new(v.X,0,v.Z).Magnitude; animate(anim,s); if trail then trail.Enabled=s>2 end
-            end
-        end
-    end)
-    return true,"Sammy spawned."
-end
-
-local function sammyBatchCenter()
-    if SammySpot then return select(1,visibleSpawnFrame(SammySpot)) end
-    if Sammy and Sammy.Parent then
-        local r=Sammy:FindFirstChild("HumanoidRootPart")
-        if r then
-            local hit=groundHitNear(r.Position,Sammy)
-            local p=hit and hit.Position or (r.Position-Vector3.new(0,3,0))
-            return select(1,visibleSpawnFrame(CFrame.new(p)))
-        end
-    end
-    return select(1,visibleSpawnFrame(nil))
-end
-
-local function spawnSammyBatch(refillOnly)
-    local target=240
-    if not refillOnly then clearSpawnedEggs("SAMMY240") end
-
-    local cf=sammyBatchCenter()
-    for attempt=1,3 do
-        local current=countBatch("SAMMY240")
-        local need=math.max(0,target-current)
-        if need<=0 then
-            return true,"Sammy batch: 240 / 240 eggs."
-        end
-
-        local ok,msg=spawnEggs("MIXED",need,200,"DIAGONAL SEQUENCE",cf,"SAMMY240")
-        if not ok and attempt==3 then
-            return false,"Sammy batch stopped at "..tostring(countBatch("SAMMY240")).." / 240. "..tostring(msg)
-        end
-        task.wait()
-    end
-
-    local final=countBatch("SAMMY240")
-    return final>=target, final>=target and "Sammy batch: 240 / 240 eggs." or ("Sammy batch: "..tostring(final).." / 240 eggs.")
-end
-
-local function markSammySpot()
-    local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
-    if not r then return false,"Character unavailable." end
-    local hit=groundHitNear(r.Position,nil)
-    local p=hit and hit.Position or (r.Position-Vector3.new(0,3,0))
-    SammySpot=CFrame.new(p)
-    return true,"Sammy egg spot marked."
-end
-
-local function sammyBanner(message)
-    local msg=tostring(message or "")
-    if msg=="" then return end
-    local id=P.UserId
-    pcall(function() id=Players:GetUserIdFromNameAsync(CFG.SammyUsername) end)
-    notice(id,"Sammy","says:","",msg)
-end
-
--- Refill and advertising workers. They are idle unless the related switches are ON.
-task.spawn(function()
-    while Gui.Parent do
-        task.wait(1)
-        if SammyAutoRefill and countBatch("SAMMY240")<=190 then
-            spawnSammyBatch(true)
-        end
-    end
-end)
-
-task.spawn(function()
-    local index=1
-    while Gui.Parent do
-        task.wait(15)
-        if SammyAdvertise then
-            local msg=SammyMessages[index] or SammyMessages[1]
-            if msg and msg~="" then sammyBanner(msg) end
-            index=index+1
-            if index>arrlen(SammyMessages) then index=1 end
-        end
-    end
-end)
-
--- Safe zone and bots. State was declared before the map/layout code so egg
--- spawning can reserve this area before collectors are started.
+-- Safe-zone detection retained for the local egg placement helper.
 local function objPos(o) if not o then return nil end; if o:IsA("BasePart") then return o.Position elseif o:IsA("Model") then return o:GetPivot().Position end end
-local function safePosition() if SafeObj and SafeObj.Parent then local p=objPos(SafeObj); if p then local hit=groundHitNear(p,nil); SafePos=hit and hit.Position or p end end; return SafePos end
-local function marker()
-    if Marker then Marker:Destroy(); Marker=nil end; local p=safePosition(); if not p then return end; local x=Instance.new("Part"); x.Name="SAE_SafeZoneMarker"; x.Size=Vector3.new(8,.08,8); x.Anchored=true; x.CanCollide=false; x.CanTouch=false; x.CanQuery=false; x.Material=Enum.Material.Neon; x.Color=Color3.fromRGB(80,255,120); x.Transparency=.82; x.Position=p+Vector3.new(0,.08,0); x.Parent=workspace; Marker=x
-end
 detectSafe=function()
     local pr=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); local pp=pr and pr.Position or Vector3.zero; local best=nil; local score=-1e9
     for _,o in ipairs(workspace:GetDescendants()) do
-        if (o:IsA("BasePart") or o:IsA("Model")) and not o:IsDescendantOf(EggFolder) and not o:IsDescendantOf(NPCFolder) then
+        if (o:IsA("BasePart") or o:IsA("Model")) and not o:IsDescendantOf(EggFolder) then
             local n=norm(o.Name); local s=0; if n:find("eggdropoff",1,true) then s=7000 elseif n:find("safezone",1,true) then s=6500 elseif n:find("deposit",1,true) then s=6000 elseif n:find("collector",1,true) then s=5200 elseif n:find("playerbase",1,true) then s=4700 elseif n:find("homebase",1,true) then s=4500 elseif n:find("safe",1,true) then s=4000 elseif n:find("base",1,true) then s=2800 elseif n:find("plot",1,true) then s=2500 end
             if s>0 then local p=objPos(o); if p then s=s-(p-pp).Magnitude*.05 end; for _,a in ipairs({"Owner","OwnerName","Player","PlayerName","OwnerId","OwnerUserId","UserId"}) do local v=o:GetAttribute(a); if v and (tostring(v)==P.Name or tostring(v)==P.DisplayName or tonumber(v)==P.UserId) then s=s+5000 end end; if s>score then score=s; best=o end end
         end
     end
-    if not best then return false,"Safe zone not auto-detected. Stand in it and press SET HERE." end; SafeObj=best; SafePos=objPos(best); SafeName=best.Name; marker(); return true,SafeName
-end
-local function setSafeHere() local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart"); if not r then return false,"Character unavailable." end; local hit=groundHitNear(r.Position,nil); SafeObj=nil; SafePos=hit and hit.Position or (r.Position-Vector3.new(0,3,0)); SafeName="Manual Safe Zone"; marker(); return true,SafeName end
-
-local Bots={}
-
--- Collector bots are generated locally and do NOT depend on how many real
--- players are in the server. Selecting 1-10 always attempts that exact count.
-local BaseBotDescription=nil
-local function getBaseBotDescription()
-    if BaseBotDescription then return BaseBotDescription end
-    local desc=nil
-    pcall(function() desc=Players:GetHumanoidDescriptionFromUserId(P.UserId) end)
-    BaseBotDescription=desc or Instance.new("HumanoidDescription")
-    return BaseBotDescription
-end
-
-local function fallbackBot(i)
-    local d=getBaseBotDescription():Clone()
-    local cols={
-        Color3.fromRGB(245,205,48),Color3.fromRGB(80,175,255),Color3.fromRGB(255,120,120),
-        Color3.fromRGB(125,255,150),Color3.fromRGB(185,120,255),Color3.fromRGB(255,180,90),
-        Color3.fromRGB(105,225,220),Color3.fromRGB(220,220,220),Color3.fromRGB(255,115,220),
-        Color3.fromRGB(150,195,255)
-    }
-    local c=cols[((i-1)%arrlen(cols))+1]
-    pcall(function()
-        d.HeadColor=c
-        d.LeftArmColor=c
-        d.RightArmColor=c
-        d.LeftLegColor=c
-        d.RightLegColor=c
-        d.TorsoColor=c
-        d.HeightScale=.94+((i-1)%4)*.025
-        d.WidthScale=.92+((i-1)%3)*.035
-        d.HeadScale=.95+((i-1)%3)*.025
-    end)
-
-    local model=nil
-    local ok=pcall(function()
-        model=Players:CreateHumanoidModelFromDescription(d,Enum.HumanoidRigType.R15)
-    end)
-    if ok and model then return model end
-
-    -- Last-resort clone: still independent of other players in the server.
-    local ch=P.Character
-    if ch then
-        local oldArchivable=ch.Archivable
-        ch.Archivable=true
-        pcall(function() model=ch:Clone() end)
-        ch.Archivable=oldArchivable
-        if model then
-            for _,o in ipairs(model:GetDescendants()) do
-                if o:IsA("Script") or o:IsA("LocalScript") or o:IsA("Tool") then
-                    pcall(function() o:Destroy() end)
-                end
-            end
-            return model
-        end
-    end
-    return nil
-end
-
-local function botAvatar(i)
-    return fallbackBot(i)
-end
-
-local function botTag(m,id,trailName,stat)
-    local head=m:FindFirstChild("Head")
-    if not head then return end
-
-    local g=Instance.new("BillboardGui")
-    g.Name="SAE_BotTag"
-    g.Size=UDim2.fromOffset(220,46)
-    g.StudsOffset=Vector3.new(0,3.25,0)
-    g.AlwaysOnTop=true
-    g.MaxDistance=70
-    g.Parent=head
-
-    local a=label(g,id[1],UDim2.fromOffset(0,0),UDim2.new(1,0,0,23),17)
-    a.TextXAlignment=Enum.TextXAlignment.Center
-    a.Font=Enum.Font.GothamMedium
-    a.TextStrokeTransparency=.55
-    a.TextStrokeColor3=Color3.new(0,0,0)
-
-    local b=label(g,"@"..id[2],UDim2.fromOffset(0,23),UDim2.new(1,0,0,18),13)
-    b.TextXAlignment=Enum.TextXAlignment.Center
-    b.Font=Enum.Font.Gotham
-    b.TextColor3=Color3.fromRGB(205,205,210)
-    b.TextStrokeTransparency=.72
-    b.TextStrokeColor3=Color3.new(0,0,0)
-end
-local CollectorsEnabled=false
-
-local function horizontalDistance(a,b)
-    local dx=a.X-b.X
-    local dz=a.Z-b.Z
-    return math.sqrt(dx*dx+dz*dz)
-end
-
-local function nearestEgg(pos,key)
-    local best=nil
-    local dist=math.huge
-    local now=os.clock()
-    for e,st in pairs(EggState) do
-        if e and e.Parent and not st.carried and not st.delivered then
-            if st.claim and st.claim~=key and st.claimTime and now-st.claimTime>6 then
-                st.claim=nil
-                st.claimTime=nil
-            end
-            if not st.claim or st.claim==key then
-                local r=rootOf(e)
-                if r then
-                    local d=horizontalDistance(r.Position,pos)
-                    if d<dist then dist=d; best=e end
-                end
-            end
-        end
-    end
-    return best
-end
-
-local function clearBots()
-    CollectorsEnabled=false
-    for _,b in ipairs(Bots) do
-        if b.model and b.model.Parent then b.model:Destroy() end
-    end
-    Bots={}
-    for _,st in pairs(EggState) do
-        if st.claim and string.sub(st.claim,1,4)=="BOT_" then st.claim=nil; st.claimTime=nil end
-    end
-end
-
-local function botBrain(d)
-    task.spawn(function()
-        local target=nil
-        local carried=nil
-        local lastDistance=nil
-        local stuckSince=os.clock()
-        while d.model and d.model.Parent do
-            task.wait(.08)
-            local m=d.model
-            local h=m:FindFirstChildOfClass("Humanoid")
-            local r=m:FindFirstChild("HumanoidRootPart")
-            if not h or not r then break end
-            h.WalkSpeed=d.speed
-            h.AutoRotate=true
-
-            if not CollectorsEnabled then
-                h:MoveTo(r.Position)
-            elseif carried and carried.Parent then
-                local sp=safePosition()
-                if sp then
-                    h:MoveTo(sp)
-                    if horizontalDistance(r.Position,sp)<=10 then
-                        dropEgg(carried,sp+Vector3.new(math.random(-35,35)/10,0,math.random(-35,35)/10),true)
-                        carried=nil
-                        target=nil
-                        lastDistance=nil
-                        stuckSince=os.clock()
-                    end
-                end
-            else
-                carried=nil
-                if target then
-                    local st=EggState[target]
-                    if not target.Parent or not st or st.carried or st.delivered or (st.claim and st.claim~=d.key) then
-                        if st and st.claim==d.key then st.claim=nil; st.claimTime=nil end
-                        target=nil
-                        lastDistance=nil
-                    end
-                end
-
-                if not target then
-                    target=nearestEgg(r.Position,d.key)
-                    if target and EggState[target] then
-                        EggState[target].claim=d.key
-                        EggState[target].claimTime=os.clock()
-                        stuckSince=os.clock()
-                        lastDistance=nil
-                    end
-                end
-
-                if target then
-                    local er=rootOf(target)
-                    if er then
-                        local hit=groundHitNear(er.Position,m)
-                        h:MoveTo(hit and hit.Position or er.Position)
-                        local hd=horizontalDistance(r.Position,er.Position)
-                        if hd<=12 then
-                            if carryEgg(target,r,d.key,m) then
-                                carried=target
-                                target=nil
-                                lastDistance=nil
-                            else
-                                if EggState[target] then EggState[target].claim=nil; EggState[target].claimTime=nil end
-                                target=nil
-                            end
-                        else
-                            if lastDistance and hd<lastDistance-1 then stuckSince=os.clock() end
-                            lastDistance=hd
-                            if os.clock()-stuckSince>4.5 then
-                                if EggState[target] then EggState[target].claim=nil; EggState[target].claimTime=nil end
-                                target=nil
-                                lastDistance=nil
-                                stuckSince=os.clock()
-                            end
-                        end
-                    else
-                        target=nil
-                    end
-                end
-            end
-
-            local v=r.AssemblyLinearVelocity
-            local s=Vector3.new(v.X,0,v.Z).Magnitude
-            animate(d.anim,s)
-            if d.trail then d.trail.Enabled=s>2 end
-        end
-    end)
-end
-
-local function spawnBots(n)
-    if not safePosition() then detectSafe() end
-    local safe=safePosition()
-    if not safe then return false,"Lock the safe zone first." end
-
-    clearBots()
-    CollectorsEnabled=true
-    n=math.clamp(n,1,10)
-    local eggTarget=nil
-    local nearest=nearestEgg(safe,"BOT_SPAWN_LOOK")
-    local er=nearest and rootOf(nearest) or nil
-    if er then eggTarget=er.Position end
-    if not eggTarget then eggTarget=select(1,getMapFrame()).Position end
-
-    local dir=Vector3.new(eggTarget.X-safe.X,0,eggTarget.Z-safe.Z)
-    if dir.Magnitude<.1 then dir=Vector3.new(0,0,-1) else dir=dir.Unit end
-    local right=Vector3.new(-dir.Z,0,dir.X)
-
-    for i=1,n do
-        local ok,m=pcall(function() return botAvatar(i) end)
-        if (not ok) or (not m) then
-            ok,m=pcall(function() return fallbackBot(i) end)
-        end
-        if ok and m then
-            m.Name="Egg Bot "..i
-            m.Parent=NPCFolder
-            local h=m:FindFirstChildOfClass("Humanoid")
-            local r=m:FindFirstChild("HumanoidRootPart")
-            if h and r then
-                h.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
-                h.NameDisplayDistance=0
-                h.HealthDisplayDistance=0
-                h.AutoRotate=true
-                r.Anchored=false
-
-                local id=BOT_NAMES[((i-1)%arrlen(BOT_NAMES))+1]
-                local tr=TRAILS[math.random(1,arrlen(TRAILS))]
-                local stat=math.random(200,270)*1000000
-                local speed=90+((stat-200000000)/70000000)*35
-
-                -- Spawn in a small formation INSIDE the safe zone.
-                local row=math.floor((i-1)/4)
-                local col=(i-1)%4
-                local lateral=(col-1.5)*3.4
-                local backward=row*3.2
-                local spawnPos=safe+right*lateral-dir*backward
-                placeNPC(m,spawnPos,dir)
-
-                local trail=addTrail(m,tr)
-                local d={model=m,key="BOT_"..i.."_"..id[2],speed=speed,trail=trail,anim=animations(h)}
-                botTag(m,id,tr[1],stat)
-                table.insert(Bots,d)
-                botBrain(d)
-            else
-                m:Destroy()
-            end
-        end
-        task.wait(.04)
-    end
-    return true,tostring(arrlen(Bots)).." bots spawned from Safe Zone: "..SafeName
+    if not best then return false,"Safe zone not auto-detected. Stand in it and press SET HERE." end; SafeObj=best; SafePos=objPos(best); SafeName=best.Name; return true,SafeName
 end
 
 -- Reference-script style boost/event controls. Without a configured legitimate server remote,
@@ -2419,11 +1918,6 @@ local function startMeteorCountdown(seconds,statusCallback)
 end
 
 -- MAIN navigation and reference-style pages.
-local EggIndex=1
-local Amount=200
-local EggSize=100
-local Pattern=PATTERNS[1]
-
 local Nav=Instance.new("Frame")
 Nav.Position=UDim2.fromOffset(10,66)
 Nav.Size=UDim2.new(1,-20,0,28)
@@ -2477,7 +1971,7 @@ local function showAdminPage(name,push)
     Nav.Visible=(name~="Home")
     -- Size each branch to its controls instead of leaving a tall empty window.
     local heights={
-        Home=172, ["Spawn eggs"]=398, ["Mixed egg layouts"]=352,
+        Home=172,
         Announcements=336, ["Admin Abuse"]=286, ["Boost Effects"]=404, Meteor=364,
         Names=286, ["Avatar Name"]=330, ["Announcements Profile"]=384
     }
@@ -2493,8 +1987,6 @@ BackBtn.MouseButton1Click:Connect(function()
 end)
 
 local HomePage=newAdminPage("Home",false)
-local EggsPage=newAdminPage("Spawn eggs",false)
-local PatternPage=newAdminPage("Mixed egg layouts",false)
 local AnnouncePage=newAdminPage("Announcements",false)
 local AdminAbusePage=newAdminPage("Admin Abuse",false)
 local NamesPage=newAdminPage("Names",false)
@@ -2504,7 +1996,7 @@ local Builders={}
 function Builders.Home()
 -- HOME
 local homeItems={
-    {"Eggs","Spawn eggs"},{"Announce","Announcements"},
+    {"Announce","Announcements"},
     {"Names","Names"},{"Admin Abuse","Admin Abuse"}
 }
 for i,item in ipairs(homeItems) do
@@ -2560,99 +2052,6 @@ local function intSlider(parent,y,minv,maxv,step,initial,title,onChange)
     render()
     return function() return value end,titleLabel
 end
-
-function Builders.SpawnEggs()
--- SPAWN EGGS page
-local chooseBtn=button(EggsPage,"Choose egg",UDim2.fromOffset(4,4),UDim2.new(.5,-8,0,34),true)
-local mixedBtn=button(EggsPage,"Mixed eggs",UDim2.new(.5,4,0,4),UDim2.new(.5,-8,0,34),true)
-local selectedEggLabel=label(EggsPage,"Selected: MIXED",UDim2.fromOffset(5,42),UDim2.new(1,-10,0,18),10)
-selectedEggLabel.TextColor3=C.purple2
-chooseBtn.MouseButton1Click:Connect(function()
-    EggIndex=EggIndex+1
-    if EggIndex>arrlen(EGGS) then EggIndex=2 end
-    if EggIndex==1 then EggIndex=2 end
-    selectedEggLabel.Text="Selected: "..EGGS[EggIndex]
-end)
-mixedBtn.MouseButton1Click:Connect(function() EggIndex=1; selectedEggLabel.Text="Selected: MIXED" end)
-
-local patternBtn=button(EggsPage,"Layout: ORIGINAL 6x20",UDim2.fromOffset(4,64),UDim2.new(1,-8,0,30),true)
-patternBtn.MouseButton1Click:Connect(function() showAdminPage("Mixed egg layouts",true) end)
-
-section(EggsPage,"QUANTITY",101)
-local amountValues={200,250,300,350,400,450,500}
-local amountButtons={}
-for i,v in ipairs(amountValues) do
-    local value=v
-    local b=button(EggsPage,tostring(value),UDim2.new((i-1)/7,3,0,124),UDim2.new(1/7,-6,0,26),true)
-    amountButtons[value]=b
-    b.MouseButton1Click:Connect(function()
-        Amount=value
-        for k,x in pairs(amountButtons) do x:SetAttribute("RestingColor",(k==Amount) and C.purple or C.card2) end
-    end)
-end
-amountButtons[200]:SetAttribute("RestingColor",C.purple)
-
-local sizeValue=function() return EggSize end
-sizeValue=intSlider(EggsPage,158,25,500,5,100,"Egg scale",function(v) EggSize=v end)
-local spawnBtn=button(EggsPage,"Spawn behind me",UDim2.fromOffset(4,210),UDim2.new(.5,-8,0,34),false)
-local clearEggBtn=button(EggsPage,"Clear eggs",UDim2.new(.5,4,0,210),UDim2.new(.5,-8,0,34),true)
-local spawnStatus=label(EggsPage,"Spawns eggs behind you, facing your direction.",UDim2.fromOffset(5,250),UDim2.new(1,-10,0,36),11)
-spawnStatus.TextWrapped=true; spawnStatus.TextColor3=C.muted
-spawnBtn.MouseButton1Click:Connect(function()
-    spawnBtn.Text="SPAWNING..."
-    local en=EGGS[EggIndex]
-    -- Each click is one clean batch, so choosing 500 means exactly 500 GENERAL eggs.
-    clearSpawnedEggs("GENERAL")
-    if callRemote("SpawnEggs",{Egg=en,Quantity=Amount,Size=EggSize,Pattern=Pattern,BehindPlayer=true}) then
-        spawnStatus.Text="Server spawn request sent."
-        spawnStatus.TextColor3=C.green
-    else
-        local ok,made,cols,rows,fallbacks=spawnEggs(en,Amount,EggSize,Pattern,nil,"GENERAL")
-        if ok then
-            spawnStatus.Text=tostring(made).." eggs spawned: "..tostring(rows).." rows, "..tostring(cols).." per row."
-            spawnStatus.TextColor3=C.green
-            notice(P.UserId,Display,": spawned",tostring(made).." EGGS","")
-        else
-            spawnStatus.Text=tostring(made); spawnStatus.TextColor3=C.red
-        end
-    end
-    spawnBtn.Text="Spawn behind me"
-end)
-clearEggBtn.MouseButton1Click:Connect(function() local n=clearSpawnedEggs(); spawnStatus.Text="Cleared "..n.." spawned egg(s)."; spawnStatus.TextColor3=C.green end)
-
--- mixed layout page from the reference screenshots
-local patternDescriptions={
-    ["ORIGINAL 6x20"]="20 eggs across; a six-type sequence repeats through each row.",
-    ["ONE TYPE PER ROW"]="Every egg in one row is the same type; the next row changes type.",
-    ["SPLIT ROWS 3+3"]="Three of one type, then three of the next type, repeating across the row.",
-    ["PAIRS 2+2+2"]="Two of type A, two of type B, two of type C, repeating across the row.",
-    ["MIRRORED ROWS"]="Every second row reverses the left-to-right sequence.",
-    ["ALTERNATING ROWS"]="Whole rows alternate between two egg types.",
-    ["DIAGONAL SEQUENCE"]="Each row shifts the sequence by one, making diagonal bands."
-}
-local patStatus=label(PatternPage,"Choose a mixed egg layout",UDim2.fromOffset(5,0),UDim2.new(1,-10,0,22),11); patStatus.Font=Enum.Font.GothamBold
-for i,n in ipairs(PATTERNS) do
-    local patternName=n
-    local row=math.floor((i-1)/2); local col=(i-1)%2
-    local wide=(i==arrlen(PATTERNS) and (arrlen(PATTERNS)%2==1))
-    local pos=wide and UDim2.fromOffset(4,30+row*42) or UDim2.new(col*.5,col==0 and 4 or 4,0,30+row*42)
-    local sz=wide and UDim2.new(1,-8,0,36) or UDim2.new(.5,-8,0,36)
-    local b=button(PatternPage,patternName, pos, sz,true)
-    b.TextSize=10
-    b.TextWrapped=true
-    b.MouseButton1Click:Connect(function()
-        Pattern=patternName
-        patternBtn.Text="Layout: "..patternName
-        patStatus.Text=patternName.." selected"
-        showAdminPage("Spawn eggs",false)
-    end)
-end
-local patInfo=label(PatternPage,"Choose how mixed egg types repeat across rows.",UDim2.fromOffset(5,202),UDim2.new(1,-10,0,38),11)
-patInfo.TextWrapped=true; patInfo.TextColor3=C.muted
-
-end
-Builders.SpawnEggs()
-Builders.SpawnEggs=nil
 
 function Builders.Announcements()
 -- ANNOUNCEMENTS
@@ -2892,124 +2291,6 @@ end)
 end
 Builders.Morph()
 Builders.Morph=nil
-
-function Builders.Collectors()
--- NPC COLLECTORS panel with Collectors / Avatar / Sammy tabs.
-local BotTabs=Instance.new("Frame"); BotTabs.Position=UDim2.fromOffset(12,71); BotTabs.Size=UDim2.new(1,-24,0,36); BotTabs.BackgroundTransparency=1; BotTabs.Parent=BotsPanel
-local BotTabButtons={}; local BotPages={}
-local function newBotPage(n)
-    local f=Instance.new("ScrollingFrame")
-    f.Position=UDim2.fromOffset(12,112); f.Size=UDim2.new(1,-24,1,-124); f.BackgroundTransparency=1; f.BorderSizePixel=0; f.ScrollBarThickness=4; f.ScrollBarImageColor3=C.purple; f.CanvasSize=UDim2.new(); f.Visible=false; f.Parent=BotsPanel
-    BotPages[n]=f; return f
-end
-local CollectorsPage=newBotPage("Collectors")
-local BotAvatarPage=newBotPage("Avatar")
-local BotSammyPage=newBotPage("Sammy")
-local function showBotPage(n) for k,p in pairs(BotPages) do p.Visible=(k==n) end; for k,b in pairs(BotTabButtons) do b:SetAttribute("RestingColor",(k==n) and C.purple or C.card2) end end
-for i,n in ipairs({"Collectors","Avatar","Sammy"}) do local b=button(BotTabs,n,UDim2.new((i-1)/3,3*(i-1),0,0),UDim2.new(1/3,-6,0,32),true); BotTabButtons[n]=b; b.MouseButton1Click:Connect(function() showBotPage(n) end) end
-
--- Collectors tab
-local SafeCard=card(CollectorsPage,UDim2.fromOffset(0,0),UDim2.new(1,-6,0,111)); section(SafeCard,"SAFE ZONE",7)
-local collectorSafeStatus=label(SafeCard,"NOT LOCKED",UDim2.fromOffset(10,29),UDim2.new(1,-20,0,20),10); collectorSafeStatus.Font=Enum.Font.GothamBold; collectorSafeStatus.TextColor3=C.orange
-local autoSafe=button(SafeCard,"AUTO DETECT",UDim2.fromOffset(10,61),UDim2.new(.5,-15,0,34),false)
-local setSafe=button(SafeCard,"SET HERE",UDim2.new(.5,5,0,61),UDim2.new(.5,-15,0,34),true)
-local function refreshSafeUI() if safePosition() then collectorSafeStatus.Text="LOCKED - "..SafeName; collectorSafeStatus.TextColor3=C.green else collectorSafeStatus.Text="NOT LOCKED"; collectorSafeStatus.TextColor3=C.orange end end
-autoSafe.MouseButton1Click:Connect(function() local ok,msg=detectSafe(); refreshSafeUI(); if not ok then collectorSafeStatus.Text=msg; collectorSafeStatus.TextColor3=C.red end end)
-setSafe.MouseButton1Click:Connect(function() local ok,msg=setSafeHere(); refreshSafeUI(); if not ok then collectorSafeStatus.Text=msg; collectorSafeStatus.TextColor3=C.red end end)
-local NPCCount=2
-local WaveDelay=5
-intSlider(CollectorsPage,125,1,10,1,2,"NPCS PER WAVE",function(v) NPCCount=v end)
-intSlider(CollectorsPage,180,1,15,1,5,"WAVE DELAY (SEC)",function(v) WaveDelay=v end)
-local collectorsToggle=button(CollectorsPage,"COLLECTORS: OFF",UDim2.fromOffset(0,238),UDim2.new(1,-6,0,38),true)
-local clearNPCBtn=button(CollectorsPage,"Stop / clear NPCs",UDim2.fromOffset(0,283),UDim2.new(1,-6,0,36),true)
-local collectorInfo=label(CollectorsPage,"Eggs: 0 | NPCs: 0",UDim2.fromOffset(5,326),UDim2.new(1,-16,0,28),9); collectorInfo.TextColor3=C.muted
-collectorsToggle.MouseButton1Click:Connect(function()
-    if CollectorsEnabled then
-        CollectorsEnabled=false; collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle:SetAttribute("RestingColor",C.card2)
-    else
-        if arrlen(Bots)==0 then local ok,msg=spawnBots(NPCCount); if not ok then collectorInfo.Text=msg; collectorInfo.TextColor3=C.red; return end else CollectorsEnabled=true end
-        collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle:SetAttribute("RestingColor",C.purple); collectorInfo.Text="Collectors bring eggs to the safe zone."; collectorInfo.TextColor3=C.green
-    end
-end)
-clearNPCBtn.MouseButton1Click:Connect(function() clearBots(); collectorsToggle.Text="COLLECTORS: OFF"; collectorsToggle:SetAttribute("RestingColor",C.card2); collectorInfo.Text="NPCs cleared."; collectorInfo.TextColor3=C.muted end)
-CollectorsPage.CanvasSize=UDim2.fromOffset(0,366)
-
-task.spawn(function()
-    while Gui.Parent do
-        task.wait(1)
-        if collectorInfo and collectorInfo.Parent then
-            local active=0
-            for _,b in ipairs(Bots) do if b.model and b.model.Parent then active=active+1 end end
-            local eggs=0
-            for e,st in pairs(EggState) do if e and e.Parent and not st.delivered then eggs=eggs+1 end end
-            if CollectorsEnabled then collectorInfo.Text="Eggs: "..eggs.." | NPCs: "..active.." | collecting" end
-        end
-    end
-end)
-
--- Avatar tab
-local avatarCard=card(BotAvatarPage,UDim2.fromOffset(0,0),UDim2.new(1,-6,0,195))
-section(avatarCard,"COLLECTOR APPEARANCE",8)
-local av1=label(avatarCard,"Different avatars: ON",UDim2.fromOffset(12,37),UDim2.new(1,-24,0,22),11); av1.TextColor3=C.green
-local av2=label(avatarCard,"Random trail per bot: ON",UDim2.fromOffset(12,68),UDim2.new(1,-24,0,22),11); av2.TextColor3=C.green
-local av3=label(avatarCard,"Displayed speed stat: 200M - 270M",UDim2.fromOffset(12,99),UDim2.new(1,-24,0,22),11); av3.TextColor3=C.green
-local refreshBots=button(avatarCard,"Refresh collector avatars",UDim2.fromOffset(10,139),UDim2.new(1,-20,0,39),false)
-local avatarStatus=label(BotAvatarPage,"Refresh to spawn collectors with new avatars.",UDim2.fromOffset(5,211),UDim2.new(1,-16,0,50),9); avatarStatus.TextWrapped=true; avatarStatus.TextColor3=C.muted
-refreshBots.MouseButton1Click:Connect(function() if not safePosition() then avatarStatus.Text="Lock the safe zone first."; avatarStatus.TextColor3=C.orange; return end; local ok,msg=spawnBots(NPCCount); avatarStatus.Text=msg; avatarStatus.TextColor3=ok and C.green or C.red; if ok then CollectorsEnabled=true; collectorsToggle.Text="COLLECTORS: ON"; collectorsToggle:SetAttribute("RestingColor",C.purple) end end)
-BotAvatarPage.CanvasSize=UDim2.fromOffset(0,275)
-
--- Sammy tab, closely matching the reference panel.
-local sy=0
-local sammyHeader=label(BotSammyPage,"SAMMY S7 - 240 MIXED EGGS / 2x",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,26),11); sammyHeader.Font=Enum.Font.GothamBold; sy=sy+32
-local spawnSammyButton=button(BotSammyPage,"Spawn Sammy",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,38),false); sy=sy+45
-local markSpotButton=button(BotSammyPage,"Mark this spot",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,34),true); sy=sy+38
-local spotStatus=label(BotSammyPage,"No spot marked. Uses the map center.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,32),9); spotStatus.TextColor3=C.muted; spotStatus.TextWrapped=true; sy=sy+37
-local sammyEggButton=button(BotSammyPage,"Spawn 240 eggs / refill empty spots",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,38),false); sy=sy+45
-local clearSammyEggs=button(BotSammyPage,"CLEAR SAMMY EGGS",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,35),true); clearSammyEggs:SetAttribute("RestingColor",Color3.fromRGB(120,30,68)); sy=sy+42
-local autoRefillBtn=button(BotSammyPage,"AUTO REFILL: OFF - after 50 gone",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,34),true); sy=sy+41
-local testBannerBtn=button(BotSammyPage,"Test banner",UDim2.fromOffset(0,sy),UDim2.new(.5,-8,0,33),true)
-local advertiseBtn=button(BotSammyPage,"ADVERTISE: OFF",UDim2.new(.5,3,0,sy),UDim2.new(.5,-9,0,33),true); sy=sy+42
-local sammyDirect=textbox(BotSammyPage,"This box always announces as Sammy",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,42),""); sy=sy+48
-local sammyRemove=button(BotSammyPage,"Remove Sammy",UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,35),true); sy=sy+42
-local tagNone=button(BotSammyPage,"No tag",UDim2.fromOffset(0,sy),UDim2.new(1/3,-6,0,34),false)
-local tagAdmin=button(BotSammyPage,"Admin",UDim2.new(1/3,2,0,sy),UDim2.new(1/3,-6,0,34),true)
-local tagCreator=button(BotSammyPage,"Creator",UDim2.new(2/3,4,0,sy),UDim2.new(1/3,-10,0,34),true); sy=sy+42
-local sammyPanelStatus=label(BotSammyPage,"Ready to spawn Sammy.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,33),9); sammyPanelStatus.TextColor3=C.muted; sy=sy+42
-section(BotSammyPage,"ADVERTISEMENT MESSAGES - CLICK ONE TO SEND",sy); sy=sy+24
-local msg1=button(BotSammyPage,SammyMessages[1],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg1.TextWrapped=true; sy=sy+55
-local msg2=button(BotSammyPage,SammyMessages[2],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg2.TextWrapped=true; sy=sy+55
-local msg3=button(BotSammyPage,SammyMessages[3],UDim2.fromOffset(0,sy),UDim2.new(1,-6,0,48),true); msg3.TextWrapped=true; sy=sy+55
-local adHint=label(BotSammyPage,"Click a message to announce it as Sammy.",UDim2.fromOffset(5,sy),UDim2.new(1,-16,0,38),9); adHint.TextColor3=C.muted; adHint.TextWrapped=true; sy=sy+44
-BotSammyPage.CanvasSize=UDim2.fromOffset(0,sy)
-
-spawnSammyButton.MouseButton1Click:Connect(function() if callRemote("SpawnSammy") then sammyPanelStatus.Text="Server Sammy request sent."; sammyPanelStatus.TextColor3=C.green else local ok,msg=spawnSammy(); sammyPanelStatus.Text=msg; sammyPanelStatus.TextColor3=ok and C.green or C.red end end)
-markSpotButton.MouseButton1Click:Connect(function() local ok,msg=markSammySpot(); spotStatus.Text=msg; spotStatus.TextColor3=ok and C.green or C.red end)
-sammyEggButton.MouseButton1Click:Connect(function() local ok,msg=spawnSammyBatch(countBatch("SAMMY240")>0); sammyPanelStatus.Text=msg; sammyPanelStatus.TextColor3=ok and C.green or C.red end)
-clearSammyEggs.MouseButton1Click:Connect(function() local n=clearSpawnedEggs("SAMMY240"); sammyPanelStatus.Text="Cleared "..n.." Sammy egg(s)."; sammyPanelStatus.TextColor3=C.green end)
-autoRefillBtn.MouseButton1Click:Connect(function() SammyAutoRefill=not SammyAutoRefill; autoRefillBtn.Text=SammyAutoRefill and "AUTO REFILL: ON - after 50 gone" or "AUTO REFILL: OFF - after 50 gone"; autoRefillBtn:SetAttribute("RestingColor",SammyAutoRefill and C.purple or C.card2) end)
-testBannerBtn.MouseButton1Click:Connect(function() sammyBanner(SammyMessages[1] or "Sammy test banner") end)
-advertiseBtn.MouseButton1Click:Connect(function() SammyAdvertise=not SammyAdvertise; advertiseBtn.Text=SammyAdvertise and "ADVERTISE: ON" or "ADVERTISE: OFF"; advertiseBtn:SetAttribute("RestingColor",SammyAdvertise and C.purple or C.card2) end)
-sammyDirect.FocusLost:Connect(function(enter) if enter and sammyDirect.Text~="" then sammyBanner(sammyDirect.Text); sammyDirect.Text="" end end)
-sammyRemove.MouseButton1Click:Connect(function() despawnSammy(); sammyPanelStatus.Text="Sammy removed."; sammyPanelStatus.TextColor3=C.muted end)
-local function setSammyMode(mode) SammyTagMode=mode; refreshSammyTag(); tagNone:SetAttribute("RestingColor",(mode=="NONE") and C.purple or C.card2); tagAdmin:SetAttribute("RestingColor",(mode=="ADMIN") and C.purple or C.card2); tagCreator:SetAttribute("RestingColor",(mode=="CREATOR") and C.purple or C.card2) end
-tagNone.MouseButton1Click:Connect(function() setSammyMode("NONE") end); tagAdmin.MouseButton1Click:Connect(function() setSammyMode("ADMIN") end); tagCreator.MouseButton1Click:Connect(function() setSammyMode("CREATOR") end)
-local function sendSammyAd(index)
-    local msg=SammyMessages[index]
-    if not msg or msg=="" then return end
-    sammyBanner(msg)
-    adHint.Text="Sammy announced message "..tostring(index).."."
-    adHint.TextColor3=C.green
-end
-msg1.MouseButton1Click:Connect(function() sendSammyAd(1) end)
-msg2.MouseButton1Click:Connect(function() sendSammyAd(2) end)
-msg3.MouseButton1Click:Connect(function() sendSammyAd(3) end)
-showBotPage("Collectors")
-refreshSafeUI()
-
-
-end
-Builders.Collectors()
-Builders.Collectors=nil
 
 function Builders.Console()
 -- Green command text with muted shortcuts and placeholders.
