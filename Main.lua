@@ -232,7 +232,6 @@ local Main=window("MainPanel","⚡ ADMIN ABUSE","Developer control panel",344,17
 Main.BackgroundTransparency=.12
 local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,290,UDim2.new(.74,0,.28,0))
 Morph.BackgroundTransparency=Main.BackgroundTransparency
-BotsPanel.BackgroundTransparency=Main.BackgroundTransparency
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
 
 -- Remove any overlay left by older versions.
@@ -378,7 +377,7 @@ local function findEgg(name)
 
     for _,container in ipairs({ReplicatedStorage,workspace}) do
         for _,o in ipairs(container:GetDescendants()) do
-            if not o:IsDescendantOf(EggFolder) and not o:IsDescendantOf(NPCFolder) and matchObj(o,want) then
+            if not o:IsDescendantOf(EggFolder) and matchObj(o,want) then
                 local source=usableEggSource(o,container)
                 if source then
                     EggCache[name]=source
