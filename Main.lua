@@ -1279,6 +1279,7 @@ end
 -- Character tag.
 local CoownerColor=Color3.fromRGB(112,43,180)
 local CreatorColor=Color3.fromRGB(246,79,126)
+local DeveloperColor=Color3.fromRGB(109,176,255)
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
 local TagAdornee=nil
 local TagShineTween=nil
@@ -1310,13 +1311,13 @@ local function applyTag()
     g.AlwaysOnTop=true
     g.Parent=head
 
-    local roleText=Role=="CONTENT CREATOR" and "Content Creator" or ("["..Role.."]")
+    local roleText=Role=="CONTENT CREATOR" and "🎬 Content Creator" or (Role=="DEVELOPER" and "⚙️ Developer" or ("["..Role.."]"))
     local a=label(g,roleText,UDim2.new(),UDim2.new(1,0,0,27),20)
     a.Font=Enum.Font.GothamBlack
     a.TextXAlignment=Enum.TextXAlignment.Center
     a.TextStrokeTransparency=0
     a.TextStrokeColor3=Color3.new(0,0,0)
-    a.TextColor3=Role=="OWNER" and Color3.fromRGB(235,18,35) or (Role=="CO-OWNER" and CoownerColor or (Role=="CONTENT CREATOR" and CreatorColor or C.purple2))
+    a.TextColor3=Role=="OWNER" and Color3.fromRGB(235,18,35) or (Role=="CO-OWNER" and CoownerColor or (Role=="CONTENT CREATOR" and CreatorColor or (Role=="DEVELOPER" and DeveloperColor or C.purple2)))
     if Role=="OWNER" or Role=="CO-OWNER" then
         -- Keep the dark outline separate from the moving color highlight.
         local shine=label(g,roleText,a.Position,a.Size,20)
@@ -1386,22 +1387,25 @@ local function setRole(role)
         selector.coowner:SetAttribute("RestingColor",role=="CO-OWNER" and CoownerColor or C.card2)
         selector.admin:SetAttribute("RestingColor",role=="ADMIN" and C.purple or C.card2)
         if selector.creator then selector.creator:SetAttribute("RestingColor",role=="CONTENT CREATOR" and CreatorColor or C.card2) end
+        if selector.developer then selector.developer:SetAttribute("RestingColor",role=="DEVELOPER" and DeveloperColor or C.card2) end
         if selector.status then
             selector.status.Text=role.." tag applied."
             selector.status.TextColor3=C.green
         end
     end
 end
-local function addRoleSelector(owner,coowner,admin,creator,status)
-    table.insert(RoleSelectors,{owner=owner,coowner=coowner,admin=admin,creator=creator,status=status})
+local function addRoleSelector(owner,coowner,admin,creator,developer,status)
+    table.insert(RoleSelectors,{owner=owner,coowner=coowner,admin=admin,creator=creator,developer=developer,status=status})
     owner:SetAttribute("RestingColor",Role=="OWNER" and C.red or C.card2)
     coowner:SetAttribute("RestingColor",Role=="CO-OWNER" and CoownerColor or C.card2)
     admin:SetAttribute("RestingColor",Role=="ADMIN" and C.purple or C.card2)
     if creator then creator:SetAttribute("RestingColor",Role=="CONTENT CREATOR" and CreatorColor or C.card2) end
+    if developer then developer:SetAttribute("RestingColor",Role=="DEVELOPER" and DeveloperColor or C.card2) end
     owner.MouseButton1Click:Connect(function() setRole("OWNER") end)
     coowner.MouseButton1Click:Connect(function() setRole("CO-OWNER") end)
     admin.MouseButton1Click:Connect(function() setRole("ADMIN") end)
     if creator then creator.MouseButton1Click:Connect(function() setRole("CONTENT CREATOR") end) end
+    if developer then developer.MouseButton1Click:Connect(function() setRole("DEVELOPER") end) end
 end
 
 -- Client-side appearance. Keep the real character and its controls untouched.
@@ -2189,12 +2193,13 @@ local morphOutline=stroke(morphBtn,.3)
 morphOutline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
 local resetMorphBtn=button(Morph,"RESET",UDim2.new(.62,0,0,158),UDim2.new(.38,-12,0,37),true)
 local roleLabel=label(Morph,"OVERHEAD ROLE",UDim2.fromOffset(12,203),UDim2.new(1,-24,0,16),9); roleLabel.TextColor3=C.muted; roleLabel.Font=Enum.Font.GothamBold
-local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(.5,-18,0,30),true)
-local morphCoownerRole=button(Morph,"CO-OWNER",UDim2.new(.5,6,0,224),UDim2.new(.5,-18,0,30),true)
-local morphAdminRole=button(Morph,"ADMIN",UDim2.fromOffset(12,260),UDim2.new(.5,-18,0,30),true)
-local morphCreatorRole=button(Morph,"Content Creator",UDim2.new(.5,6,0,260),UDim2.new(.5,-18,0,30),true); morphCreatorRole.TextSize=9
+local morphOwnerRole=button(Morph,"OWNER",UDim2.fromOffset(12,224),UDim2.new(1/3,-12,0,30),true)
+local morphCoownerRole=button(Morph,"CO-OWNER",UDim2.new(1/3,6,0,224),UDim2.new(1/3,-12,0,30),true)
+local morphAdminRole=button(Morph,"ADMIN",UDim2.new(2/3,0,0,224),UDim2.new(1/3,-12,0,30),true)
+local morphCreatorRole=button(Morph,"🎬 Content Creator",UDim2.fromOffset(12,260),UDim2.new(.5,-18,0,30),true); morphCreatorRole.TextSize=9
+local morphDeveloperRole=button(Morph,"⚙️ Developer",UDim2.new(.5,6,0,260),UDim2.new(.5,-18,0,30),true); morphDeveloperRole.TextSize=9
 local morphStatus=label(Morph,"Changes your avatar appearance locally.",UDim2.fromOffset(12,296),UDim2.new(1,-24,0,18),10); morphStatus.TextWrapped=true; morphStatus.TextColor3=C.muted
-addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole,morphCreatorRole,morphStatus)
+addRoleSelector(morphOwnerRole,morphCoownerRole,morphAdminRole,morphCreatorRole,morphDeveloperRole,morphStatus)
 local previewRequest=0
 local function selectOwnAvatar()
     previewRequest=previewRequest+1
