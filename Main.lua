@@ -486,7 +486,6 @@ end
 local SafeObj=nil
 local SafePos=nil
 local SafeName="Not locked"
-local Marker=nil
 local detectSafe=nil
 
 -- Map-center detection. General egg spawning is anchored to the map frame.
@@ -1811,7 +1810,7 @@ detectSafe=function()
             if s>0 then local p=objPos(o); if p then s=s-(p-pp).Magnitude*.05 end; for _,a in ipairs({"Owner","OwnerName","Player","PlayerName","OwnerId","OwnerUserId","UserId"}) do local v=o:GetAttribute(a); if v and (tostring(v)==P.Name or tostring(v)==P.DisplayName or tonumber(v)==P.UserId) then s=s+5000 end end; if s>score then score=s; best=o end end
         end
     end
-    if not best then return false,"Safe zone not auto-detected. Stand in it and press SET HERE." end; SafeObj=best; SafePos=objPos(best); SafeName=best.Name; return true,SafeName
+    if not best then return false,"Safe zone not auto-detected." end; SafeObj=best; SafePos=objPos(best); SafeName=best.Name; return true,SafeName
 end
 
 -- Reference-script style boost/event controls. Without a configured legitimate server remote,
