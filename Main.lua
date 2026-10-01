@@ -251,8 +251,12 @@ local bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
 local bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
 bAdmin.MouseButton1Click:Connect(function() Main.Visible=not Main.Visible end)
 bMorph.MouseButton1Click:Connect(function()
-    if MorphColorsPage.Visible then MorphColorsPage.Visible=false end
-    Morph.Visible=not Morph.Visible
+    if MorphColorsPage.Visible then
+        MorphColorsPage.Visible=false
+        Morph.Visible=true
+    else
+        Morph.Visible=not Morph.Visible
+    end
 end)
 
 -- Centered announcement layer.
