@@ -239,7 +239,7 @@ local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
 if oldSnow then oldSnow:Destroy() end
 
 -- Permanent launchers so closed panels never disappear permanently.
-local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-58); Launch.Size=UDim2.fromOffset(106,108); Launch.BackgroundTransparency=1; Launch.Parent=Gui
+local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-58); Launch.Size=UDim2.fromOffset(106,65); Launch.BackgroundTransparency=1; Launch.Parent=Gui
 local LL=Instance.new("UIListLayout"); LL.Padding=UDim.new(0,7); LL.Parent=Launch
 local bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
 local bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
