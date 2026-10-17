@@ -239,16 +239,20 @@ MorphColorsPage:GetPropertyChangedSignal("Visible"):Connect(function()
     if not MorphColorsPage.Visible then Morph.Visible=true end
 end)
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
+local GiftPanel=window("GiftPanel","Gift Panel","Choose a gift category",350,238,UDim2.new(.5,0,.5,0))
+GiftPanel.Visible=false
+GiftPanel.BackgroundTransparency=Main.BackgroundTransparency
 
 -- Remove any overlay left by older versions.
 local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
 if oldSnow then oldSnow:Destroy() end
 
 -- Permanent launchers so closed panels never disappear permanently.
-local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-58); Launch.Size=UDim2.fromOffset(106,65); Launch.BackgroundTransparency=1; Launch.Parent=Gui
+local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-80); Launch.Size=UDim2.fromOffset(106,105); Launch.BackgroundTransparency=1; Launch.Parent=Gui
 local LL=Instance.new("UIListLayout"); LL.Padding=UDim.new(0,7); LL.Parent=Launch
 local bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
 local bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
+local bGift=button(Launch,"GIFTS",UDim2.new(),UDim2.fromOffset(102,29),true)
 bAdmin.MouseButton1Click:Connect(function() Main.Visible=not Main.Visible end)
 bMorph.MouseButton1Click:Connect(function()
     if MorphColorsPage.Visible then
@@ -258,6 +262,28 @@ bMorph.MouseButton1Click:Connect(function()
         Morph.Visible=not Morph.Visible
     end
 end)
+bGift.MouseButton1Click:Connect(function() GiftPanel.Visible=not GiftPanel.Visible end)
+
+section(GiftPanel,"GIFT CATEGORIES",64)
+local giftStatus=label(GiftPanel,"Choose Eggs, Pets, or Stars.",UDim2.fromOffset(12,197),UDim2.new(1,-24,0,22),10)
+giftStatus.TextColor3=C.muted
+local giftCategoryButtons={}
+local selectedGiftCategory=nil
+local function selectGiftCategory(name)
+    selectedGiftCategory=name
+    for category,categoryButton in pairs(giftCategoryButtons) do
+        local selected=category==name
+        categoryButton:SetAttribute("RestingColor",selected and C.purple or C.card2)
+    end
+    giftStatus.Text=name.." category selected."
+    giftStatus.TextColor3=C.white
+end
+for i,name in ipairs({"Eggs","Pets","Stars"}) do
+    local categoryButton=button(GiftPanel,name,UDim2.fromOffset(12,82+(i-1)*36),UDim2.new(1,-24,0,30),true)
+    categoryButton.TextSize=12
+    giftCategoryButtons[name]=categoryButton
+    categoryButton.MouseButton1Click:Connect(function() selectGiftCategory(name) end)
+end
 
 -- Centered announcement layer.
 local Notify=Instance.new("Frame"); Notify.BackgroundTransparency=1; Notify.Size=UDim2.fromScale(1,1); Notify.Parent=Gui
