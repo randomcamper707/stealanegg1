@@ -248,11 +248,11 @@ local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
 if oldSnow then oldSnow:Destroy() end
 
 -- Permanent launchers so closed panels never disappear permanently.
-local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-80); Launch.Size=UDim2.fromOffset(106,105); Launch.BackgroundTransparency=1; Launch.Parent=Gui
+local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-170); Launch.Size=UDim2.fromOffset(106,105); Launch.BackgroundTransparency=1; Launch.Parent=Gui
 local LL=Instance.new("UIListLayout"); LL.Padding=UDim.new(0,7); LL.Parent=Launch
 local bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
 local bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
-local bGift=button(Launch,"GIFTS",UDim2.new(),UDim2.fromOffset(102,29),true)
+local bGift=button(Launch,"GIFT PANEL",UDim2.new(),UDim2.fromOffset(102,29),true)
 bAdmin.MouseButton1Click:Connect(function() Main.Visible=not Main.Visible end)
 bMorph.MouseButton1Click:Connect(function()
     if MorphColorsPage.Visible then
@@ -262,7 +262,7 @@ bMorph.MouseButton1Click:Connect(function()
         Morph.Visible=not Morph.Visible
     end
 end)
-bGift.MouseButton1Click:Connect(function() GiftPanel.Visible=not GiftPanel.Visible end)
+bGift.MouseButton1Click:Connect(function() Main.Visible=false; GiftPanel.Visible=not GiftPanel.Visible end)
 
 section(GiftPanel,"GIFT CATEGORIES",64)
 local giftStatus=label(GiftPanel,"Choose Eggs, Pets, or Stars.",UDim2.fromOffset(12,197),UDim2.new(1,-24,0,22),10)
@@ -2056,7 +2056,8 @@ function Builders.Home()
 -- HOME
 local homeItems={
     {"Announce","Announcements"},
-    {"Names","Names"}
+    {"Names","Names"},
+    {"Gift Panel","Gift Panel"}
 }
 for i,item in ipairs(homeItems) do
     local row=math.floor((i-1)/2)
@@ -2068,7 +2069,14 @@ for i,item in ipairs(homeItems) do
     local outline=stroke(b,.72); outline.Color=C.purple2
     b.MouseEnter:Connect(function() outline.Transparency=.48 end)
     b.MouseLeave:Connect(function() outline.Transparency=.72 end)
-    b.MouseButton1Click:Connect(function() showAdminPage(item[2],true) end)
+    b.MouseButton1Click:Connect(function()
+        if item[2]=="Gift Panel" then
+            Main.Visible=false
+            GiftPanel.Visible=true
+        else
+            showAdminPage(item[2],true)
+        end
+    end)
 end
 
 end
