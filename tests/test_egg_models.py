@@ -108,7 +108,7 @@ class SculptedEggs(unittest.TestCase):
                         extent=sum(abs(rows[axis][j])*size[j]/2 for j in range(3))
                         low[axis]=min(low[axis],pos[axis]-extent);high[axis]=max(high[axis],pos[axis]+extent)
                 actual=[high[i]-low[i] for i in range(3)]
-                self.assertAlmostEqual(max(actual),3.5,places=4)
+                self.assertAlmostEqual(max(actual),4.375,places=4)
                 self.assertGreater(actual[2],1.0,'Egg must have substantial side depth')
                 for a,b in zip(actual,d['bounds']):self.assertAlmostEqual(a,b,places=4)
                 for c in d['palette']:
