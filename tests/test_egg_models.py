@@ -43,7 +43,7 @@ class LiteralReader:
 
 EXPECTED={
     'Unicorn Egg':{'IvoryHorn','CrystalPrism','CrystalPoint','PearlVein'},
-    'Kitsune Egg':{'FoxTail','TailTuft','ForeheadSigilGem','FoxEye'},
+    'Kitsune Egg':{'FoxTail','TailTuft','ForeheadSigilGem','FoxEye','FoxCheekFlame','UpperPinkMark','ShellEmboss'},
     'Night Flame Egg':{'BarkPanel','GoldenPinion','IvyLeaf','EmberHeartGem'},
     'Archangel Egg':{'Feather','FeatherQuill','Halo','HolyRuneStem'},
     'World Burner Egg':{'BatMembrane','ChainLink','DemonHorn','BurnerSigil'},
@@ -74,15 +74,15 @@ class SculptedEggs(unittest.TestCase):
                 self.assertTrue(EXPECTED[name]<=labels,EXPECTED[name]-labels)
                 self.assertEqual(design['parts'][0][1],'EggShell')
                 self.assertEqual(design['parts'][0][0],'box')
-                self.assertTrue({'EggShell','ShellBase','ShellShoulder','ShellCrown'}<=labels)
-                shell={p[1]:p for p in design['parts'] if p[1] in ('EggShell','ShellBase','ShellShoulder','ShellCrown')}
-                for p in shell.values():
+                self.assertIn('OriginalShellCell',labels)
+                shell=[p for p in design['parts'] if p[1] in ('EggShell','OriginalShellCell')]
+                self.assertGreater(len(shell),30)
+                self.assertGreaterEqual(len({p[4][1] for p in shell}),8)
+                for p in shell:
                     self.assertEqual(p[0],'box')
                     self.assertEqual(p[5],[1,0,0,0,1,0,0,0,1])
-                self.assertLess(shell['ShellCrown'][2][0],shell['ShellShoulder'][2][0])
-                self.assertLess(shell['ShellShoulder'][2][0],shell['EggShell'][2][0])
-                self.assertLess(shell['ShellBase'][2][0],shell['EggShell'][2][0])
-                self.assertLess(len(design['parts']),220)
+                for rejected in ('ShellBase','ShellShoulder','ShellCrown'):self.assertNotIn(rejected,labels)
+                self.assertLess(len(design['parts']),340)
                 self.assertGreater(len(design['parts']),40)
 
     def test_real_volume_transforms_and_held_size(self):
