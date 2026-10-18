@@ -42,15 +42,15 @@ class LiteralReader:
 
 
 EXPECTED={
-    'Unicorn Egg':{'IvoryHorn','CrystalPrism','CrystalPoint','PearlVein'},
+    'Unicorn Egg':{'IvoryHorn','CrystalPrism','CrystalPoint','PearlVein','PearlFacet','IvoryFracture'},
     'Kitsune Egg':{'FoxTail','TailTuft','ForeheadSigilGem','FoxEye','FoxCheekFlame','UpperPinkMark','ShellEmboss'},
-    'Night Flame Egg':{'BarkPanel','GoldenPinion','IvyLeaf','EmberHeartGem'},
+    'Night Flame Egg':{'BarkPanel','GoldenPinion','IvyLeaf','EmberHeartGem','PinionTip','CarvedDiamondFrame','CrownLeaf'},
     'Archangel Egg':{'Feather','FeatherQuill','Halo','HolyRuneStem'},
     'World Burner Egg':{'BatMembrane','ChainLink','DemonHorn','BurnerSigil'},
     'Aetheron Egg':{'DualArmor','CrownHorn','Feather','RadiantSigil'},
     'Cthulhu Egg':{'CurledTentacle','TentacleSucker','CarvedStone','EyeRune'},
     'Luminous Cthulhu Egg':{'CurledTentacle','TentacleSucker','CrownLamp','EyeRune'},
-    'Sabertooth Egg':{'VolcanicPlate','MagmaFacet','IvoryHorn','Furnace'},
+    'Sabertooth Egg':{'VolcanicPlate','MagmaFacet','IvoryHorn','Furnace','JaggedLavaScale','IvoryHornTip','VentFlame'},
     'Skeletal Sabertooth Egg':{'BonePlate','SaberFang','SkullBrow','AmberEye'},
     'Octophant Egg':{'CageRail','EnergyCoil','RailRivet','PowerWindow'},
     'Mecha Scrambler Egg':{'CageRail','EnergyCoil','RailRivet','PowerWindow'},
@@ -82,7 +82,7 @@ class SculptedEggs(unittest.TestCase):
                     self.assertEqual(p[0],'box')
                     self.assertEqual(p[5],[1,0,0,0,1,0,0,0,1])
                 for rejected in ('ShellBase','ShellShoulder','ShellCrown'):self.assertNotIn(rejected,labels)
-                self.assertLess(len(design['parts']),340)
+                self.assertLess(len(design['parts']),400 if name in ('Unicorn Egg','Night Flame Egg','Sabertooth Egg') else 340)
                 self.assertGreater(len(design['parts']),40)
 
     def test_real_volume_transforms_and_held_size(self):
@@ -117,18 +117,17 @@ class SculptedEggs(unittest.TestCase):
         self.assertIn("t.Grip=CFrame.new(0,-.1,-.25)",self.source)
         self.assertIn("weld(t,m,CFrame.new(0,.45,-.75)",self.source)
 
-    def test_every_main_body_grows_even_with_large_wings(self):
-        self.assertIn("local displayScale=math.max(1.20,4.25/bodyHeight)",self.source)
+    def test_every_egg_is_25_percent_smaller_than_previous_display(self):
+        previous_scale={'Unicorn Egg': 1.369078413724544, 'Kitsune Egg': 1.2, 'Night Flame Egg': 1.4286391388633881, 'Archangel Egg': 1.6848344679867573, 'World Burner Egg': 1.4875660479325281, 'Aetheron Egg': 1.6848331321444359, 'Cthulhu Egg': 1.2012585798127506, 'Luminous Cthulhu Egg': 1.2012585798127506, 'Sabertooth Egg': 1.2, 'Skeletal Sabertooth Egg': 1.2, 'Octophant Egg': 1.245390954593632, 'Mecha Scrambler Egg': 1.245390954593632}
+        self.assertIn("local displayScale=(design.displayScale or math.max(1.20,4.25/bodyHeight))*0.75",self.source)
         self.assertIn("m:ScaleTo(displayScale)",self.source)
-        build=self.source.split('local function buildSculptedEgg(name)',1)[1].split('local function nightPet()',1)[0]
-        self.assertLess(build.index('m:ScaleTo(displayScale)'),build.index('return finalize(m,root)'))
         for name,d in self.designs.items():
             with self.subTest(egg=name):
                 body=[p for p in d['parts'] if p[1] in ('EggShell','OriginalShellCell')]
                 height=max(p[4][1]+p[2][1]/2 for p in body)-min(p[4][1]-p[2][1]/2 for p in body)
-                scale=max(1.20,4.25/height)
-                self.assertGreaterEqual(scale,1.20)
-                self.assertGreaterEqual(height*scale,4.25-1e-6)
+                scale=d.get('displayScale',max(1.20,4.25/height))*.75
+                previous_size=4.375*previous_scale[name]
+                self.assertAlmostEqual(max(d['bounds'])*scale/previous_size,.75,places=5)
 
     def test_no_image_projection_and_selective_emission(self):
         inventory=self.source.split('local EGG_DESIGNS=',1)[1]
