@@ -117,6 +117,19 @@ class SculptedEggs(unittest.TestCase):
         self.assertIn("t.Grip=CFrame.new(0,-.1,-.25)",self.source)
         self.assertIn("weld(t,m,CFrame.new(0,.45,-.75)",self.source)
 
+    def test_every_main_body_grows_even_with_large_wings(self):
+        self.assertIn("local displayScale=math.max(1.20,4.25/bodyHeight)",self.source)
+        self.assertIn("m:ScaleTo(displayScale)",self.source)
+        build=self.source.split('local function buildSculptedEgg(name)',1)[1].split('local function nightPet()',1)[0]
+        self.assertLess(build.index('m:ScaleTo(displayScale)'),build.index('return finalize(m,root)'))
+        for name,d in self.designs.items():
+            with self.subTest(egg=name):
+                body=[p for p in d['parts'] if p[1] in ('EggShell','OriginalShellCell')]
+                height=max(p[4][1]+p[2][1]/2 for p in body)-min(p[4][1]-p[2][1]/2 for p in body)
+                scale=max(1.20,4.25/height)
+                self.assertGreaterEqual(scale,1.20)
+                self.assertGreaterEqual(height*scale,4.25-1e-6)
+
     def test_no_image_projection_and_selective_emission(self):
         inventory=self.source.split('local EGG_DESIGNS=',1)[1]
         for rejected in ('EGG_SURFACE','paintEggBlock','ReferencePanel','SurfaceMark','LuminousInlay',"Instance.new('SurfaceGui')",'TextureID','ImageLabel','rbxassetid'):
