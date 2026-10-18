@@ -2620,8 +2620,8 @@ local gui=Instance.new('ScreenGui')gui.Name='SAE_ITEMS_V7'gui.ResetOnSpawn=false
 local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38))
 local win=Instance.new('Frame')win.Size=UDim2.fromOffset(560,470)win.Position=UDim2.new(.5,-280,.5,-235)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
 local head=Instance.new('Frame')head.Size=UDim2.new(1,0,0,62)head.BackgroundColor3=C.head head.BorderSizePixel=0 head.Parent=win corner(head,13)
-local title=label(head,'DIVINE ITEM SPAWNER',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,24),15)title.Font=Enum.Font.GothamBold
-label(head,'Hand-sized round eggs • pets place on click',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
+local title=label(head,'DIVINE ITEM SPAWNER · DETAILED EGGS',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,24),15)title.Font=Enum.Font.GothamBold
+label(head,'Detailed reference eggs • spawn a new egg to inspect',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
 local close=button(head,'X',UDim2.new(1,-43,0,13),UDim2.fromOffset(28,28))close.BackgroundColor3=C.card2
 launcher.MouseButton1Click:Connect(function()win.Visible=not win.Visible end)close.MouseButton1Click:Connect(function()win.Visible=false end)
 local dragging=false local dragStart local startPos
