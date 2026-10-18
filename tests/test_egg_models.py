@@ -42,15 +42,15 @@ class LiteralReader:
 
 
 EXPECTED={
-    'Unicorn Egg':{'IvoryHorn','CrystalPrism','CrystalPoint','PearlVein','PearlFacet','IvoryFracture'},
+    'Unicorn Egg':{'IvoryHorn','CrystalPrism','CrystalPoint','CrystalVioletRoot','CrystalRoseBand','HornSpiral'},
     'Kitsune Egg':{'FoxTail','TailTuft','ForeheadSigilGem','FoxEye','FoxCheekFlame','UpperPinkMark','ShellEmboss'},
-    'Night Flame Egg':{'BarkPanel','GoldenPinion','IvyLeaf','EmberHeartGem','PinionTip','CarvedDiamondFrame','CrownLeaf'},
+    'Night Flame Egg':{'BarkPanel','GoldenPinion','IvyLeaf','EmberHeartGem','PinionTip','CarvedDiamondFrame','CrownLeaf','CrownBand','CrownRim','CrownMerlon'},
     'Archangel Egg':{'Feather','FeatherQuill','Halo','HolyRuneStem'},
     'World Burner Egg':{'BatMembrane','ChainLink','DemonHorn','BurnerSigil'},
     'Aetheron Egg':{'DualArmor','CrownHorn','Feather','RadiantSigil'},
     'Cthulhu Egg':{'CurledTentacle','TentacleSucker','CarvedStone','EyeRune'},
     'Luminous Cthulhu Egg':{'CurledTentacle','TentacleSucker','CrownLamp','EyeRune'},
-    'Sabertooth Egg':{'VolcanicPlate','MagmaFacet','IvoryHorn','Furnace','JaggedLavaScale','IvoryHornTip','VentFlame'},
+    'Sabertooth Egg':{'VolcanicPlate','MagmaFacet','IvoryHorn','MoltenSeam','JaggedLavaScale','IvoryHornTip','RedSideShard'},
     'Skeletal Sabertooth Egg':{'BonePlate','SaberFang','SkullBrow','AmberEye'},
     'Octophant Egg':{'CageRail','EnergyCoil','RailRivet','PowerWindow'},
     'Mecha Scrambler Egg':{'CageRail','EnergyCoil','RailRivet','PowerWindow'},
@@ -141,5 +141,39 @@ class SculptedEggs(unittest.TestCase):
             else:self.assertTrue(glowing)
             self.assertFalse(any(any(s in label for s in ('Armor','Plate','Shell','Membrane','Feather')) for label in glowing))
 
+
+
+    def test_requested_crown_glow_and_unicorn_proportions(self):
+        unicorn=self.designs['Unicorn Egg']
+        labels={p[1] for p in unicorn['parts']}
+        self.assertFalse(labels & {'PearlVein','IvoryFracture','PearlCrownLip','PearlFacet'})
+        shell=[p for p in unicorn['parts'] if p[1] in ('EggShell','OriginalShellCell')]
+        dimensions=[max(p[4][a]+p[2][a]/2 for p in shell)-min(p[4][a]-p[2][a]/2 for p in shell) for a in range(3)]
+        self.assertLess(dimensions[0]/dimensions[1],.80)
+        self.assertLess(dimensions[2]/dimensions[1],.70)
+        crown=self.designs['Night Flame Egg']['parts']
+        band=[p for p in crown if p[1]=='CrownBand']
+        self.assertEqual(len(band),4)
+        # Four continuous walls connect at their corners; merlons emerge from
+        # the rim rather than floating independently above the shell.
+        for wall in band:
+            overlaps=0
+            for other in band:
+                if wall is other:continue
+                if all(abs(wall[4][a]-other[4][a]) <= (wall[2][a]+other[2][a])/2+.00001 for a in range(3)):overlaps+=1
+            self.assertGreaterEqual(overlaps,2)
+        rims=[p for p in crown if p[1]=='CrownRim']
+        teeth=[p for p in crown if p[1]=='CrownMerlon']
+        self.assertEqual(len(teeth),8)
+        for tooth in teeth:
+            self.assertTrue(any(all(abs(tooth[4][a]-rim[4][a]) <= (tooth[2][a]+rim[2][a])/2+.00001 for a in range(3)) for rim in rims))
+        saber=self.designs['Sabertooth Egg']['parts']
+        self.assertFalse(any(p[1] in ('Furnace','FurnaceRim') for p in saber))
+        molten=[p for p in saber if p[1]=='MoltenSeam']
+        self.assertGreaterEqual(len(molten),24)
+        for axis in (0,2):
+            for sign in (-1,1):
+                self.assertGreaterEqual(sum(p[4][axis]*sign>.3 for p in molten),3)
+        self.assertGreaterEqual(sum(p[1]=='RedSideShard' for p in saber),28)
 
 if __name__=='__main__':unittest.main(verbosity=2)
