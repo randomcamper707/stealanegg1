@@ -2532,6 +2532,7 @@ local function buildSculptedEgg(name)
     m.Name=name
     local root=part(m,'Core',Vector3.new(.025,.025,.025),rgb(255,255,255),CFrame.new(),MAT,1)
     m.PrimaryPart=root
+    local bodyMin,bodyMax=math.huge,-math.huge
     for i,item in ipairs(design.parts) do
         -- kind, semantic name, size, palette index, position, orientation,
         -- material, transparency, reflectance. No textures or image surfaces.
@@ -2560,7 +2561,21 @@ local function buildSculptedEgg(name)
         end
         p.Reflectance=item[9] or 0
         p.CastShadow=material~=NEON
+        if item[2]=='EggShell' or item[2]=='OriginalShellCell' then
+            bodyMin=math.min(bodyMin,pos[2]-size[2]/2)
+            bodyMax=math.max(bodyMax,pos[2]+size[2]/2)
+        end
         if i%40==0 then task.wait() end
+    end
+    -- Wings, horns and halos must not make the main egg look undersized.
+    -- Every freshly built egg grows at least 20%, with a 4.25-stud minimum
+    -- shell height. Scale the entire model once to preserve all its details.
+    local bodyHeight=bodyMax-bodyMin
+    if bodyHeight>0 and bodyHeight<math.huge then
+        local displayScale=math.max(1.20,4.25/bodyHeight)
+        m:ScaleTo(displayScale)
+        m:SetAttribute('SAE_DISPLAY_SCALE',displayScale)
+        m:SetAttribute('SAE_BODY_HEIGHT',bodyHeight*displayScale)
     end
     m:SetAttribute('SAE_REFERENCE_DETAIL','Sculpted3D')
     m:SetAttribute('SAE_APPEARANCE','Native 3D features; no image projection')
@@ -2595,7 +2610,7 @@ local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38)
 local win=Instance.new('Frame')win.Size=UDim2.fromOffset(560,470)win.Position=UDim2.new(.5,-280,.5,-235)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
 local head=Instance.new('Frame')head.Size=UDim2.new(1,0,0,62)head.BackgroundColor3=C.head head.BorderSizePixel=0 head.Parent=win corner(head,13)
 local title=label(head,'DIVINE ITEM SPAWNER · REFERENCE EGGS',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,24),15)title.Font=Enum.Font.GothamBold
-label(head,'Larger held eggs • reference colors',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
+label(head,'Larger bodies • consistent egg sizing',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
 local close=button(head,'X',UDim2.new(1,-43,0,13),UDim2.fromOffset(28,28))close.BackgroundColor3=C.card2
 launcher.MouseButton1Click:Connect(function()win.Visible=not win.Visible end)close.MouseButton1Click:Connect(function()win.Visible=false end)
 local dragging=false local dragStart local startPos
