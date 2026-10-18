@@ -2581,8 +2581,161 @@ local function buildSculptedEgg(name)
     return finalize(m,root)
 end
 
-local function nightPet()local m=Instance.new('Model')m.Name='Night Flame'local body,dark,blue,glow=rgb(36,41,54),rgb(23,27,38),rgb(35,92,170),rgb(185,255,248)local r=ball(m,'Torso',Vector3.new(4.6,6.1,3.2),body,CFrame.new(),Enum.Material.Slate)ball(m,'Head',Vector3.new(3,2.8,2.7),dark,CFrame.new(0,3.85,-.25),Enum.Material.Slate)wedge(m,'HornL',Vector3.new(.8,2,.7),blue,CFrame.new(-.95,5.35,-.1),METAL)wedge(m,'HornR',Vector3.new(.8,2,.7),blue,CFrame.new(.95,5.35,-.1)*CFrame.Angles(0,math.rad(180),0),METAL)eye(m,-.55,4.15,-1.55,glow,Vector3.new(.42,.28,.18))eye(m,.55,4.15,-1.55,glow,Vector3.new(.42,.28,.18))for ai,y in ipairs({1.7,.2,-1.3})do local spread=3.05+(ai-1)*.15 for _,sx in ipairs({-1,1})do part(m,'Arm',Vector3.new(3.4,.9,.95),body,CFrame.new(sx*spread,y,-.05)*CFrame.Angles(0,0,math.rad(sx*(ai==2 and 8 or(ai==1 and-16 or 18)))),Enum.Material.Slate)ball(m,'Hand',Vector3.new(1.15,1.25,1),dark,CFrame.new(sx*(spread+1.75),y,-.1),Enum.Material.Slate)end end for _,sx in ipairs({-1,1})do part(m,'Leg',Vector3.new(1.45,3.5,1.5),body,CFrame.new(sx*1.25,-4.2,0),Enum.Material.Slate)ball(m,'Foot',Vector3.new(1.8,.9,2.2),dark,CFrame.new(sx*1.25,-6,-.45),Enum.Material.Slate)end part(m,'ChestV',Vector3.new(.34,2.7,.22),glow,CFrame.new(0,.55,-1.72),NEON)for _,sx in ipairs({-1,1})do part(m,'ChestBranch',Vector3.new(.25,1.7,.2),glow,CFrame.new(sx*.6,1.05,-1.72)*CFrame.Angles(0,0,math.rad(sx*40)),NEON)end return finalize(m,r)end
-local function luminousPet()local m=Instance.new('Model')m.Name='Luminous Cthulhu'local body,dark,ice,cyan=rgb(20,43,91),rgb(17,31,72),rgb(194,242,255),rgb(81,217,255)local r=ball(m,'Torso',Vector3.new(5.4,6.2,3.6),body,CFrame.new(),Enum.Material.Slate)ball(m,'Head',Vector3.new(3.6,3.2,3.1),dark,CFrame.new(0,3.7,-.25),Enum.Material.Slate)eye(m,-.55,4.05,-1.65,ice,Vector3.new(.48,.3,.18))eye(m,.55,4.05,-1.65,ice,Vector3.new(.48,.3,.18))for i=-2,2 do tentacle(m,i*.5,2.65,-1.4,body,2.6,-90+i*10,Enum.Material.Slate)end for _,sx in ipairs({-1,1})do wing(m,sx,dark,ice,1.65,.7,.6)part(m,'UpperArm',Vector3.new(1.65,4,1.65),body,CFrame.new(sx*3.05,-.15,0),Enum.Material.Slate)ball(m,'Fist',Vector3.new(2,2,1.85),ice,CFrame.new(sx*3.5,-2.25,-.25),Enum.Material.Ice)part(m,'Leg',Vector3.new(1.75,3.7,1.8),body,CFrame.new(sx*1.45,-4.25,0),Enum.Material.Slate)ball(m,'Foot',Vector3.new(2,1,2.25),ice,CFrame.new(sx*1.45,-6.1,-.45),Enum.Material.Ice)end for _,p in ipairs({{-2.25,1.3,-1},{2.25,1.3,-1},{-2.7,-1.2,-.9},{2.7,-1.2,-.9}})do for j=1,3 do wedge(m,'IceCrystal',Vector3.new(.38,.9+.22*j,.38),j==2 and cyan or ice,CFrame.new(p[1]+(j-2)*.32,p[2]+.25*j,p[3]),Enum.Material.Ice)end end return finalize(m,r)end
+local function nightPet()
+    local m=Instance.new('Model')
+    m.Name='Night Flame'
+    local base=rgb(31,32,47)
+    local armor=rgb(22,23,36)
+    local plate=rgb(42,42,60)
+    local edge=rgb(51,58,83)
+    local rune=rgb(157,255,245)
+    local eyeGlow=rgb(95,198,255)
+    local root=ball(m,'Core',Vector3.new(3.8,5.3,2.6),base,CFrame.new(),Enum.Material.Slate)
+
+    -- Broad armored torso, with plate seams following the body rather than a smooth shirt-like block.
+    part(m,'ChestArmor',Vector3.new(3.15,3.2,.42),armor,CFrame.new(0,.55,-1.16),Enum.Material.Slate)
+    part(m,'UpperBreastplate',Vector3.new(2.65,1.05,.48),plate,CFrame.new(0,1.68,-1.39),Enum.Material.Metal)
+    part(m,'AbdomenPlate',Vector3.new(2.45,1.5,.38),base,CFrame.new(0,-.85,-1.35),Enum.Material.Slate)
+    for _,sx in ipairs({-1,1}) do
+        wedge(m,'ShoulderMantle',Vector3.new(1.55,1.2,1.05),plate,CFrame.new(sx*1.85,1.78,-.18)*CFrame.Angles(0,0,math.rad(sx*12)),Enum.Material.Metal)
+        for row=0,2 do
+            part(m,'RibArmor',Vector3.new(.72,.3,.22),row==1 and edge or armor,CFrame.new(sx*(.55+row*.08),.4-row*.58,-1.59),Enum.Material.Metal)
+        end
+    end
+
+    -- Wolf-like head, pointed ears, brow, muzzle and an open dark mouth.
+    ball(m,'Skull',Vector3.new(2.65,2.45,2.25),armor,CFrame.new(0,3.48,-.12),Enum.Material.Slate)
+    wedge(m,'EarL',Vector3.new(.78,1.25,.82),edge,CFrame.new(-.88,4.48,-.05)*CFrame.Angles(0,0,math.rad(12)),Enum.Material.Metal)
+    wedge(m,'EarR',Vector3.new(.78,1.25,.82),edge,CFrame.new(.88,4.48,-.05)*CFrame.Angles(0,0,math.rad(-12)),Enum.Material.Metal)
+    part(m,'Brow',Vector3.new(2.05,.38,.42),plate,CFrame.new(0,3.92,-1.12),Enum.Material.Metal)
+    eye(m,-.62,3.62,-1.22,eyeGlow,Vector3.new(.42,.25,.16))
+    eye(m,.62,3.62,-1.22,eyeGlow,Vector3.new(.42,.25,.16))
+    wedge(m,'Muzzle',Vector3.new(1.4,.82,1.05),plate,CFrame.new(0,2.98,-1.13),Enum.Material.Slate)
+    part(m,'OpenMouth',Vector3.new(.9,.42,.12),rgb(9,8,15),CFrame.new(0,2.72,-1.62),Enum.Material.SmoothPlastic)
+    for _,sx in ipairs({-1,1}) do
+        wedge(m,'Fang',Vector3.new(.28,.52,.3),rgb(202,222,232),CFrame.new(sx*.3,2.75,-1.7)*CFrame.Angles(math.rad(180),0,0),Enum.Material.SmoothPlastic)
+    end
+
+    -- Four muscular arms; each has shoulder, forearm armor and distinct claw fingers.
+    for _,row in ipairs({{y=1.28,side=1},{y=-.62,side=-1}}) do
+        for _,sx in ipairs({-1,1}) do
+            local y=row.y
+            local shoulderX=sx*1.65
+            local elbowX=sx*3.05
+            local handX=sx*4.1
+            local tilt=math.rad(-sx*9*row.side)
+            part(m,'UpperArm',Vector3.new(2.25,.92,1.05),base,CFrame.new(sx*2.45,y,-.08)*CFrame.Angles(0,0,tilt),Enum.Material.Slate)
+            ball(m,'Elbow',Vector3.new(.95,.9,.92),armor,CFrame.new(elbowX,y-.08,-.1),Enum.Material.Slate)
+            part(m,'Forearm',Vector3.new(1.75,.82,.92),plate,CFrame.new(sx*3.55,y-.15,-.14)*CFrame.Angles(0,0,math.rad(sx*7)),Enum.Material.Metal)
+            part(m,'ForearmRidge',Vector3.new(1.15,.18,.16),edge,CFrame.new(sx*3.58,y+.26,-.62)*CFrame.Angles(0,0,math.rad(sx*7)),Enum.Material.Metal)
+            ball(m,'ClawedPalm',Vector3.new(.92,.88,.78),armor,CFrame.new(handX,y-.18,-.18),Enum.Material.Slate)
+            for finger=1,3 do
+                local fy=y+.28-(finger-1)*.34
+                wedge(m,'Claw',Vector3.new(.32,.62,.3),edge,CFrame.new(sx*(handX+.42),fy,-.3)*CFrame.Angles(0,0,math.rad(sx*105)),Enum.Material.Metal)
+            end
+        end
+    end
+
+    -- Digitigrade legs and broad feet with three forward claws apiece.
+    for _,sx in ipairs({-1,1}) do
+        part(m,'ThighArmor',Vector3.new(1.5,2.35,1.45),base,CFrame.new(sx*.92,-2.7,.08),Enum.Material.Slate)
+        part(m,'KneePlate',Vector3.new(1.28,.65,.34),plate,CFrame.new(sx*.92,-2.15,-.72),Enum.Material.Metal)
+        part(m,'Shin',Vector3.new(1.12,1.95,1.12),armor,CFrame.new(sx*.96,-4.25,-.05),Enum.Material.Slate)
+        ball(m,'Foot',Vector3.new(1.65,.75,1.72),plate,CFrame.new(sx*.98,-5.28,-.35),Enum.Material.Slate)
+        for toe=1,3 do
+            wedge(m,'ToeClaw',Vector3.new(.32,.48,.58),edge,CFrame.new(sx*.98+(toe-2)*.43,-5.42,-1.1),Enum.Material.Metal)
+        end
+    end
+
+    -- The reference's icy chest sigil is a branching rune, not a plain vertical stripe.
+    part(m,'RuneSpine',Vector3.new(.24,1.85,.16),rune,CFrame.new(0,.7,-1.67),Enum.Material.Neon)
+    for _,branch in ipairs({
+        {x=-.42,y=1.35,a=-42},{x=.42,y=1.35,a=42},
+        {x=-.68,y=.72,a=-28},{x=.68,y=.72,a=28},
+        {x=-.38,y=.02,a=36},{x=.38,y=.02,a=-36},
+    }) do
+        part(m,'RuneBranch',Vector3.new(.16,.95,.14),rune,CFrame.new(branch.x,branch.y,-1.69)*CFrame.Angles(0,0,math.rad(branch.a)),Enum.Material.Neon)
+    end
+    return finalize(m,root)
+end
+local function luminousPet()
+    local m=Instance.new('Model')
+    m.Name='Luminous Cthulhu'
+    local body=rgb(18,37,82)
+    local dark=rgb(12,25,60)
+    local mid=rgb(29,57,116)
+    local ice=rgb(196,241,255)
+    local cyan=rgb(82,211,255)
+    local root=ball(m,'Core',Vector3.new(4.5,5.5,3.1),body,CFrame.new(),Enum.Material.Slate)
+
+    -- A hunched, deep torso and narrow waist anchor the tentacles and wings.
+    ball(m,'Ribcage',Vector3.new(4.25,4.5,2.8),body,CFrame.new(0,.65,0),Enum.Material.Slate)
+    ball(m,'Abdomen',Vector3.new(2.7,2.4,2.2),dark,CFrame.new(0,-2.1,-.05),Enum.Material.Slate)
+    ball(m,'HeadMantle',Vector3.new(3.25,2.8,2.65),dark,CFrame.new(0,3.1,-.08),Enum.Material.Slate)
+    wedge(m,'CrownSpire',Vector3.new(1.15,1.65,1.05),mid,CFrame.new(0,4.45,-.05),Enum.Material.Slate)
+    for _,sx in ipairs({-1,1}) do
+        wedge(m,'CrownFin',Vector3.new(.9,1.5,.82),mid,CFrame.new(sx*1.0,3.95,-.04)*CFrame.Angles(0,0,math.rad(-sx*28)),Enum.Material.Slate)
+        wedge(m,'TempleFin',Vector3.new(.7,1.1,.7),dark,CFrame.new(sx*1.48,3.15,.04)*CFrame.Angles(0,0,math.rad(-sx*38)),Enum.Material.Slate)
+    end
+    part(m,'FaceShadow',Vector3.new(1.25,1.35,.16),dark,CFrame.new(0,3.02,-1.38),Enum.Material.SmoothPlastic)
+    eye(m,-.48,3.25,-1.49,ice,Vector3.new(.34,.26,.14))
+    eye(m,.48,3.25,-1.49,ice,Vector3.new(.34,.26,.14))
+
+    -- Large thin bat wings. The dark stepped spars frame bright ice-blue membranes.
+    for _,sx in ipairs({-1,1}) do
+        local rootX=sx*1.65
+        wedge(m,'WingRoot',Vector3.new(1.25,2.75,.5),dark,CFrame.new(sx*2.05,2.15,.18)*CFrame.Angles(0,0,math.rad(-sx*20)),Enum.Material.Slate)
+        wedge(m,'WingOuter',Vector3.new(2.1,3.8,.4),mid,CFrame.new(sx*3.65,2.75,.22)*CFrame.Angles(0,0,math.rad(-sx*22)),Enum.Material.Slate)
+        wedge(m,'WingMembrane',Vector3.new(1.82,3.22,.22),rgb(54,123,211),CFrame.new(sx*3.55,2.76,-.06)*CFrame.Angles(0,0,math.rad(-sx*22)),Enum.Material.Ice)
+        wedge(m,'WingTip',Vector3.new(.72,1.18,.34),dark,CFrame.new(sx*4.45,4.2,.12)*CFrame.Angles(0,0,math.rad(-sx*34)),Enum.Material.Slate)
+        for feather=1,3 do
+            local fy=3.55-(feather-1)*1.0
+            wedge(m,'WingScallop',Vector3.new(.9,1.45,.28),feather==2 and rgb(99,177,240) or rgb(117,199,251),CFrame.new(sx*(2.85+feather*.28),fy,-.19)*CFrame.Angles(0,0,math.rad(-sx*(34+feather*5))),Enum.Material.Ice)
+            part(m,'WingVein',Vector3.new(.12,1.7,.1),cyan,CFrame.new(sx*(2.7+feather*.3),fy-.2,-.34)*CFrame.Angles(0,0,math.rad(-sx*28)),Enum.Material.Neon)
+        end
+        -- Arms hang under the wing roots and end in oversized icy talons.
+        part(m,'UpperArm',Vector3.new(1.25,2.6,1.35),body,CFrame.new(sx*2.55,-.45,-.05)*CFrame.Angles(0,0,math.rad(sx*12)),Enum.Material.Slate)
+        ball(m,'Wrist',Vector3.new(1.12,1.05,1.0),dark,CFrame.new(sx*2.75,-1.75,-.2),Enum.Material.Slate)
+        ball(m,'ClawPalm',Vector3.new(1.12,1.15,.9),ice,CFrame.new(sx*2.8,-2.35,-.35),Enum.Material.Ice)
+        for claw=1,3 do
+            wedge(m,'IceTalons',Vector3.new(.34,.92,.35),ice,CFrame.new(sx*(2.8+(claw-2)*.48),-3.05,-.42),Enum.Material.Ice)
+        end
+        -- Angular, clawed feet and the reference's clustered ice growths.
+        part(m,'Leg',Vector3.new(1.5,2.25,1.5),body,CFrame.new(sx*1.15,-4.05,.08),Enum.Material.Slate)
+        wedge(m,'KneeShard',Vector3.new(.72,.92,.68),mid,CFrame.new(sx*1.15,-3.2,-.65),Enum.Material.Ice)
+        ball(m,'Foot',Vector3.new(1.55,.82,1.7),dark,CFrame.new(sx*1.2,-5.32,-.35),Enum.Material.Slate)
+        for claw=1,3 do
+            wedge(m,'FootClaw',Vector3.new(.32,.55,.58),ice,CFrame.new(sx*(1.2+(claw-2)*.42),-5.45,-1.05),Enum.Material.Ice)
+        end
+        for k=1,4 do
+            wedge(m,'IceBloom',Vector3.new(.44,.86,.38),k%2==0 and cyan or ice,CFrame.new(sx*(2.15+k*.18),1.15-(k%2)*.55,-.56)*CFrame.Angles(0,0,math.rad(-sx*(25+k*7))),Enum.Material.Ice)
+        end
+    end
+
+    -- Six rounded, individually segmented face tendrils frame the glowing eyes and chest.
+    for i=-2,2 do
+        local sx=i*.38
+        local reach=2.35+(.2*(2-math.abs(i)))
+        for seg=0,4 do
+            local t=seg/4
+            local x=sx+math.sin(t*math.pi*.9+i*.18)*(.38+t*.25)
+            local y=2.65-t*reach
+            local z=-1.35-t*.18
+            local size=Vector3.new(.62-t*.16,.72-t*.14,.64-t*.12)
+            ball(m,'FaceTendril',size,seg%2==0 and body or mid,CFrame.new(x,y,z),Enum.Material.Slate)
+            if seg==4 then
+                wedge(m,'TendrilTip',Vector3.new(.38,.72,.38),ice,CFrame.new(x,y-.38,z-.06),Enum.Material.Ice)
+            end
+        end
+    end
+    -- Thin luminous fissures run down the torso and limbs like the source illustration.
+    for _,sx in ipairs({-1,1}) do
+        for stripe=1,3 do
+            part(m,'IcyVein',Vector3.new(.12,1.25,.1),cyan,CFrame.new(sx*(.75+stripe*.22),.25-stripe*.45,-1.43)*CFrame.Angles(0,0,math.rad(sx*(22+stripe*11))),Enum.Material.Neon)
+        end
+    end
+    return finalize(m,root)
+end
 local function star()local m=Instance.new('Model')m.Name='Star'local gold,edge,dark=rgb(255,208,22),rgb(239,165,10),rgb(25,20,18)local r=ball(m,'Center',Vector3.new(4.5,4.5,1.25),gold,CFrame.new(),MAT)for i=0,4 do local a=math.rad(-90+i*72)local x,y=math.cos(a)*3.25,math.sin(a)*3.25 wedge(m,'Point',Vector3.new(2.75,4.7,1.15),gold,CFrame.new(x,y,0)*CFrame.Angles(0,0,a+math.rad(90)),MAT)wedge(m,'BackEdge',Vector3.new(2.55,4.4,.3),edge,CFrame.new(x,y,.68)*CFrame.Angles(0,0,a+math.rad(90)),MAT)end for _,s in ipairs({{-1.25,1.45},{0,1.65},{1.15,1.15},{-2,.55},{-.8,.55},{.45,.6},{1.8,.45},{-1.55,-.65},{-.35,-.5},{.9,-.55},{1.65,-.95},{-.95,-1.65},{.25,-1.6}})do part(m,'Stud',Vector3.new(.52,.52,.22),rgb(255,221,43),CFrame.new(s[1],s[2],-.72),MAT)end eye(m,-.9,.15,-.78,dark,Vector3.new(.82,1.05,.3))eye(m,.9,.15,-.78,dark,Vector3.new(.82,1.05,.3))ball(m,'BlushL',Vector3.new(.65,.32,.14),rgb(255,133,97),CFrame.new(-1.75,-.55,-.83),NEON)ball(m,'BlushR',Vector3.new(.65,.32,.14),rgb(255,133,97),CFrame.new(1.75,-.55,-.83),NEON)return finalize(m,r)end
 
 local function refEgg(name) return function() return buildSculptedEgg(name) end end
@@ -2594,7 +2747,7 @@ local function hit(o,want)if want[norm(o.Name)]then return 1000 end local n=norm
 local function source(cat,name)local key=cat..'|'..name if cache[key]and cache[key].Parent then return cache[key]end local want={}for _,a in ipairs(Aliases[name]or{name})do want[norm(a)]=true end local best,bs=nil,-1 local function scan(o,bonus)if not(o:IsA('Model')or o:IsA('Tool'))then return end if P.Character and o:IsDescendantOf(P.Character)then return end if o:IsDescendantOf(Placed)then return end if cat=='Pets'and badPet(o)then return end local h=hit(o,want)if h<=0 then return end local count=0 for _,d in ipairs(o:GetDescendants())do if d:IsA('BasePart')then count+=1 end end if count<1 then return end local sc=h+bonus+math.min(count,100)if sc>bs then best,bs=o,sc end end for _,r in ipairs({{RS,220},{workspace,80}})do local list=r[1]:GetDescendants()for i,o in ipairs(list)do scan(o,r[2])if i%1500==0 then task.wait()end end end if type(getnilinstances)=='function'then local ok,list=pcall(getnilinstances)if ok then for i,o in ipairs(list)do if typeof(o)=='Instance'then scan(o,120)end if i%1500==0 then task.wait()end end end end cache[key]=best return best end
 local function clone(src,name)if not src then return nil end local ok,c=pcall(function()return src:Clone()end)if not ok or not c then return nil end local m=c if c:IsA('Tool')then m=Instance.new('Model')m.Name=name for _,q in ipairs(c:GetChildren())do if not(q:IsA('Script')or q:IsA('LocalScript')or q:IsA('ModuleScript'))then q.Parent=m end end c:Destroy()end if not m:IsA('Model')then return nil end local kill={}for _,d in ipairs(m:GetDescendants())do if d:IsA('Script')or d:IsA('LocalScript')or d:IsA('ModuleScript')or d:IsA('Humanoid')or d:IsA('Animator')or d:IsA('ProximityPrompt')or d:IsA('ClickDetector')or d:IsA('SurfaceGui')or d:IsA('BillboardGui')then kill[#kill+1]=d end end for _,d in ipairs(kill)do d:Destroy()end if not m:FindFirstChildWhichIsA('BasePart',true)then m:Destroy()return nil end m.Name=name return m end
 local function fit(m,target)local ok,s=pcall(function()return m:GetExtentsSize()end)if ok then local mx=math.max(s.X,s.Y,s.Z)if mx>.01 then pcall(function()m:ScaleTo(target/mx)end)end end end
-local function model(cat,name)if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
+local function model(cat,name)if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end if cat=='Pets' and (name=='Night Flame' or name=='Luminous Cthulhu') then local f=Built[name] if f then local m=f() fit(m,16) return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
 local function weld(t,m,off)m.Parent=t m:PivotTo(t.Handle.CFrame*off)if m:GetAttribute('SAE_REFERENCE_DETAIL') and m.PrimaryPart then local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=m.PrimaryPart w.Parent=t.Handle else for _,p in ipairs(allParts(m))do p.Anchored=false p.CanCollide=false p.CanTouch=false p.CanQuery=false p.Massless=true local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=p w.Parent=t.Handle end end end
 local function place(t,m)local c=m:Clone()for _,d in ipairs(c:GetDescendants())do if d:IsA('WeldConstraint')or d:IsA('Motor6D')then d:Destroy()end end c.Parent=Placed for _,p in ipairs(allParts(c))do p.Anchored=true p.CanCollide=false p.CanQuery=true end local mouse=P:GetMouse()local pos=mouse and mouse.Hit and mouse.Hit.Position local hrp=P.Character and P.Character:FindFirstChild('HumanoidRootPart')pos=pos or(hrp and(hrp.Position+hrp.CFrame.LookVector*9))or Vector3.zero local rp=RaycastParams.new()rp.FilterType=Enum.RaycastFilterType.Exclude rp.FilterDescendantsInstances={P.Character,Placed}local ray=workspace:Raycast(pos+Vector3.new(0,35,0),Vector3.new(0,-100,0),rp)if ray then pos=ray.Position end c:PivotTo(CFrame.new(pos))local cf,sz=c:GetBoundingBox()c:PivotTo(c:GetPivot()+Vector3.new(0,pos.Y-(cf.Position.Y-sz.Y/2)+.08,0))t:Destroy()end
 local iconCache={}
@@ -2652,7 +2805,7 @@ local function label(p,t,pos,size,z,col)local x=Instance.new('TextLabel')x.Backg
 local function button(p,t,pos,size)local x=Instance.new('TextButton')x.Position=pos x.Size=size x.BackgroundColor3=C.p x.BorderSizePixel=0 x.Text=t x.TextColor3=C.w x.Font=Enum.Font.GothamBold x.TextSize=11 x.Parent=p corner(x,8)return x end
 local gui=Instance.new('ScreenGui')gui.Name='SAE_ITEMS_V7'gui.ResetOnSpawn=false gui.DisplayOrder=730 gui.Parent=PG
 local StarterGui=game:GetService('StarterGui')
-pcall(function()StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack,true)end)
+pcall(function()StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack,false)end)
 local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38))
 local win=Instance.new('Frame')win.Size=UDim2.fromOffset(440,380)win.Position=UDim2.new(.5,-220,.5,-190)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
 local head=Instance.new('Frame')head.Size=UDim2.new(1,0,0,62)head.BackgroundColor3=C.head head.BorderSizePixel=0 head.Parent=win corner(head,13)
