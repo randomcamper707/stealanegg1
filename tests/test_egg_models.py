@@ -1,90 +1,117 @@
-"""Validate Main.lua's packed shell geometry with Python's standard library.
+"""Check appearance data and guard the original 3D shell against changes.
 
 Run: python tests/test_egg_models.py
-These checks do not replace a Roblox play test.
+No external dependencies. A Roblox play test is still required for lighting.
 """
 from pathlib import Path
+import hashlib
 import json
+import math
 import re
 import unittest
 
 
-BASELINE = {
-    'Unicorn Egg': (1.86666667, 2.8, 1.63333333),
-    'Kitsune Egg': (2.56666667, 2.8, 2.56666667),
-    'Night Flame Egg': (2.8, 2.8, 2.79026084),
-    'Archangel Egg': (2.8, 2.1, 2.79026084),
-    'World Burner Egg': (2.8, 1.86666667, 2.79026084),
-    'Aetheron Egg': (2.8, 2.56666667, 2.79026084),
-    'Cthulhu Egg': (2.56666667, 2.8, 2.56666667),
-    'Luminous Cthulhu Egg': (2.33333333, 2.8, 2.32163735),
-    'Sabertooth Egg': (2.56666667, 2.8, 2.56666667),
-    'Skeletal Sabertooth Egg': (2.8, 2.8, 2.79026084),
-    'Octophant Egg': (2.56666667, 2.8, 2.56666667),
-    'Mecha Scrambler Egg': (2.8, 2.8, 2.79026084),
-}
-
-
 def decode(number, widths):
-    if number != int(float(number)) or not 0 <= number < 2**53:
-        raise ValueError('Packed data must survive Luau double precision')
-    fields = []
+    if not 0 <= number < 2**53 or int(float(number)) != number:
+        raise ValueError('Data loses precision in Luau')
+    result = []
     for bits in widths:
-        fields.append(number % (1 << bits))
+        result.append(number % (1 << bits))
         number //= 1 << bits
     if number:
-        raise ValueError('Unexpected trailing packed bits')
-    return fields
+        raise ValueError('Unconsumed packed bits')
+    return result
 
 
-class EggModels(unittest.TestCase):
+def tables(source, name):
+    section = source.split('local '+name+'={', 1)[1].split('\n}\n', 1)[0]
+    return {name: json.loads(value.replace('{', '[').replace('}', ']'))
+            for name, value in re.findall(r"\['([^']+)'\]=(\{.*\}),?", section)}
+
+
+class EggAppearance(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        source = (Path(__file__).resolve().parents[1] / 'Main.lua').read_text(encoding='utf-8')
-        section = source.split('local VOX={', 1)[1].split('\n}\n', 1)[0]
-        cls.specs = {
-            name: json.loads(value.replace('{', '[').replace('}', ']'))
-            for name, value in re.findall(r"\['([^']+)'\]=(\{.*\}),", section)
-        }
+        cls.source = (Path(__file__).resolve().parents[1]/'Main.lua').read_text(encoding='utf-8')
+        cls.surfaces = tables(cls.source, 'EGG_SURFACE')
+        cls.vox = tables(cls.source, 'VOX')
 
-    def test_all_reference_eggs(self):
-        self.assertEqual(set(self.specs), set(BASELINE))
+    def test_original_shell_geometry_is_preserved(self):
+        s = self.source
+        vox = s[s.index('local VOX={'):s.index('local function pullBits', s.index('local VOX={'))]
+        self.assertEqual(hashlib.sha256(vox.encode()).hexdigest(),
+                         '69a01805d0ecadb7275fc2c8c0def5c7339f02cbb5f79e29e79e690400750a9f')
+        start = s.index('local function buildVox(name)')
+        end = s.index('    for i = 1, #cols do', start)
+        self.assertEqual(hashlib.sha256(s[start:end].encode()).hexdigest(),
+                         'b978d6d6140a27c336f07dac105adf32dfbdef100e78154c2e9c345983a3fcde')
+        build = s[start:s.index('local function nightPet()', start)]
+        self.assertIn("Vector3.new(stud,stud,depth)", build)
+        self.assertIn("CFrame.new(px,py,0)", build)
+        self.assertNotIn('LuminousInlay', build)
+        self.assertNotIn('ReferencePanel', build)
+        self.assertNotIn('Instance.new(\'WedgePart\')', build)
+        self.assertEqual(build.count("part(m,'Shell'"), 1)
+        self.assertIn('return finalize(m, root)', build)
+        self.assertIn('gui.AlwaysOnTop=false', s)
+        self.assertIn('gui.ZOffset=0', s)
+        self.assertEqual(set(self.surfaces), set(self.vox))
+        self.assertEqual(len(self.surfaces), 12)
 
-    def test_packed_surfaces_and_solid_shells(self):
-        for name, spec in self.specs.items():
+    def test_paint_coverage_and_per_egg_emission(self):
+        for name, spec in self.surfaces.items():
             with self.subTest(egg=name):
-                width, height, dx, dy, dz, palette, surfaces, shell, shell_color = spec
-                for actual, expected in zip((dx, dy, dz), BASELINE[name]):
-                    self.assertAlmostEqual(actual, expected, places=7)
-                self.assertTrue(60 <= max(width, height) <= 64)
-                self.assertTrue(1 <= len(palette) <= 40)
-                self.assertTrue(all(len(c) == 4 and all(0 <= v <= 255 for v in c[:3]) and c[3] in (0, 1) for c in palette))
-                self.assertEqual(len(shell_color), 3)
-                self.assertLess(1 + len(shell) + 2 * len(surfaces), 6000)
-                art, body = {}, {}
-                for number in surfaces:
-                    x, y, sx, sy, pi, depth = decode(number, (7, 7, 7, 7, 6, 5))
-                    self.assertTrue(0 <= pi < len(palette))
-                    self.assertTrue(1 <= depth <= 31)
-                    self.assertTrue(0 <= x < x + sx <= width)
-                    self.assertTrue(0 <= y < y + sy <= height)
-                    for yy in range(y, y + sy):
-                        for xx in range(x, x + sx):
-                            self.assertNotIn((xx, yy), art)
-                            art[xx, yy] = depth
-                for number in shell:
-                    x, y, sx, sy, depth = decode(number, (7, 7, 7, 7, 5))
-                    self.assertTrue(0 <= x < x + sx <= width)
-                    self.assertTrue(0 <= y < y + sy <= height)
-                    for yy in range(y, y + sy):
-                        for xx in range(x, x + sx):
-                            self.assertNotIn((xx, yy), body)
-                            body[xx, yy] = depth
-                self.assertEqual(art, body, 'Every inlay needs a matching solid shell depth')
-                self.assertEqual((min(x for x, y in art), max(x for x, y in art)), (0, width - 1))
-                self.assertEqual((min(y for x, y in art), max(y for x, y in art)), (0, height - 1))
-                self.assertEqual(max(art.values()), 31)
+                w, h, palette, packed = spec
+                self.assertEqual(max(w, h), 96)
+                self.assertEqual(len(palette), 64)
+                self.assertTrue(all(len(c)==3 and all(0<=v<=255 for v in c) for c in palette))
+                cells = {}
+                for n in packed:
+                    x,y,sx,sy,pi,lit = decode(n, (7,7,7,7,6,1))
+                    self.assertTrue(0<=x<x+sx<=w and 0<=y<y+sy<=h)
+                    self.assertTrue(0<=pi<64 and lit in (0,1))
+                    for yy in range(y,y+sy):
+                        for xx in range(x,x+sx):
+                            self.assertNotIn((xx,yy),cells)
+                            cells[xx,yy] = lit
+                self.assertEqual(len(cells),w*h)
+                fraction = sum(cells.values())/(w*h)
+                if name in ('Unicorn Egg','Kitsune Egg'):
+                    self.assertEqual(fraction,0)
+                else:
+                    self.assertTrue(.001<fraction<.12, (name,fraction))
+
+    def test_surface_paint_clips_to_existing_parts(self):
+        # Front and rear use identical clipping and occupy zero physical depth.
+        # Check every cell of every possible legacy shell row/column layout.
+        for name, spec in self.surfaces.items():
+            w,h,palette,packed = spec
+            rects = [decode(n,(7,7,7,7,6,1)) for n in packed]
+            ow,oh = self.vox[name][:2]
+            dw,dh = max(6,int(ow*12/max(ow,oh)+.5)),max(8,int(oh*12/max(ow,oh)+.5))
+            bins = [[] for _ in range(h)]
+            for r in rects:
+                for y in range(r[1],r[1]+r[3]): bins[y].append(r)
+            for iy in range(dh):
+                for ix in range(dw):
+                    x0,x1 = ix*w/dw,(ix+1)*w/dw
+                    y0,y1 = (dh-iy-1)*h/dh,(dh-iy)*h/dh
+                    seen=set(); area=0
+                    for y in range(math.floor(y0),min(h,math.ceil(y1))):
+                        for r in bins[y]:
+                            key=tuple(r)
+                            if key in seen: continue
+                            seen.add(key)
+                            l,t = max(x0,r[0]),max(y0,r[1])
+                            right,bottom = min(x1,r[0]+r[2]),min(y1,r[1]+r[3])
+                            if right>l and bottom>t:
+                                u,v=(l-x0)/(x1-x0),(t-y0)/(y1-y0)
+                                sx,sy=(right-l)/(x1-x0),(bottom-t)/(y1-y0)
+                                self.assertTrue(-1e-9<=u<u+sx<=1+1e-9)
+                                self.assertTrue(-1e-9<=v<v+sy<=1+1e-9)
+                                area+=sx*sy
+                    self.assertAlmostEqual(area,1,places=8,msg=(name,ix,iy))
 
 
-if __name__ == '__main__':
+if __name__=='__main__':
     unittest.main(verbosity=2)
