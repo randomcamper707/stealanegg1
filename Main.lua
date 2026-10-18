@@ -2522,16 +2522,12 @@ local function pullBits(n, bits)
     local v = n % m
     return v, (n - v) / m
 end
--- Front of every egg is -Z, centered on the origin, already scaled for the hand.
+-- Front stays the reference art. Depth follows the egg silhouette so the side is a shell, not a flat sheet.
 local function buildVox(name)
     local spec = VOX[name]
     if not spec then return nil end
     local W, H, D, pal, nums = spec[1], spec[2], spec[3], spec[4], spec[5]
-    local m = Instance.new('Model')
-    m.Name = name
-    local stud = 10.5 / math.max(W, H, D)
-    local cx, cy, cz = (W - 1) / 2, (H - 1) / 2, (D - 1) / 2
-    local root
+    local color, mask = {}, {}
     for i = 1, #nums do
         local n = nums[i]
         local x, y, z, sx, sy, sz, pi
@@ -2543,13 +2539,86 @@ local function buildVox(name)
         sz, n = pullBits(n, 4)
         pi, n = pullBits(n, 6)
         local c = pal[pi + 1]
-        local px = (x + (sx - 1) / 2 - cx) * stud
-        local py = (y + (sy - 1) / 2 - cy) * stud
-        local pz = (z + (sz - 1) / 2 - cz) * stud
-        local mat = (c[4] == 1) and NEON or MAT
-        local block = part(m, 'Block', Vector3.new(sx * stud, sy * stud, sz * stud), rgb(c[1], c[2], c[3]), CFrame.new(px, py, pz), mat)
-        block.CastShadow = false
-        if not root then root = block end
+        if c then
+            for yy = y, y + sy - 1 do
+                for xx = x, x + sx - 1 do
+                    local k = xx .. ',' .. yy
+                    local prev = color[k]
+                    if not prev or z < prev[5] then
+                        color[k] = {c[1], c[2], c[3], c[4], z}
+                        mask[k] = true
+                    end
+                end
+            end
+        end
+    end
+    local keys = {}
+    local minX, maxX, minY, maxY = 999, -1, 999, -1
+    for k in pairs(mask) do
+        local xx, yy = k:match('^(%d+),(%d+)$')
+        xx, yy = tonumber(xx), tonumber(yy)
+        keys[#keys + 1] = {xx, yy, k}
+        if xx < minX then minX = xx end
+        if xx > maxX then maxX = xx end
+        if yy < minY then minY = yy end
+        if yy > maxY then maxY = yy end
+    end
+    if #keys == 0 then return nil end
+    local function inside(x, y) return mask[x .. ',' .. y] == true end
+    local dist, q, qh = {}, {}, 1
+    for i = 1, #keys do
+        local x, y, k = keys[i][1], keys[i][2], keys[i][3]
+        local edge = false
+        if not inside(x - 1, y) or not inside(x + 1, y) or not inside(x, y - 1) or not inside(x, y + 1) then
+            edge = true
+        end
+        if edge then
+            dist[k] = 1
+            q[#q + 1] = {x, y}
+        end
+    end
+    while qh <= #q do
+        local x, y = q[qh][1], q[qh][2]
+        qh += 1
+        local base = dist[x .. ',' .. y]
+        for _, dxy in ipairs({{-1, 0}, {1, 0}, {0, -1}, {0, 1}}) do
+            local nx, ny = x + dxy[1], y + dxy[2]
+            local nk = nx .. ',' .. ny
+            if inside(nx, ny) and not dist[nk] then
+                dist[nk] = base + 1
+                q[#q + 1] = {nx, ny}
+            end
+        end
+    end
+    local maxDist = 1
+    for _, v in pairs(dist) do if v > maxDist then maxDist = v end end
+    local span = math.min(maxX - minX + 1, maxY - minY + 1)
+    local full = math.max(4, span * 0.92)
+    local stud = 10.5 / math.max(W, H, D)
+    local m = Instance.new('Model')
+    m.Name = name
+    local cx, cy = (minX + maxX) / 2, (minY + maxY) / 2
+    local root = part(m, 'Core', Vector3.new(stud, stud, stud), rgb(255, 255, 255), CFrame.new(), MAT, 1)
+    root.CanQuery = false
+    for i = 1, #keys do
+        local x, y, k = keys[i][1], keys[i][2], keys[i][3]
+        local c = color[k]
+        local depthV = math.max(2, math.floor(((dist[k] or 1) / maxDist) * full + 0.5))
+        local px = (x - cx) * stud
+        local py = (y - cy) * stud
+        local col = rgb(c[1], c[2], c[3])
+        if c[4] == 1 and depthV > 1 then
+            local faceZ = -depthV * stud / 2 + stud / 2
+            local face = part(m, 'Block', Vector3.new(stud, stud, stud), col, CFrame.new(px, py, faceZ), NEON)
+            face.CastShadow = false
+            local bodyD = depthV - 1
+            local body = part(m, 'Block', Vector3.new(stud, stud, bodyD * stud), col, CFrame.new(px, py, faceZ + stud / 2 + bodyD * stud / 2), MAT)
+            body.CastShadow = false
+        else
+            local mat = (c[4] == 1) and NEON or MAT
+            local block = part(m, 'Block', Vector3.new(stud, stud, depthV * stud), col, CFrame.new(px, py, 0), mat)
+            block.CastShadow = false
+        end
     end
     return finalize(m, root)
 end
