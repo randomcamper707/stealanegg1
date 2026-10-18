@@ -2477,7 +2477,7 @@ local PG=P and (P:FindFirstChildOfClass('PlayerGui') or P:WaitForChild('PlayerGu
 local BP=P and (P:FindFirstChildOfClass('Backpack') or P:WaitForChild('Backpack',10))
 if not P or not PG or not BP then E.SAE_V7=nil return end
 
-for _,n in ipairs({'SAE_ITEMS_V7','SAE_ITEMS_V6','SAE_ITEMS_V5','SAE_ITEMS_V4','SAE_ITEMS_V3'}) do local g=PG:FindFirstChild(n) if g then g:Destroy() end end
+for _,n in ipairs({'SAE_ITEMS_V7','SAE_ITEMS_HOTBAR_V7','SAE_ITEMS_V6','SAE_ITEMS_V5','SAE_ITEMS_V4','SAE_ITEMS_V3'}) do local g=PG:FindFirstChild(n) if g then g:Destroy() end end
 for _,holder in ipairs({BP,P.Character}) do if holder then for _,o in ipairs(holder:GetChildren()) do if o:IsA('Tool') and (o:GetAttribute('SAE_V6_TOOL') or o:GetAttribute('SAE_V5_TOOL') or o:GetAttribute('SAE_V7_TOOL')) then o:Destroy() end end end end
 local oldPlaced=workspace:FindFirstChild('SAE_V7_PLACED') if oldPlaced then oldPlaced:Destroy() end
 local Placed=Instance.new('Folder') Placed.Name='SAE_V7_PLACED' Placed.Parent=workspace
@@ -2597,7 +2597,8 @@ local function fit(m,target)local ok,s=pcall(function()return m:GetExtentsSize()
 local function model(cat,name)if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
 local function weld(t,m,off)m.Parent=t m:PivotTo(t.Handle.CFrame*off)if m:GetAttribute('SAE_REFERENCE_DETAIL') and m.PrimaryPart then local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=m.PrimaryPart w.Parent=t.Handle else for _,p in ipairs(allParts(m))do p.Anchored=false p.CanCollide=false p.CanTouch=false p.CanQuery=false p.Massless=true local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=p w.Parent=t.Handle end end end
 local function place(t,m)local c=m:Clone()for _,d in ipairs(c:GetDescendants())do if d:IsA('WeldConstraint')or d:IsA('Motor6D')then d:Destroy()end end c.Parent=Placed for _,p in ipairs(allParts(c))do p.Anchored=true p.CanCollide=false p.CanQuery=true end local mouse=P:GetMouse()local pos=mouse and mouse.Hit and mouse.Hit.Position local hrp=P.Character and P.Character:FindFirstChild('HumanoidRootPart')pos=pos or(hrp and(hrp.Position+hrp.CFrame.LookVector*9))or Vector3.zero local rp=RaycastParams.new()rp.FilterType=Enum.RaycastFilterType.Exclude rp.FilterDescendantsInstances={P.Character,Placed}local ray=workspace:Raycast(pos+Vector3.new(0,35,0),Vector3.new(0,-100,0),rp)if ray then pos=ray.Position end c:PivotTo(CFrame.new(pos))local cf,sz=c:GetBoundingBox()c:PivotTo(c:GetPivot()+Vector3.new(0,pos.Y-(cf.Position.Y-sz.Y/2)+.08,0))t:Destroy()end
-local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
+local registerHotbarItem
+local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP if registerHotbarItem then registerHotbarItem(t) end return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
 local C={bg=rgb(8,8,14),head=rgb(15,11,23),card=rgb(24,18,34),card2=rgb(37,25,50),border=rgb(84,57,110),p=rgb(142,51,236),p2=rgb(184,83,255),w=Color3.new(1,1,1),m=rgb(168,162,181),g=rgb(105,245,135),o=rgb(255,188,82),r=rgb(255,90,90)}
 local function corner(o,r)local x=Instance.new('UICorner')x.CornerRadius=UDim.new(0,r or 8)x.Parent=o end
@@ -2605,8 +2606,75 @@ local function stroke(o,a)local x=Instance.new('UIStroke')x.Color=C.border x.Tra
 local function label(p,t,pos,size,z,col)local x=Instance.new('TextLabel')x.BackgroundTransparency=1 x.Position=pos x.Size=size x.Text=t x.TextColor3=col or C.w x.Font=Enum.Font.GothamMedium x.TextSize=z or 11 x.TextXAlignment=Enum.TextXAlignment.Left x.Parent=p return x end
 local function button(p,t,pos,size)local x=Instance.new('TextButton')x.Position=pos x.Size=size x.BackgroundColor3=C.p x.BorderSizePixel=0 x.Text=t x.TextColor3=C.w x.Font=Enum.Font.GothamBold x.TextSize=11 x.Parent=p corner(x,8)return x end
 local gui=Instance.new('ScreenGui')gui.Name='SAE_ITEMS_V7'gui.ResetOnSpawn=false gui.DisplayOrder=730 gui.Parent=PG
+local StarterGui=game:GetService('StarterGui')
+pcall(function()StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack,false)end)
+local hotbarGui=Instance.new('ScreenGui')hotbarGui.Name='SAE_ITEMS_HOTBAR_V7'hotbarGui.ResetOnSpawn=false hotbarGui.IgnoreGuiInset=true hotbarGui.DisplayOrder=731 hotbarGui.Parent=PG
+local hotbar=Instance.new('ScrollingFrame')hotbar.Name='ItemImageInventory'hotbar.AnchorPoint=Vector2.new(.5,1)hotbar.Position=UDim2.new(.5,0,1,-8)hotbar.Size=UDim2.new(.8,0,0,70)hotbar.BackgroundColor3=C.bg hotbar.BackgroundTransparency=.12 hotbar.BorderSizePixel=0 hotbar.ScrollBarThickness=3 hotbar.ScrollingDirection=Enum.ScrollingDirection.X hotbar.CanvasSize=UDim2.fromOffset(0,0)hotbar.Visible=false hotbar.Parent=hotbarGui corner(hotbar,10)stroke(hotbar,.25)
+local hotbarLayout=Instance.new('UIListLayout')hotbarLayout.FillDirection=Enum.FillDirection.Horizontal hotbarLayout.HorizontalAlignment=Enum.HorizontalAlignment.Left hotbarLayout.VerticalAlignment=Enum.VerticalAlignment.Center hotbarLayout.SortOrder=Enum.SortOrder.LayoutOrder hotbarLayout.Padding=UDim.new(0,6)hotbarLayout.Parent=hotbar
+local hotbarPadding=Instance.new('UIPadding')hotbarPadding.PaddingLeft=UDim.new(0,7)hotbarPadding.PaddingRight=UDim.new(0,7)hotbarPadding.Parent=hotbar
+local hotbarItems={}
+local function refreshHotbar()
+    for i,item in ipairs(hotbarItems)do
+        item.slot.LayoutOrder=i
+        item.key.Text=(i<=9 and tostring(i) or '•')
+        item.slot.BackgroundColor3=(P.Character and item.tool.Parent==P.Character)and C.p or C.card2
+    end
+    hotbar.Visible=#hotbarItems>0
+    hotbar.CanvasSize=UDim2.fromOffset(hotbarLayout.AbsoluteContentSize.X+16,0)
+end
+hotbarLayout:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(refreshHotbar)
+local function equipHotbarItem(item)
+    local tool=item and item.tool
+    if not tool or not tool.Parent then return end
+    local character=P.Character
+    local humanoid=character and character:FindFirstChildOfClass('Humanoid')
+    if not humanoid then return end
+    if tool.Parent==character then humanoid:UnequipTools() else pcall(function()humanoid:EquipTool(tool)end)end
+    task.defer(refreshHotbar)
+end
+registerHotbarItem=function(tool)
+    local slot=Instance.new('TextButton')slot.Name='ItemSlot'slot.Size=UDim2.fromOffset(56,56)slot.BackgroundColor3=C.card2 slot.BorderSizePixel=0 slot.Text=''slot.AutoButtonColor=true slot.LayoutOrder=#hotbarItems+1 slot.Parent=hotbar corner(slot,8)stroke(slot,.35)
+    local viewport=Instance.new('ViewportFrame')viewport.Name='ItemPreview'viewport.Position=UDim2.fromOffset(3,3)viewport.Size=UDim2.new(1,-6,1,-6)viewport.BackgroundTransparency=1 viewport.BorderSizePixel=0 viewport.Active=false viewport.ZIndex=slot.ZIndex+1 viewport.Parent=slot
+    local camera=Instance.new('Camera')camera.FieldOfView=34 camera.Parent=viewport viewport.CurrentCamera=camera
+    local world=Instance.new('WorldModel')world.Parent=viewport
+    local original=tool:FindFirstChildWhichIsA('Model')
+    if original then
+        local preview=original:Clone()preview.Parent=world
+        for _,d in ipairs(preview:GetDescendants())do
+            if d:IsA('WeldConstraint')or d:IsA('Motor6D')or d:IsA('Script')or d:IsA('LocalScript')then d:Destroy()
+            elseif d:IsA('BasePart')then d.Anchored=true d.CanCollide=false d.CanTouch=false d.CanQuery=false end
+        end
+        local first=preview:FindFirstChildWhichIsA('BasePart',true)
+        if first and not preview.PrimaryPart then preview.PrimaryPart=first end
+        if first then
+            preview:PivotTo(CFrame.new())
+            local box,size=preview:GetBoundingBox()
+            preview:PivotTo(CFrame.new(-box.Position)*preview:GetPivot())
+            local extent=math.max(size.X,size.Y,size.Z)
+            local distance=math.max(1.8,extent/(2*math.tan(math.rad(camera.FieldOfView/2)))*1.18)
+            camera.CFrame=CFrame.lookAt(Vector3.new(0,0,-distance),Vector3.zero)
+        end
+    end
+    local key=Instance.new('TextLabel')key.Name='SlotNumber'key.BackgroundColor3=C.bg key.BackgroundTransparency=.15 key.Position=UDim2.fromOffset(3,2)key.Size=UDim2.fromOffset(15,15)key.Font=Enum.Font.GothamBold key.TextSize=10 key.TextColor3=C.w key.TextXAlignment=Enum.TextXAlignment.Center key.TextYAlignment=Enum.TextYAlignment.Center key.ZIndex=viewport.ZIndex+1 key.Parent=slot corner(key,4)
+    local item={tool=tool,slot=slot,key=key}
+    table.insert(hotbarItems,item)
+    slot.Activated:Connect(function()equipHotbarItem(item)end)
+    tool:GetPropertyChangedSignal('Parent'):Connect(refreshHotbar)
+    tool.Destroying:Connect(function()
+        for i,v in ipairs(hotbarItems)do if v==item then table.remove(hotbarItems,i)break end end
+        slot:Destroy()
+        refreshHotbar()
+    end)
+    refreshHotbar()
+end
+local hotbarKeys={Enum.KeyCode.One,Enum.KeyCode.Two,Enum.KeyCode.Three,Enum.KeyCode.Four,Enum.KeyCode.Five,Enum.KeyCode.Six,Enum.KeyCode.Seven,Enum.KeyCode.Eight,Enum.KeyCode.Nine}
+UIS.InputBegan:Connect(function(input,processed)
+    if processed or UIS:GetFocusedTextBox()then return end
+    for i,key in ipairs(hotbarKeys)do if input.KeyCode==key then equipHotbarItem(hotbarItems[i])return end end
+end)
+P.CharacterAdded:Connect(function()task.wait(.35)refreshHotbar()end)
 local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38))
-local win=Instance.new('Frame')win.Size=UDim2.fromOffset(560,470)win.Position=UDim2.new(.5,-280,.5,-235)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
+local win=Instance.new('Frame')win.Size=UDim2.fromOffset(440,380)win.Position=UDim2.new(.5,-220,.5,-190)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
 local head=Instance.new('Frame')head.Size=UDim2.new(1,0,0,62)head.BackgroundColor3=C.head head.BorderSizePixel=0 head.Parent=win corner(head,13)
 local title=label(head,'DIVINE ITEM SPAWNER · REFERENCE EGGS',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,24),15)title.Font=Enum.Font.GothamBold
 label(head,'25% smaller • refined Unicorn, Night Flame, Sabertooth',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
@@ -2621,7 +2689,7 @@ local content=Instance.new('ScrollingFrame')content.Position=UDim2.fromOffset(14
 local grid=Instance.new('UIGridLayout')grid.CellSize=UDim2.new(.5,-9,0,42)grid.CellPadding=UDim2.fromOffset(8,8)grid.SortOrder=Enum.SortOrder.LayoutOrder grid.Parent=content
 local pad=Instance.new('UIPadding')pad.PaddingTop=UDim.new(0,8)pad.PaddingLeft=UDim.new(0,8)pad.PaddingRight=UDim.new(0,8)pad.Parent=content
 grid:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()content.CanvasSize=UDim2.fromOffset(0,grid.AbsoluteContentSize.Y+16)end)
-local status=label(win,'Select an item',UDim2.new(0,16,1,-61),UDim2.new(1,-32,0,18),10,C.m)
+local status=label(win,'Select an item',UDim2.new(0,16,1,-61),UDim2.new(1,-200,0,18),10,C.m)
 local cat,sel='Eggs',nil local tabButtons={}
 local function paint()for n,b in pairs(tabButtons)do b.BackgroundColor3=(n==cat)and C.p or C.card2 end end
 local function render()for _,c in ipairs(content:GetChildren())do if c:IsA('TextButton')then c:Destroy()end end local list=cat=='Eggs'and Eggs or cat=='Pets'and Pets or{'Star'}for i,name in ipairs(list)do local b=button(content,name,UDim2.new(),UDim2.new())b.LayoutOrder=i b.BackgroundColor3=(sel==name and C.p2 or C.card2)b.MouseButton1Click:Connect(function()sel=name status.Text='Selected: '..name status.TextColor3=C.w render()end)end end
