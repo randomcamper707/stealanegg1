@@ -1,17 +1,41 @@
 -- Steal An Egg - Combined Main (Control Panel + V7 3D Inventory)
 -- All functionality in one file. No external loads.
+-- Debug version with error reporting
 
+print("[SAE] Script starting...")
+
+local function safeRun(label, fn)
+    local ok, err = pcall(fn)
+    if not ok then
+        warn("[SAE] ERROR in " .. label .. ": " .. tostring(err))
+        return false
+    end
+    print("[SAE] " .. label .. " completed OK")
+    return true
+end
+
+-- Early test GUI so we know the script is running
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local TextService = game:GetService("TextService")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-
 local P = Players.LocalPlayer
-if not P then return end
-local PG = P:FindFirstChildOfClass("PlayerGui") or P:WaitForChild("PlayerGui",10)
-if not PG then return end
+if not P then warn("[SAE] No LocalPlayer") return end
+local PG = P:FindFirstChildOfClass("PlayerGui") or P:WaitForChild("PlayerGui", 10)
+if not PG then warn("[SAE] No PlayerGui") return end
+
+local testGui = Instance.new("ScreenGui")
+testGui.Name = "SAE_TEST_RUNNING"
+testGui.ResetOnSpawn = false
+testGui.DisplayOrder = 999
+testGui.Parent = PG
+local testBtn = Instance.new("TextButton")
+testBtn.Size = UDim2.fromOffset(120, 30)
+testBtn.Position = UDim2.new(0, 10, 0, 10)
+testBtn.Text = "SAE LOADED"
+testBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+testBtn.TextColor3 = Color3.new(1,1,1)
+testBtn.Font = Enum.Font.GothamBold
+testBtn.TextSize = 12
+testBtn.Parent = testGui
+print("[SAE] Test button created")
 
 local function arrlen(t)
     local n=0
