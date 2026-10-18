@@ -2526,21 +2526,182 @@ local function eye(m,x,y,z,c,s)return ball(m,'Eye',s or Vector3.new(.38,.48,.18)
 local function wing(m,side,base,accent,scale,y,z)local x=scale*1.75*side wedge(m,'Wing',Vector3.new(scale*2.4,scale*3.3,.45),base,CFrame.new(x,y,z)*CFrame.Angles(0,math.rad(8*side),math.rad(-22*side)),MAT)wedge(m,'WingTip',Vector3.new(scale*1.7,scale*2.5,.38),accent,CFrame.new(x+side*scale*1.25,y+scale*.35,z+.05)*CFrame.Angles(0,math.rad(12*side),math.rad(-36*side)),MAT)wedge(m,'WingFeather',Vector3.new(scale*1.15,scale*2.1,.34),accent,CFrame.new(x+side*scale*.55,y-scale*.8,z-.03)*CFrame.Angles(0,0,math.rad(-18*side)),MAT)end
 local function tentacle(m,x,y,z,c,len,a,mat)cyl(m,'Tentacle',Vector3.new(.48,len,.48),c,CFrame.new(x,y,z)*CFrame.Angles(0,0,math.rad(90+a)),mat or MAT)ball(m,'TentacleTip',Vector3.new(.52,.52,.52),c,CFrame.new(x+math.cos(math.rad(a))*len*.45,y+math.sin(math.rad(a))*len*.45,z),mat or MAT)end
 
-local function unicornEgg()local m=Instance.new('Model')m.Name='Unicorn Egg'local r=part(m,'CrystalCore',Vector3.new(4.2,4.2,4.2),rgb(255,202,224),CFrame.new(),Enum.Material.Glass,.28)for _,d in ipairs({{-1.65,-.1,-1.7},{1.65,.2,-1.6},{-1.5,.1,1.65},{1.5,-.1,1.6}})do part(m,'CrystalEdge',Vector3.new(.38,3.8,.38),rgb(255,155,195),CFrame.new(d[1],d[2],d[3]),NEON,.18)end wedge(m,'PinkCrystal',Vector3.new(1.5,3.2,1.4),rgb(255,75,128),CFrame.new(.55,3.25,0)*CFrame.Angles(0,math.rad(25),0),Enum.Material.Glass,.08)wedge(m,'CyanCrystal',Vector3.new(1.2,2.5,1.2),rgb(44,234,242),CFrame.new(-.75,2.75,.15)*CFrame.Angles(0,math.rad(-20),0),Enum.Material.Glass,.05)wedge(m,'LilacCrystal',Vector3.new(1.1,2.1,1.1),rgb(238,192,255),CFrame.new(-1.35,2.25,-.2),Enum.Material.Glass,.05)cyl(m,'Horn',Vector3.new(.62,5.3,.62),rgb(255,241,100),CFrame.new(-.45,5.1,0)*CFrame.Angles(0,0,math.rad(62)),NEON)ball(m,'HornBase',Vector3.new(1.05,1.05,1.05),rgb(255,214,95),CFrame.new(-.1,2.95,0),NEON)return finalize(m,r)end
-local function kitsuneEgg()local m=Instance.new('Model')m.Name='Kitsune Egg'local r=ball(m,'Mask',Vector3.new(4.2,5.2,2.15),rgb(206,198,167),CFrame.new(),MAT)wedge(m,'LeftArmor',Vector3.new(1.55,3.7,1.5),rgb(214,39,203),CFrame.new(-2.1,.2,0)*CFrame.Angles(0,0,math.rad(-12)),MAT)wedge(m,'RightArmor',Vector3.new(1.55,3.7,1.5),rgb(214,39,203),CFrame.new(2.1,.2,0)*CFrame.Angles(0,math.rad(180),math.rad(12)),MAT)wedge(m,'LeftEar',Vector3.new(1.45,2.2,1.4),rgb(177,69,204),CFrame.new(-1.45,3.1,.1)*CFrame.Angles(0,0,math.rad(-18)),MAT)wedge(m,'RightEar',Vector3.new(1.45,2.2,1.4),rgb(177,69,204),CFrame.new(1.45,3.1,.1)*CFrame.Angles(0,math.rad(180),math.rad(18)),MAT)wedge(m,'Forehead',Vector3.new(.75,.95,.35),rgb(255,82,223),CFrame.new(0,1.55,-1.13)*CFrame.Angles(0,0,math.rad(45)),NEON)wedge(m,'EyeL',Vector3.new(1.05,.5,.18),rgb(25,22,31),CFrame.new(-.85,.2,-1.15)*CFrame.Angles(0,0,math.rad(-18)),MAT)wedge(m,'EyeR',Vector3.new(1.05,.5,.18),rgb(25,22,31),CFrame.new(.85,.2,-1.15)*CFrame.Angles(0,math.rad(180),math.rad(18)),MAT)part(m,'Nose',Vector3.new(.48,.35,.25),rgb(35,30,36),CFrame.new(0,-1.1,-1.18),MAT)return finalize(m,r)end
-local function nightEgg()local m=Instance.new('Model')m.Name='Night Flame Egg'local r=part(m,'WoodCore',Vector3.new(3.3,4.5,1.8),rgb(112,67,28),CFrame.new(),WOOD)for _,sx in ipairs({-1,1})do for i=0,2 do wedge(m,'WoodWing',Vector3.new(1.4,3.3-i*.45,.65),rgb(166,94,25),CFrame.new(sx*(2.2+i*.72),.6-i*.35,.1)*CFrame.Angles(0,sx==1 and math.rad(180)or 0,math.rad(-sx*(28+i*8))),WOOD)end end wedge(m,'Gem',Vector3.new(1.45,1.45,.45),rgb(255,126,20),CFrame.new(0,-.25,-1.05)*CFrame.Angles(0,0,math.rad(45)),NEON)wedge(m,'GemInner',Vector3.new(.85,.85,.5),rgb(255,219,60),CFrame.new(0,-.25,-1.29)*CFrame.Angles(0,0,math.rad(45)),NEON)for _,d in ipairs({{-1.15,.6},{1.05,1.1},{-.7,-1.3},{1,-1.25}})do ball(m,'Leaf',Vector3.new(.58,.9,.25),rgb(39,145,52),CFrame.new(d[1],d[2],-1.08),MAT)end wedge(m,'TopCrystal',Vector3.new(.75,1.4,.65),rgb(109,221,36),CFrame.new(0,2.9,0),Enum.Material.Glass,.05)return finalize(m,r)end
-local function archEgg()local m=Instance.new('Model')m.Name='Archangel Egg'local r=ball(m,'GoldBody',Vector3.new(4.2,4.8,2.25),rgb(234,169,43),CFrame.new(),METAL)wing(m,-1,rgb(247,247,242),rgb(239,194,58),1.15,.2,.15)wing(m,1,rgb(247,247,242),rgb(239,194,58),1.15,.2,.15)part(m,'CrossV',Vector3.new(.55,3.6,.28),rgb(255,244,130),CFrame.new(0,.1,-1.24),NEON)part(m,'CrossH',Vector3.new(2.15,.52,.28),rgb(255,244,130),CFrame.new(0,.45,-1.24),NEON)ring(m,CFrame.new(0,3,0),1.25,14,rgb(255,222,71))return finalize(m,r)end
-local function worldEgg()local m=Instance.new('Model')m.Name='World Burner Egg'local r=ball(m,'Core',Vector3.new(4.35,4.5,2.35),rgb(58,20,28),CFrame.new(),METAL)wing(m,-1,rgb(37,25,30),rgb(126,26,34),1.18,.25,.1)wing(m,1,rgb(37,25,30),rgb(126,26,34),1.18,.25,.1)part(m,'CrossV',Vector3.new(.55,2.8,.32),rgb(255,70,77),CFrame.new(0,-.05,-1.3),NEON)part(m,'CrossH',Vector3.new(1.65,.5,.32),rgb(255,70,77),CFrame.new(0,.25,-1.3),NEON)for _,x in ipairs({-1.45,1.45})do wedge(m,'Horn',Vector3.new(.55,1.7,.55),rgb(94,17,25),CFrame.new(x,2.55,0)*CFrame.Angles(0,0,math.rad(-x*12)),METAL)end return finalize(m,r)end
-local function aetheronEgg()local m=Instance.new('Model')m.Name='Aetheron Egg'local r=part(m,'Center',Vector3.new(2.1,5.1,1.75),rgb(241,231,206),CFrame.new(),METAL)part(m,'LightHalf',Vector3.new(1.05,4.4,1.9),rgb(249,240,210),CFrame.new(-.55,.05,0),MAT)part(m,'DarkHalf',Vector3.new(1.05,4.4,1.9),rgb(76,29,32),CFrame.new(.55,.05,0),METAL)wing(m,-1,rgb(250,242,218),rgb(246,193,58),1.25,.4,.15)wing(m,1,rgb(52,45,48),rgb(214,48,37),1.25,.4,.15)ring(m,CFrame.new(-.35,3.15,0),1.08,14,rgb(255,220,63))wedge(m,'DarkHorn',Vector3.new(.7,1.7,.6),rgb(222,39,30),CFrame.new(.7,2.8,0)*CFrame.Angles(0,0,math.rad(8)),NEON)return finalize(m,r)end
-local function cthEgg(lum)local m=Instance.new('Model')m.Name=lum and'Luminous Cthulhu Egg'or'Cthulhu Egg'local body=lum and rgb(22,120,129)or rgb(20,74,38)local dark=lum and rgb(91,45,118)or rgb(8,42,24)local glow=lum and rgb(90,235,255)or rgb(80,255,65)local r=part(m,'AncientBox',Vector3.new(4.4,4.8,3.7),body,CFrame.new(),METAL)part(m,'FrontPanel',Vector3.new(2.45,2.6,.35),dark,CFrame.new(0,-.15,-2),METAL)part(m,'PortalV',Vector3.new(.45,2,.28),glow,CFrame.new(0,-.15,-2.2),NEON)wedge(m,'PortalTop',Vector3.new(1.25,.8,.3),glow,CFrame.new(0,1,-2.2)*CFrame.Angles(0,0,math.rad(45)),NEON)wedge(m,'PortalBottom',Vector3.new(1.25,.8,.3),glow,CFrame.new(0,-1.3,-2.2)*CFrame.Angles(0,0,math.rad(225)),NEON)for _,sx in ipairs({-1,1})do tentacle(m,sx*2.35,.35,-.25,dark,4.1,sx==1 and 58 or 122,METAL)tentacle(m,sx*2.15,1.55,.25,dark,3.2,sx==1 and 78 or 102,METAL)end for _,x in ipairs({-1.45,1.45})do ball(m,'GlowOrb',Vector3.new(.62,.62,.62),glow,CFrame.new(x,1.65,-1.9),NEON)end return finalize(m,r)end
-local function saberEgg(sk)local m=Instance.new('Model')m.Name=sk and'Skeletal Sabertooth Egg'or'Sabertooth Egg'if sk then local r=ball(m,'StoneSkull',Vector3.new(5.1,4.8,4.2),rgb(154,130,94),CFrame.new(),Enum.Material.Slate)eye(m,-.85,.35,-2.25,rgb(255,154,24),Vector3.new(.55,.42,.22))eye(m,.85,.35,-2.25,rgb(255,154,24),Vector3.new(.55,.42,.22))for _,x in ipairs({-1.45,1.45})do wedge(m,'Fang',Vector3.new(.8,2.4,.8),rgb(225,205,169),CFrame.new(x,-1.1,-2.25),MAT)end return finalize(m,r)else local r=ball(m,'LavaRock',Vector3.new(5,4.9,4.3),rgb(92,44,31),CFrame.new(),Enum.Material.Slate)for i=0,8 do local a=i*math.pi*2/9 ball(m,'Rock',Vector3.new(1.35,1.25,1.2),i%2==0 and rgb(156,56,31)or rgb(117,49,35),CFrame.new(math.cos(a)*2.05,math.sin(a)*1.75,math.sin(a)*.8),Enum.Material.Slate)end for _,d in ipairs({{-1.2,.7},{1.2,.7},{-.8,-.9},{1,-1}})do wedge(m,'BoneSpike',Vector3.new(.65,1.6,.65),rgb(220,201,161),CFrame.new(d[1],d[2],-2.25),MAT)end for _,d in ipairs({{-1.55,-.15},{1.55,-.15},{0,1.6}})do ball(m,'LavaGem',Vector3.new(.65,.65,.35),rgb(255,112,20),CFrame.new(d[1],d[2],-2.3),NEON)end return finalize(m,r)end end
-local function machineEgg(name,green)local m=Instance.new('Model')m.Name=name local dark=green and rgb(74,74,65)or rgb(30,32,34)local frame=green and rgb(54,60,49)or rgb(21,22,25)local glow=green and rgb(110,255,37)or rgb(230,245,38)local r=part(m,'MachineCore',Vector3.new(4.7,4.6,4.3),dark,CFrame.new(),Enum.Material.Concrete)for _,x in ipairs({-2.15,2.15})do for _,y in ipairs({-1.55,0,1.55})do part(m,'Frame',Vector3.new(.55,1,4.6),frame,CFrame.new(x,y,0),METAL)end end for _,y in ipairs({-2.05,2.05})do part(m,'Frame',Vector3.new(4.5,.55,4.55),frame,CFrame.new(0,y,0),METAL)end part(m,'FrontPlate',Vector3.new(2.7,3.2,.45),rgb(20,25,21),CFrame.new(0,-.05,-2.3),METAL)local zig={{-.65,1},{.35,.45},{-.45,-.1},{.55,-.65},{-.2,-1.25}}for i=1,#zig-1 do local a,b=zig[i],zig[i+1]local mx,my=(a[1]+b[1])/2,(a[2]+b[2])/2 local dx,dy=b[1]-a[1],b[2]-a[2]local len=math.sqrt(dx*dx+dy*dy)part(m,'Energy',Vector3.new(.25,len,.22),glow,CFrame.new(mx,my,-2.58)*CFrame.Angles(0,0,-math.atan2(dx,dy)),NEON)end cyl(m,'TopTank',Vector3.new(1.05,1.4,1.05),frame,CFrame.new(0,2.85,0)*CFrame.Angles(0,0,math.rad(90)),METAL)cyl(m,'TopGlow',Vector3.new(.72,.75,.72),glow,CFrame.new(0,2.85,0)*CFrame.Angles(0,0,math.rad(90)),NEON)return finalize(m,r)end
+local function unicornEgg()
+	local m = Instance.new('Model')
+	m.Name = 'Unicorn Egg'
+	local r = part(m, 'CrystalBase', Vector3.new(3.8, 3.2, 3.8), rgb(255, 180, 210), CFrame.new(), Enum.Material.Glass, 0.15)
+	-- Colored crystal spikes on top
+	wedge(m, 'PinkSpike', Vector3.new(1.2, 2.8, 1.2), rgb(255, 80, 140), CFrame.new(0.6, 2.8, 0) * CFrame.Angles(0, math.rad(20), 0), Enum.Material.Glass, 0.05)
+	wedge(m, 'CyanSpike', Vector3.new(1.0, 2.4, 1.0), rgb(40, 220, 240), CFrame.new(-0.8, 2.5, 0.2) * CFrame.Angles(0, math.rad(-15), 0), Enum.Material.Glass, 0.05)
+	wedge(m, 'BlueSpike', Vector3.new(0.9, 2.0, 0.9), rgb(80, 140, 255), CFrame.new(1.3, 2.2, -0.3), Enum.Material.Glass, 0.05)
+	wedge(m, 'PurpleSpike', Vector3.new(0.8, 1.8, 0.8), rgb(180, 100, 255), CFrame.new(-1.4, 2.0, -0.1), Enum.Material.Glass, 0.05)
+	-- Long golden horn
+	cyl(m, 'Horn', Vector3.new(0.45, 4.2, 0.45), rgb(255, 220, 60), CFrame.new(-0.3, 4.2, 0) * CFrame.Angles(0, 0, math.rad(55)), NEON)
+	ball(m, 'HornBase', Vector3.new(0.9, 0.9, 0.9), rgb(255, 200, 80), CFrame.new(0, 2.4, 0), NEON)
+	return finalize(m, r)
+end
 
-local function nightPet()local m=Instance.new('Model')m.Name='Night Flame'local body,dark,blue,glow=rgb(36,41,54),rgb(23,27,38),rgb(35,92,170),rgb(185,255,248)local r=ball(m,'Torso',Vector3.new(4.6,6.1,3.2),body,CFrame.new(),Enum.Material.Slate)ball(m,'Head',Vector3.new(3,2.8,2.7),dark,CFrame.new(0,3.85,-.25),Enum.Material.Slate)wedge(m,'HornL',Vector3.new(.8,2,.7),blue,CFrame.new(-.95,5.35,-.1),METAL)wedge(m,'HornR',Vector3.new(.8,2,.7),blue,CFrame.new(.95,5.35,-.1)*CFrame.Angles(0,math.rad(180),0),METAL)eye(m,-.55,4.15,-1.55,glow,Vector3.new(.42,.28,.18))eye(m,.55,4.15,-1.55,glow,Vector3.new(.42,.28,.18))for ai,y in ipairs({1.7,.2,-1.3})do local spread=3.05+(ai-1)*.15 for _,sx in ipairs({-1,1})do part(m,'Arm',Vector3.new(3.4,.9,.95),body,CFrame.new(sx*spread,y,-.05)*CFrame.Angles(0,0,math.rad(sx*(ai==2 and 8 or(ai==1 and-16 or 18)))),Enum.Material.Slate)ball(m,'Hand',Vector3.new(1.15,1.25,1),dark,CFrame.new(sx*(spread+1.75),y,-.1),Enum.Material.Slate)end end for _,sx in ipairs({-1,1})do part(m,'Leg',Vector3.new(1.45,3.5,1.5),body,CFrame.new(sx*1.25,-4.2,0),Enum.Material.Slate)ball(m,'Foot',Vector3.new(1.8,.9,2.2),dark,CFrame.new(sx*1.25,-6,-.45),Enum.Material.Slate)end part(m,'ChestV',Vector3.new(.34,2.7,.22),glow,CFrame.new(0,.55,-1.72),NEON)for _,sx in ipairs({-1,1})do part(m,'ChestBranch',Vector3.new(.25,1.7,.2),glow,CFrame.new(sx*.6,1.05,-1.72)*CFrame.Angles(0,0,math.rad(sx*40)),NEON)end return finalize(m,r)end
-local function luminousPet()local m=Instance.new('Model')m.Name='Luminous Cthulhu'local body,dark,ice,cyan=rgb(20,43,91),rgb(17,31,72),rgb(194,242,255),rgb(81,217,255)local r=ball(m,'Torso',Vector3.new(5.4,6.2,3.6),body,CFrame.new(),Enum.Material.Slate)ball(m,'Head',Vector3.new(3.6,3.2,3.1),dark,CFrame.new(0,3.7,-.25),Enum.Material.Slate)eye(m,-.55,4.05,-1.65,ice,Vector3.new(.48,.3,.18))eye(m,.55,4.05,-1.65,ice,Vector3.new(.48,.3,.18))for i=-2,2 do tentacle(m,i*.5,2.65,-1.4,body,2.6,-90+i*10,Enum.Material.Slate)end for _,sx in ipairs({-1,1})do wing(m,sx,dark,ice,1.65,.7,.6)part(m,'UpperArm',Vector3.new(1.65,4,1.65),body,CFrame.new(sx*3.05,-.15,0),Enum.Material.Slate)ball(m,'Fist',Vector3.new(2,2,1.85),ice,CFrame.new(sx*3.5,-2.25,-.25),Enum.Material.Ice)part(m,'Leg',Vector3.new(1.75,3.7,1.8),body,CFrame.new(sx*1.45,-4.25,0),Enum.Material.Slate)ball(m,'Foot',Vector3.new(2,1,2.25),ice,CFrame.new(sx*1.45,-6.1,-.45),Enum.Material.Ice)end for _,p in ipairs({{-2.25,1.3,-1},{2.25,1.3,-1},{-2.7,-1.2,-.9},{2.7,-1.2,-.9}})do for j=1,3 do wedge(m,'IceCrystal',Vector3.new(.38,.9+.22*j,.38),j==2 and cyan or ice,CFrame.new(p[1]+(j-2)*.32,p[2]+.25*j,p[3]),Enum.Material.Ice)end end return finalize(m,r)end
-local function star()local m=Instance.new('Model')m.Name='Star'local gold,edge,dark=rgb(255,208,22),rgb(239,165,10),rgb(25,20,18)local r=ball(m,'Center',Vector3.new(4.5,4.5,1.25),gold,CFrame.new(),MAT)for i=0,4 do local a=math.rad(-90+i*72)local x,y=math.cos(a)*3.25,math.sin(a)*3.25 wedge(m,'Point',Vector3.new(2.75,4.7,1.15),gold,CFrame.new(x,y,0)*CFrame.Angles(0,0,a+math.rad(90)),MAT)wedge(m,'BackEdge',Vector3.new(2.55,4.4,.3),edge,CFrame.new(x,y,.68)*CFrame.Angles(0,0,a+math.rad(90)),MAT)end for _,s in ipairs({{-1.25,1.45},{0,1.65},{1.15,1.15},{-2,.55},{-.8,.55},{.45,.6},{1.8,.45},{-1.55,-.65},{-.35,-.5},{.9,-.55},{1.65,-.95},{-.95,-1.65},{.25,-1.6}})do part(m,'Stud',Vector3.new(.52,.52,.22),rgb(255,221,43),CFrame.new(s[1],s[2],-.72),MAT)end eye(m,-.9,.15,-.78,dark,Vector3.new(.82,1.05,.3))eye(m,.9,.15,-.78,dark,Vector3.new(.82,1.05,.3))ball(m,'BlushL',Vector3.new(.65,.32,.14),rgb(255,133,97),CFrame.new(-1.75,-.55,-.83),NEON)ball(m,'BlushR',Vector3.new(.65,.32,.14),rgb(255,133,97),CFrame.new(1.75,-.55,-.83),NEON)return finalize(m,r)end
+local function kitsuneEgg()
+	local m = Instance.new('Model')
+	m.Name = 'Kitsune Egg'
+	local r = ball(m, 'Body', Vector3.new(4.0, 5.0, 2.2), rgb(210, 200, 175), CFrame.new(), MAT)
+	-- Pink armor plates on sides
+	wedge(m, 'LeftPlate', Vector3.new(1.4, 3.2, 1.3), rgb(220, 50, 200), CFrame.new(-2.0, 0.3, 0) * CFrame.Angles(0, 0, math.rad(-10)), MAT)
+	wedge(m, 'RightPlate', Vector3.new(1.4, 3.2, 1.3), rgb(220, 50, 200), CFrame.new(2.0, 0.3, 0) * CFrame.Angles(0, math.rad(180), math.rad(10)), MAT)
+	-- Ears
+	wedge(m, 'LeftEar', Vector3.new(1.2, 1.8, 1.1), rgb(200, 60, 180), CFrame.new(-1.3, 2.8, 0.1) * CFrame.Angles(0, 0, math.rad(-15)), MAT)
+	wedge(m, 'RightEar', Vector3.new(1.2, 1.8, 1.1), rgb(200, 60, 180), CFrame.new(1.3, 2.8, 0.1) * CFrame.Angles(0, math.rad(180), math.rad(15)), MAT)
+	-- Forehead diamond
+	wedge(m, 'Forehead', Vector3.new(0.6, 0.7, 0.3), rgb(255, 80, 220), CFrame.new(0, 1.4, -1.05) * CFrame.Angles(0, 0, math.rad(45)), NEON)
+	-- Eyes
+	wedge(m, 'EyeL', Vector3.new(0.9, 0.4, 0.15), rgb(30, 25, 35), CFrame.new(-0.75, 0.15, -1.1) * CFrame.Angles(0, 0, math.rad(-15)), MAT)
+	wedge(m, 'EyeR', Vector3.new(0.9, 0.4, 0.15), rgb(30, 25, 35), CFrame.new(0.75, 0.15, -1.1) * CFrame.Angles(0, math.rad(180), math.rad(15)), MAT)
+	part(m, 'Nose', Vector3.new(0.4, 0.3, 0.2), rgb(40, 35, 40), CFrame.new(0, -0.9, -1.12), MAT)
+	return finalize(m, r)
+end
 
-local Built={['Unicorn Egg']=unicornEgg,['Kitsune Egg']=kitsuneEgg,['Night Flame Egg']=nightEgg,['Archangel Egg']=archEgg,['World Burner Egg']=worldEgg,['Aetheron Egg']=aetheronEgg,['Cthulhu Egg']=function()return cthEgg(false)end,['Luminous Cthulhu Egg']=function()return cthEgg(true)end,['Sabertooth Egg']=function()return saberEgg(false)end,['Skeletal Sabertooth Egg']=function()return saberEgg(true)end,['Octophant Egg']=function()return machineEgg('Octophant Egg',true)end,['Mecha Scrambler Egg']=function()return machineEgg('Mecha Scrambler Egg',false)end,['Night Flame']=nightPet,['Luminous Cthulhu']=luminousPet,['Star']=star}
+local function nightEgg()
+	local m = Instance.new('Model')
+	m.Name = 'Night Flame Egg'
+	local r = part(m, 'WoodBody', Vector3.new(3.2, 4.2, 1.8), rgb(120, 75, 30), CFrame.new(), WOOD)
+	-- Wooden wings
+	for _, sx in ipairs({-1, 1}) do
+		for i = 0, 2 do
+			wedge(m, 'Wing', Vector3.new(1.3, 3.0 - i * 0.4, 0.6), rgb(170, 100, 30), CFrame.new(sx * (2.1 + i * 0.65), 0.5 - i * 0.3, 0.1) * CFrame.Angles(0, sx == 1 and math.rad(180) or 0, math.rad(-sx * (25 + i * 7))), WOOD)
+		end
+	end
+	-- Glowing gem
+	wedge(m, 'Gem', Vector3.new(1.3, 1.3, 0.4), rgb(255, 130, 20), CFrame.new(0, -0.2, -1.0) * CFrame.Angles(0, 0, math.rad(45)), NEON)
+	wedge(m, 'GemInner', Vector3.new(0.7, 0.7, 0.45), rgb(255, 220, 60), CFrame.new(0, -0.2, -1.22) * CFrame.Angles(0, 0, math.rad(45)), NEON)
+	-- Green leaves
+	for _, d in ipairs({{-1.0, 0.5}, {1.0, 1.0}, {-0.6, -1.1}, {0.9, -1.05}}) do
+		ball(m, 'Leaf', Vector3.new(0.5, 0.8, 0.22), rgb(40, 150, 50), CFrame.new(d[1], d[2], -1.05), MAT)
+	end
+	wedge(m, 'TopCrystal', Vector3.new(0.65, 1.2, 0.55), rgb(100, 220, 40), CFrame.new(0, 2.7, 0), Enum.Material.Glass, 0.05)
+	return finalize(m, r)
+end
+
+local function archEgg()
+	local m = Instance.new('Model')
+	m.Name = 'Archangel Egg'
+	local r = ball(m, 'GoldBody', Vector3.new(4.0, 4.6, 2.1), rgb(240, 175, 40), CFrame.new(), METAL)
+	wing(m, -1, rgb(250, 250, 245), rgb(245, 200, 60), 1.1, 0.2, 0.15)
+	wing(m, 1, rgb(250, 250, 245), rgb(245, 200, 60), 1.1, 0.2, 0.15)
+	-- Cross
+	part(m, 'CrossV', Vector3.new(0.5, 3.2, 0.25), rgb(255, 240, 120), CFrame.new(0, 0.1, -1.15), NEON)
+	part(m, 'CrossH', Vector3.new(1.9, 0.48, 0.25), rgb(255, 240, 120), CFrame.new(0, 0.4, -1.15), NEON)
+	-- Halo
+	ring(m, CFrame.new(0, 2.8, 0), 1.15, 12, rgb(255, 220, 70))
+	return finalize(m, r)
+end
+
+local function worldEgg()
+	local m = Instance.new('Model')
+	m.Name = 'World Burner Egg'
+	local r = ball(m, 'Core', Vector3.new(4.2, 4.3, 2.2), rgb(55, 18, 25), CFrame.new(), METAL)
+	wing(m, -1, rgb(35, 22, 28), rgb(130, 25, 30), 1.15, 0.25, 0.1)
+	wing(m, 1, rgb(35, 22, 28), rgb(130, 25, 30), 1.15, 0.25, 0.1)
+	-- Red cross
+	part(m, 'CrossV', Vector3.new(0.5, 2.6, 0.28), rgb(255, 65, 70), CFrame.new(0, -0.05, -1.2), NEON)
+	part(m, 'CrossH', Vector3.new(1.5, 0.45, 0.28), rgb(255, 65, 70), CFrame.new(0, 0.2, -1.2), NEON)
+	-- Horns
+	for _, x in ipairs({-1.3, 1.3}) do
+		wedge(m, 'Horn', Vector3.new(0.5, 1.5, 0.5), rgb(90, 15, 22), CFrame.new(x, 2.4, 0) * CFrame.Angles(0, 0, math.rad(-x * 10)), METAL)
+	end
+	return finalize(m, r)
+end
+
+local function aetheronEgg()
+	local m = Instance.new('Model')
+	m.Name = 'Aetheron Egg'
+	local r = part(m, 'Center', Vector3.new(2.0, 4.8, 1.6), rgb(245, 235, 210), CFrame.new(), METAL)
+	part(m, 'LightHalf', Vector3.new(1.0, 4.2, 1.75), rgb(250, 242, 215), CFrame.new(-0.5, 0.05, 0), MAT)
+	part(m, 'DarkHalf', Vector3.new(1.0, 4.2, 1.75), rgb(70, 25, 28), CFrame.new(0.5, 0.05, 0), METAL)
+	wing(m, -1, rgb(252, 245, 220), rgb(250, 200, 60), 1.2, 0.35, 0.15)
+	wing(m, 1, rgb(50, 40, 42), rgb(220, 45, 35), 1.2, 0.35, 0.15)
+	ring(m, CFrame.new(-0.3, 3.0, 0), 1.0, 12, rgb(255, 215, 60))
+	wedge(m, 'DarkHorn', Vector3.new(0.6, 1.5, 0.5), rgb(220, 35, 25), CFrame.new(0.65, 2.6, 0) * CFrame.Angles(0, 0, math.rad(8)), NEON)
+	return finalize(m, r)
+end
+
+local function cthEgg(lum)
+	local m = Instance.new('Model')
+	m.Name = lum and 'Luminous Cthulhu Egg' or 'Cthulhu Egg'
+	local body = lum and rgb(20, 130, 140) or rgb(18, 70, 35)
+	local dark = lum and rgb(85, 40, 110) or rgb(6, 38, 20)
+	local glow = lum and rgb(80, 230, 255) or rgb(70, 255, 55)
+	local r = part(m, 'Box', Vector3.new(4.2, 4.5, 3.5), body, CFrame.new(), METAL)
+	part(m, 'Front', Vector3.new(2.3, 2.4, 0.3), dark, CFrame.new(0, -0.1, -1.9), METAL)
+	part(m, 'PortalV', Vector3.new(0.4, 1.8, 0.25), glow, CFrame.new(0, -0.1, -2.05), NEON)
+	wedge(m, 'PortalTop', Vector3.new(1.1, 0.7, 0.28), glow, CFrame.new(0, 0.9, -2.05) * CFrame.Angles(0, 0, math.rad(45)), NEON)
+	wedge(m, 'PortalBot', Vector3.new(1.1, 0.7, 0.28), glow, CFrame.new(0, -1.1, -2.05) * CFrame.Angles(0, 0, math.rad(225)), NEON)
+	for _, sx in ipairs({-1, 1}) do
+		tentacle(m, sx * 2.2, 0.3, -0.2, dark, 3.8, sx == 1 and 55 or 125, METAL)
+		tentacle(m, sx * 2.0, 1.4, 0.2, dark, 2.9, sx == 1 and 75 or 105, METAL)
+	end
+	for _, x in ipairs({-1.3, 1.3}) do
+		ball(m, 'Orb', Vector3.new(0.55, 0.55, 0.55), glow, CFrame.new(x, 1.5, -1.75), NEON)
+	end
+	return finalize(m, r)
+end
+
+local function saberEgg(sk)
+	local m = Instance.new('Model')
+	m.Name = sk and 'Skeletal Sabertooth Egg' or 'Sabertooth Egg'
+	if sk then
+		local r = ball(m, 'Skull', Vector3.new(4.8, 4.5, 4.0), rgb(160, 135, 100), CFrame.new(), Enum.Material.Slate)
+		eye(m, -0.75, 0.3, -2.1, rgb(255, 150, 20), Vector3.new(0.5, 0.38, 0.2))
+		eye(m, 0.75, 0.3, -2.1, rgb(255, 150, 20), Vector3.new(0.5, 0.38, 0.2))
+		for _, x in ipairs({-1.3, 1.3}) do
+			wedge(m, 'Fang', Vector3.new(0.7, 2.1, 0.7), rgb(230, 210, 175), CFrame.new(x, -1.0, -2.1), MAT)
+		end
+		return finalize(m, r)
+	else
+		local r = ball(m, 'LavaRock', Vector3.new(4.7, 4.6, 4.0), rgb(90, 40, 28), CFrame.new(), Enum.Material.Slate)
+		for i = 0, 7 do
+			local a = i * math.pi * 2 / 8
+			ball(m, 'Rock', Vector3.new(1.2, 1.1, 1.05), i % 2 == 0 and rgb(160, 55, 28) or rgb(115, 45, 30), CFrame.new(math.cos(a) * 1.9, math.sin(a) * 1.6, math.sin(a) * 0.7), Enum.Material.Slate)
+		end
+		for _, d in ipairs({{-1.1, 0.6}, {1.1, 0.6}, {-0.7, -0.8}, {0.9, -0.85}}) do
+			wedge(m, 'Spike', Vector3.new(0.55, 1.4, 0.55), rgb(225, 205, 165), CFrame.new(d[1], d[2], -2.1), MAT)
+		end
+		for _, d in ipairs({{-1.4, -0.1}, {1.4, -0.1}, {0, 1.4}}) do
+			ball(m, 'Lava', Vector3.new(0.55, 0.55, 0.3), rgb(255, 110, 15), CFrame.new(d[1], d[2], -2.15), NEON)
+		end
+		return finalize(m, r)
+	end
+end
+
+local function machineEgg(name, green)
+	local m = Instance.new('Model')
+	m.Name = name
+	local dark = green and rgb(70, 70, 60) or rgb(28, 30, 32)
+	local frame = green and rgb(50, 55, 45) or rgb(18, 20, 22)
+	local glow = green and rgb(100, 255, 30) or rgb(230, 245, 35)
+	local r = part(m, 'Core', Vector3.new(4.4, 4.3, 4.0), dark, CFrame.new(), Enum.Material.Concrete)
+	for _, x in ipairs({-2.0, 2.0}) do
+		for _, y in ipairs({-1.4, 0, 1.4}) do
+			part(m, 'Frame', Vector3.new(0.5, 0.9, 4.3), frame, CFrame.new(x, y, 0), METAL)
+		end
+	end
+	for _, y in ipairs({-1.9, 1.9}) do
+		part(m, 'Frame', Vector3.new(4.2, 0.5, 4.25), frame, CFrame.new(0, y, 0), METAL)
+	end
+	part(m, 'FrontPlate', Vector3.new(2.5, 3.0, 0.4), rgb(18, 22, 18), CFrame.new(0, -0.05, -2.15), METAL)
+	local zig = {{-0.6, 0.9}, {0.3, 0.4}, {-0.4, -0.05}, {0.5, -0.55}, {-0.15, -1.1}}
+	for i = 1, #zig - 1 do
+		local a, b = zig[i], zig[i + 1]
+		local mx, my = (a[1] + b[1]) / 2, (a[2] + b[2]) / 2
+		local dx, dy = b[1] - a[1], b[2] - a[2]
+		local len = math.sqrt(dx * dx + dy * dy)
+		part(m, 'Energy', Vector3.new(0.22, len, 0.2), glow, CFrame.new(mx, my, -2.4) * CFrame.Angles(0, 0, -math.atan2(dx, dy)), NEON)
+	end
+	cyl(m, 'TopTank', Vector3.new(0.95, 1.3, 0.95), frame, CFrame.new(0, 2.7, 0) * CFrame.Angles(0, 0, math.rad(90)), METAL)
+	cyl(m, 'TopGlow', Vector3.new(0.65, 0.7, 0.65), glow, CFrame.new(0, 2.7, 0) * CFrame.Angles(0, 0, math.rad(90)), NEON)
+	return finalize(m, r)
+end
+
+local Built={["Unicorn Egg"]=unicornEgg,["Kitsune Egg"]=kitsuneEgg,["Night Flame Egg"]=nightEgg,["Archangel Egg"]=archEgg,["World Burner Egg"]=worldEgg,["Aetheron Egg"]=aetheronEgg,["Cthulhu Egg"]=function()return cthEgg(false)end,["Luminous Cthulhu Egg"]=function()return cthEgg(true)end,["Sabertooth Egg"]=function()return saberEgg(false)end,["Skeletal Sabertooth Egg"]=function()return saberEgg(true)end,["Octophant Egg"]=function()return machineEgg("Octophant Egg",true)end,["Mecha Scrambler Egg"]=function()return machineEgg("Mecha Scrambler Egg",false)end,["Night Flame"]=nightPet,["Luminous Cthulhu"]=luminousPet,["Star"]=star}
 
 local cache={}
 local function badPet(o)local x=o while x and x~=workspace and x~=RS do if norm(x.Name):find('egg',1,true)then return true end x=x.Parent end return false end
