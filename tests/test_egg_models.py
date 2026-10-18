@@ -73,7 +73,15 @@ class SculptedEggs(unittest.TestCase):
                 labels={p[1] for p in design['parts']}
                 self.assertTrue(EXPECTED[name]<=labels,EXPECTED[name]-labels)
                 self.assertEqual(design['parts'][0][1],'EggShell')
-                self.assertEqual(design['parts'][0][0],'ball')
+                self.assertEqual(design['parts'][0][0],'box')
+                self.assertTrue({'EggShell','ShellBase','ShellShoulder','ShellCrown'}<=labels)
+                shell={p[1]:p for p in design['parts'] if p[1] in ('EggShell','ShellBase','ShellShoulder','ShellCrown')}
+                for p in shell.values():
+                    self.assertEqual(p[0],'box')
+                    self.assertEqual(p[5],[1,0,0,0,1,0,0,0,1])
+                self.assertLess(shell['ShellCrown'][2][0],shell['ShellShoulder'][2][0])
+                self.assertLess(shell['ShellShoulder'][2][0],shell['EggShell'][2][0])
+                self.assertLess(shell['ShellBase'][2][0],shell['EggShell'][2][0])
                 self.assertLess(len(design['parts']),220)
                 self.assertGreater(len(design['parts']),40)
 
