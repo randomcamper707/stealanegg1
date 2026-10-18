@@ -2523,11 +2523,13 @@ local function pullBits(n, bits)
     return v, (n - v) / m
 end
 -- Front stays the reference art. Depth follows the egg silhouette so the side is a shell, not a flat sheet.
+-- Hand-sized round egg. Front keeps the reference colors. Each row is a disc, so the side is a shell like a stacked egg, not a flat sheet.
 local function buildVox(name)
     local spec = VOX[name]
     if not spec then return nil end
-    local W, H, D, pal, nums = spec[1], spec[2], spec[3], spec[4], spec[5]
-    local color, mask = {}, {}
+    local pal, nums = spec[4], spec[5]
+    local color = {}
+    local minX, maxX, minY, maxY = 999, -1, 999, -1
     for i = 1, #nums do
         local n = nums[i]
         local x, y, z, sx, sy, sz, pi
@@ -2546,79 +2548,156 @@ local function buildVox(name)
                     local prev = color[k]
                     if not prev or z < prev[5] then
                         color[k] = {c[1], c[2], c[3], c[4], z}
-                        mask[k] = true
                     end
+                    if xx < minX then minX = xx end
+                    if xx > maxX then maxX = xx end
+                    if yy < minY then minY = yy end
+                    if yy > maxY then maxY = yy end
                 end
             end
         end
     end
-    local keys = {}
-    local minX, maxX, minY, maxY = 999, -1, 999, -1
-    for k in pairs(mask) do
-        local xx, yy = k:match('^(%d+),(%d+)$')
-        xx, yy = tonumber(xx), tonumber(yy)
-        keys[#keys + 1] = {xx, yy, k}
-        if xx < minX then minX = xx end
-        if xx > maxX then maxX = xx end
-        if yy < minY then minY = yy end
-        if yy > maxY then maxY = yy end
-    end
-    if #keys == 0 then return nil end
-    local function inside(x, y) return mask[x .. ',' .. y] == true end
-    local dist, q, qh = {}, {}, 1
-    for i = 1, #keys do
-        local x, y, k = keys[i][1], keys[i][2], keys[i][3]
-        local edge = false
-        if not inside(x - 1, y) or not inside(x + 1, y) or not inside(x, y - 1) or not inside(x, y + 1) then
-            edge = true
-        end
-        if edge then
-            dist[k] = 1
-            q[#q + 1] = {x, y}
+    if maxX < minX then return nil end
+    local W, H = maxX - minX + 1, maxY - minY + 1
+    local function gid(x, y) return (y - minY) * W + (x - minX) + 1 end
+    local grid = {}
+    for y = minY, maxY do
+        for x = minX, maxX do
+            local c = color[x .. ',' .. y]
+            if c then grid[gid(x, y)] = c end
         end
     end
-    while qh <= #q do
-        local x, y = q[qh][1], q[qh][2]
-        qh += 1
-        local base = dist[x .. ',' .. y]
-        for _, dxy in ipairs({{-1, 0}, {1, 0}, {0, -1}, {0, 1}}) do
-            local nx, ny = x + dxy[1], y + dxy[2]
-            local nk = nx .. ',' .. ny
-            if inside(nx, ny) and not dist[nk] then
-                dist[nk] = base + 1
-                q[#q + 1] = {nx, ny}
+    local function occ(x, y)
+        if x < minX or x > maxX or y < minY or y > maxY then return false end
+        return grid[gid(x, y)] ~= nil
+    end
+    local function dark(c) return math.max(c[1], c[2], c[3]) < 22 end
+    for _ = 1, 2 do
+        local kill = {}
+        for y = minY, maxY do
+            for x = minX, maxX do
+                local c = grid[gid(x, y)]
+                if c and dark(c) and (not occ(x - 1, y) or not occ(x + 1, y) or not occ(x, y - 1) or not occ(x, y + 1)) then
+                    kill[#kill + 1] = gid(x, y)
+                end
+            end
+        end
+        for _, i2 in ipairs(kill) do grid[i2] = nil end
+    end
+    local long = math.max(W, H)
+    local DH = math.max(8, math.floor(H * 12 / long + 0.5))
+    local DW = math.max(6, math.floor(W * 12 / long + 0.5))
+    local buckets = {}
+    for y = minY, maxY do
+        local iy = math.clamp(math.floor((y - minY) * DH / H), 0, DH - 1)
+        for x = minX, maxX do
+            local c = grid[gid(x, y)]
+            if c then
+                local ix = math.clamp(math.floor((x - minX) * DW / W), 0, DW - 1)
+                local k = iy * DW + ix
+                local b = buckets[k]
+                if not b then b = {} buckets[k] = b end
+                b[#b + 1] = c
             end
         end
     end
-    local maxDist = 1
-    for _, v in pairs(dist) do if v > maxDist then maxDist = v end end
-    local span = math.min(maxX - minX + 1, maxY - minY + 1)
-    local full = math.max(4, span * 0.92)
-    local stud = 10.5 / math.max(W, H, D)
+    local small = {}
+    for iy = 0, DH - 1 do
+        small[iy] = {}
+        for ix = 0, DW - 1 do
+            local b = buckets[iy * DW + ix]
+            if b then
+                local tally, best, bn = {}, nil, 0
+                for _, c in ipairs(b) do
+                    local q = math.floor(c[1] / 16) .. ',' .. math.floor(c[2] / 16) .. ',' .. math.floor(c[3] / 16) .. ',' .. c[4]
+                    tally[q] = (tally[q] or 0) + 1
+                    if tally[q] > bn then bn = tally[q] best = q end
+                end
+                local qr, qg, qb, qn = best:match('^(%d+),(%d+),(%d+),(%d+)$')
+                qr, qg, qb, qn = tonumber(qr), tonumber(qg), tonumber(qb), tonumber(qn)
+                local rs, gs, bs, n = 0, 0, 0, 0
+                for _, c in ipairs(b) do
+                    if math.floor(c[1] / 16) == qr and math.floor(c[2] / 16) == qg and math.floor(c[3] / 16) == qb and c[4] == qn then
+                        rs += c[1] gs += c[2] bs += c[3] n += 1
+                    end
+                end
+                small[iy][ix] = {math.floor(rs / n + 0.5), math.floor(gs / n + 0.5), math.floor(bs / n + 0.5), qn}
+            end
+        end
+    end
+    local total, neonTally = 0, {}
+    for iy = 0, DH - 1 do
+        for ix = 0, DW - 1 do
+            local c = small[iy][ix]
+            if c then
+                total += 1
+                if c[4] == 1 then
+                    local q = c[1] .. ',' .. c[2] .. ',' .. c[3]
+                    neonTally[q] = (neonTally[q] or 0) + 1
+                end
+            end
+        end
+    end
+    if total == 0 then return nil end
+    local cols = {}
+    local maxHz = 0.55
+    local minIX, maxIX, minIY, maxIY = 999, -1, 999, -1
+    for iy = 0, DH - 1 do
+        local ix = 0
+        while ix < DW do
+            if not small[iy][ix] then
+                ix += 1
+            else
+                local L = ix
+                while ix < DW and small[iy][ix] do ix += 1 end
+                local R = ix - 1
+                local mid = (L + R) / 2
+                local rad = (R - L + 1) / 2
+                for x = L, R do
+                    local hz = math.sqrt(math.max(0, rad * rad - (x - mid) * (x - mid)))
+                    if hz < 0.55 then hz = 0.55 end
+                    if hz > maxHz then maxHz = hz end
+                    local c = small[iy][x]
+                    local q = c[1] .. ',' .. c[2] .. ',' .. c[3]
+                    local neon = c[4] == 1 and neonTally[q] and (neonTally[q] / total) <= 0.14
+                    cols[#cols + 1] = {x, iy, hz, c, neon}
+                    if x < minIX then minIX = x end
+                    if x > maxIX then maxIX = x end
+                    if iy < minIY then minIY = iy end
+                    if iy > maxIY then maxIY = iy end
+                end
+            end
+        end
+    end
+    if #cols == 0 then return nil end
+    local longest = math.max(maxIX - minIX + 1, maxIY - minIY + 1, maxHz * 2)
+    local stud = 2.8 / longest
     local m = Instance.new('Model')
     m.Name = name
-    local cx, cy = (minX + maxX) / 2, (minY + maxY) / 2
+    local cx = (minIX + maxIX) / 2
+    local cy = (minIY + maxIY) / 2
     local root = part(m, 'Core', Vector3.new(stud, stud, stud), rgb(255, 255, 255), CFrame.new(), MAT, 1)
     root.CanQuery = false
-    for i = 1, #keys do
-        local x, y, k = keys[i][1], keys[i][2], keys[i][3]
-        local c = color[k]
-        local depthV = math.max(2, math.floor(((dist[k] or 1) / maxDist) * full + 0.5))
-        local px = (x - cx) * stud
-        local py = (y - cy) * stud
-        local col = rgb(c[1], c[2], c[3])
-        if c[4] == 1 and depthV > 1 then
-            local faceZ = -depthV * stud / 2 + stud / 2
-            local face = part(m, 'Block', Vector3.new(stud, stud, stud), col, CFrame.new(px, py, faceZ), NEON)
+    local PLASTIC = Enum.Material.Plastic
+    for i = 1, #cols do
+        local col = cols[i]
+        local px = (col[1] - cx) * stud
+        local py = (col[2] - cy) * stud
+        local depth = math.max(stud, col[3] * 2 * stud)
+        local c = col[4]
+        local rgbC = rgb(c[1], c[2], c[3])
+        local block
+        if col[5] and depth > stud * 1.25 then
+            local faceZ = -depth / 2 + stud / 2
+            local face = part(m, 'Block', Vector3.new(stud, stud, stud), rgbC, CFrame.new(px, py, faceZ), NEON)
             face.CastShadow = false
-            local bodyD = depthV - 1
-            local body = part(m, 'Block', Vector3.new(stud, stud, bodyD * stud), col, CFrame.new(px, py, faceZ + stud / 2 + bodyD * stud / 2), MAT)
-            body.CastShadow = false
+            local bodyD = depth - stud
+            block = part(m, 'Block', Vector3.new(stud, stud, bodyD), rgbC, CFrame.new(px, py, faceZ + stud / 2 + bodyD / 2), PLASTIC)
         else
-            local mat = (c[4] == 1) and NEON or MAT
-            local block = part(m, 'Block', Vector3.new(stud, stud, depthV * stud), col, CFrame.new(px, py, 0), mat)
-            block.CastShadow = false
+            block = part(m, 'Block', Vector3.new(stud, stud, depth), rgbC, CFrame.new(px, py, 0), col[5] and NEON or PLASTIC)
         end
+        block.CastShadow = false
+        block.TopSurface = Enum.SurfaceType.Studs
     end
     return finalize(m, root)
 end
@@ -2639,7 +2718,7 @@ local function fit(m,target)local ok,s=pcall(function()return m:GetExtentsSize()
 local function model(cat,name)if cat=='Eggs' and VOX[name] then local m=buildVox(name) if m then return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
 local function weld(t,m,off)m.Parent=t m:PivotTo(t.Handle.CFrame*off)for _,p in ipairs(allParts(m))do p.Anchored=false p.CanCollide=false p.CanTouch=false p.CanQuery=false p.Massless=true local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=p w.Parent=t.Handle end end
 local function place(t,m)local c=m:Clone()for _,d in ipairs(c:GetDescendants())do if d:IsA('WeldConstraint')or d:IsA('Motor6D')then d:Destroy()end end c.Parent=Placed for _,p in ipairs(allParts(c))do p.Anchored=true p.CanCollide=false p.CanQuery=true end local mouse=P:GetMouse()local pos=mouse and mouse.Hit and mouse.Hit.Position local hrp=P.Character and P.Character:FindFirstChild('HumanoidRootPart')pos=pos or(hrp and(hrp.Position+hrp.CFrame.LookVector*9))or Vector3.zero local rp=RaycastParams.new()rp.FilterType=Enum.RaycastFilterType.Exclude rp.FilterDescendantsInstances={P.Character,Placed}local ray=workspace:Raycast(pos+Vector3.new(0,35,0),Vector3.new(0,-100,0),rp)if ray then pos=ray.Position end c:PivotTo(CFrame.new(pos))local cf,sz=c:GetBoundingBox()c:PivotTo(c:GetPivot()+Vector3.new(0,pos.Y-(cf.Position.Y-sz.Y/2)+.08,0))t:Destroy()end
-local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.15,-.15)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,1.15,-2.6)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
+local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
 local C={bg=rgb(8,8,14),head=rgb(15,11,23),card=rgb(24,18,34),card2=rgb(37,25,50),border=rgb(84,57,110),p=rgb(142,51,236),p2=rgb(184,83,255),w=Color3.new(1,1,1),m=rgb(168,162,181),g=rgb(105,245,135),o=rgb(255,188,82),r=rgb(255,90,90)}
 local function corner(o,r)local x=Instance.new('UICorner')x.CornerRadius=UDim.new(0,r or 8)x.Parent=o end
@@ -2651,7 +2730,7 @@ local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38)
 local win=Instance.new('Frame')win.Size=UDim2.fromOffset(560,470)win.Position=UDim2.new(.5,-280,.5,-235)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
 local head=Instance.new('Frame')head.Size=UDim2.new(1,0,0,62)head.BackgroundColor3=C.head head.BorderSizePixel=0 head.Parent=win corner(head,13)
 local title=label(head,'DIVINE ITEM SPAWNER',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,24),15)title.Font=Enum.Font.GothamBold
-label(head,'True 3D models • larger held scale • pets place on click',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
+label(head,'Hand-sized round eggs • pets place on click',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
 local close=button(head,'X',UDim2.new(1,-43,0,13),UDim2.fromOffset(28,28))close.BackgroundColor3=C.card2
 launcher.MouseButton1Click:Connect(function()win.Visible=not win.Visible end)close.MouseButton1Click:Connect(function()win.Visible=false end)
 local dragging=false local dragStart local startPos
