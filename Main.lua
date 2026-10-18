@@ -2462,6 +2462,7 @@ P.CharacterAdded:Connect(function() HeldEgg=nil; Carry.Visible=false; resetMorph
 applyTag()
 
 -- ===== V7 TRUE 3D INVENTORY (inlined) =====
+task.spawn(function()
 
 -- SAE V7: true 3D inventory models (no stacked reference images)
 local E=(getgenv and getgenv()) or _G
@@ -2561,3 +2562,5 @@ local spawn=button(win,'SPAWN SELECTED',UDim2.new(1,-176,1,-67),UDim2.fromOffset
 spawn.MouseButton1Click:Connect(function()if not sel then status.Text='Select an item first' status.TextColor3=C.o return end status.Text='Building '..sel..'...' status.TextColor3=C.m task.spawn(function()local ok,msg=spawnTool(cat,sel)status.Text=(ok and'Spawned: 'or'Failed: ')..sel..' • '..tostring(msg)status.TextColor3=ok and C.g or C.r end)end)
 RS.DescendantAdded:Connect(function()cache={}end)P.CharacterAdded:Connect(function()task.wait(.5)cache={}end)
 print('[SAE] V7 true-3D inventory loaded: no stacked image fallbacks.')
+
+end)
