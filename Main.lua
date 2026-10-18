@@ -2584,155 +2584,202 @@ end
 local function nightPet()
     local m=Instance.new('Model')
     m.Name='Night Flame'
-    local base=rgb(31,32,47)
-    local armor=rgb(22,23,36)
-    local plate=rgb(42,42,60)
-    local edge=rgb(51,58,83)
-    local rune=rgb(157,255,245)
-    local eyeGlow=rgb(95,198,255)
-    local root=ball(m,'Core',Vector3.new(3.8,5.3,2.6),base,CFrame.new(),Enum.Material.Slate)
+    local skin=rgb(36,37,55)
+    local shadow=rgb(19,20,32)
+    local armor=rgb(42,42,61)
+    local armor2=rgb(55,53,75)
+    local edge=rgb(73,80,112)
+    local cyan=rgb(177,255,247)
+    local cyanDim=rgb(84,194,205)
+    local root=ball(m,'Core',Vector3.new(3.25,5.1,2.35),skin,CFrame.new(),Enum.Material.Slate)
 
-    -- Broad armored torso, with plate seams following the body rather than a smooth shirt-like block.
-    part(m,'ChestArmor',Vector3.new(3.15,3.2,.42),armor,CFrame.new(0,.55,-1.16),Enum.Material.Slate)
-    part(m,'UpperBreastplate',Vector3.new(2.65,1.05,.48),plate,CFrame.new(0,1.68,-1.39),Enum.Material.Metal)
-    part(m,'AbdomenPlate',Vector3.new(2.45,1.5,.38),base,CFrame.new(0,-.85,-1.35),Enum.Material.Slate)
+    -- Broad, armored chest tapering into a compact waist.
+    ball(m,'Chest',Vector3.new(3.45,3.5,2.55),skin,CFrame.new(0,.85,.05),Enum.Material.Slate)
+    ball(m,'Waist',Vector3.new(2.2,2.15,1.9),shadow,CFrame.new(0,-1.48,.02),Enum.Material.Slate)
+    part(m,'SternumArmor',Vector3.new(2.35,2.9,.36),armor,CFrame.new(0,.62,-1.18),Enum.Material.Metal)
     for _,sx in ipairs({-1,1}) do
-        wedge(m,'ShoulderMantle',Vector3.new(1.55,1.2,1.05),plate,CFrame.new(sx*1.85,1.78,-.18)*CFrame.Angles(0,0,math.rad(sx*12)),Enum.Material.Metal)
-        for row=0,2 do
-            part(m,'RibArmor',Vector3.new(.72,.3,.22),row==1 and edge or armor,CFrame.new(sx*(.55+row*.08),.4-row*.58,-1.59),Enum.Material.Metal)
-        end
+        wedge(m,'PectoralPlate',Vector3.new(1.42,1.15,.45),armor2,CFrame.new(sx*.66,1.28,-1.38)*CFrame.Angles(0,0,math.rad(-sx*8)),Enum.Material.Metal)
+        wedge(m,'HipGuard',Vector3.new(1.12,1.35,.42),armor,CFrame.new(sx*.78,-1.82,-.72)*CFrame.Angles(0,0,math.rad(sx*10)),Enum.Material.Metal)
     end
-
-    -- Wolf-like head, pointed ears, brow, muzzle and an open dark mouth.
-    ball(m,'Skull',Vector3.new(2.65,2.45,2.25),armor,CFrame.new(0,3.48,-.12),Enum.Material.Slate)
-    wedge(m,'EarL',Vector3.new(.78,1.25,.82),edge,CFrame.new(-.88,4.48,-.05)*CFrame.Angles(0,0,math.rad(12)),Enum.Material.Metal)
-    wedge(m,'EarR',Vector3.new(.78,1.25,.82),edge,CFrame.new(.88,4.48,-.05)*CFrame.Angles(0,0,math.rad(-12)),Enum.Material.Metal)
-    part(m,'Brow',Vector3.new(2.05,.38,.42),plate,CFrame.new(0,3.92,-1.12),Enum.Material.Metal)
-    eye(m,-.62,3.62,-1.22,eyeGlow,Vector3.new(.42,.25,.16))
-    eye(m,.62,3.62,-1.22,eyeGlow,Vector3.new(.42,.25,.16))
-    wedge(m,'Muzzle',Vector3.new(1.4,.82,1.05),plate,CFrame.new(0,2.98,-1.13),Enum.Material.Slate)
-    part(m,'OpenMouth',Vector3.new(.9,.42,.12),rgb(9,8,15),CFrame.new(0,2.72,-1.62),Enum.Material.SmoothPlastic)
-    for _,sx in ipairs({-1,1}) do
-        wedge(m,'Fang',Vector3.new(.28,.52,.3),rgb(202,222,232),CFrame.new(sx*.3,2.75,-1.7)*CFrame.Angles(math.rad(180),0,0),Enum.Material.SmoothPlastic)
-    end
-
-    -- Four muscular arms; each has shoulder, forearm armor and distinct claw fingers.
-    for _,row in ipairs({{y=1.28,side=1},{y=-.62,side=-1}}) do
+    for row=0,2 do
         for _,sx in ipairs({-1,1}) do
-            local y=row.y
-            local shoulderX=sx*1.65
-            local elbowX=sx*3.05
-            local handX=sx*4.1
-            local tilt=math.rad(-sx*9*row.side)
-            part(m,'UpperArm',Vector3.new(2.25,.92,1.05),base,CFrame.new(sx*2.45,y,-.08)*CFrame.Angles(0,0,tilt),Enum.Material.Slate)
-            ball(m,'Elbow',Vector3.new(.95,.9,.92),armor,CFrame.new(elbowX,y-.08,-.1),Enum.Material.Slate)
-            part(m,'Forearm',Vector3.new(1.75,.82,.92),plate,CFrame.new(sx*3.55,y-.15,-.14)*CFrame.Angles(0,0,math.rad(sx*7)),Enum.Material.Metal)
-            part(m,'ForearmRidge',Vector3.new(1.15,.18,.16),edge,CFrame.new(sx*3.58,y+.26,-.62)*CFrame.Angles(0,0,math.rad(sx*7)),Enum.Material.Metal)
-            ball(m,'ClawedPalm',Vector3.new(.92,.88,.78),armor,CFrame.new(handX,y-.18,-.18),Enum.Material.Slate)
-            for finger=1,3 do
-                local fy=y+.28-(finger-1)*.34
-                wedge(m,'Claw',Vector3.new(.32,.62,.3),edge,CFrame.new(sx*(handX+.42),fy,-.3)*CFrame.Angles(0,0,math.rad(sx*105)),Enum.Material.Metal)
-            end
+            part(m,'AbdominalScale',Vector3.new(.72,.42,.2),row==1 and armor2 or armor,CFrame.new(sx*.43,-.38-row*.48,-1.0),Enum.Material.Metal)
         end
     end
 
-    -- Digitigrade legs and broad feet with three forward claws apiece.
+    -- A snarling wolf head with swept ears, layered cheek fur, muzzle and visible teeth.
+    ball(m,'WolfSkull',Vector3.new(2.45,2.35,2.1),shadow,CFrame.new(0,3.42,-.06),Enum.Material.Slate)
+    ball(m,'Mane',Vector3.new(2.95,2.25,1.65),armor,CFrame.new(0,3.2,.27),Enum.Material.Slate)
+    wedge(m,'EarL',Vector3.new(.72,1.28,.68),shadow,CFrame.new(-.82,4.53,-.1)*CFrame.Angles(0,0,math.rad(13)),Enum.Material.Slate)
+    wedge(m,'EarR',Vector3.new(.72,1.28,.68),shadow,CFrame.new(.82,4.53,-.1)*CFrame.Angles(0,0,math.rad(-13)),Enum.Material.Slate)
+    wedge(m,'ManeTuftL',Vector3.new(.82,1.22,.72),armor2,CFrame.new(-.82,4.0,.62)*CFrame.Angles(0,0,math.rad(22)),Enum.Material.Slate)
+    wedge(m,'ManeTuftR',Vector3.new(.82,1.22,.72),armor2,CFrame.new(.82,4.0,.62)*CFrame.Angles(0,0,math.rad(-22)),Enum.Material.Slate)
+    part(m,'HeavyBrow',Vector3.new(1.88,.42,.42),armor2,CFrame.new(0,3.85,-1.08),Enum.Material.Metal)
+    eye(m,-.55,3.58,-1.16,cyanDim,Vector3.new(.36,.22,.15))
+    eye(m,.55,3.58,-1.16,cyanDim,Vector3.new(.36,.22,.15))
+    wedge(m,'UpperMuzzle',Vector3.new(1.15,.74,.95),armor,CFrame.new(0,3.02,-1.03),Enum.Material.Slate)
+    part(m,'OpenJaw',Vector3.new(1.03,.6,.18),rgb(7,8,14),CFrame.new(0,2.67,-1.47),Enum.Material.SmoothPlastic)
+    wedge(m,'LowerJaw',Vector3.new(1.18,.44,.64),shadow,CFrame.new(0,2.42,-1.08),Enum.Material.Slate)
     for _,sx in ipairs({-1,1}) do
-        part(m,'ThighArmor',Vector3.new(1.5,2.35,1.45),base,CFrame.new(sx*.92,-2.7,.08),Enum.Material.Slate)
-        part(m,'KneePlate',Vector3.new(1.28,.65,.34),plate,CFrame.new(sx*.92,-2.15,-.72),Enum.Material.Metal)
-        part(m,'Shin',Vector3.new(1.12,1.95,1.12),armor,CFrame.new(sx*.96,-4.25,-.05),Enum.Material.Slate)
-        ball(m,'Foot',Vector3.new(1.65,.75,1.72),plate,CFrame.new(sx*.98,-5.28,-.35),Enum.Material.Slate)
-        for toe=1,3 do
-            wedge(m,'ToeClaw',Vector3.new(.32,.48,.58),edge,CFrame.new(sx*.98+(toe-2)*.43,-5.42,-1.1),Enum.Material.Metal)
+        wedge(m,'Fang',Vector3.new(.2,.48,.24),rgb(177,198,213),CFrame.new(sx*.31,2.79,-1.56)*CFrame.Angles(math.rad(180),0,0),Enum.Material.SmoothPlastic)
+        wedge(m,'CheekFur',Vector3.new(.72,1.08,.65),armor2,CFrame.new(sx*1.0,3.1,-.62)*CFrame.Angles(0,0,math.rad(-sx*20)),Enum.Material.Slate)
+    end
+
+    -- Exactly four arms: a long upper pair and a lower pair, all built from connected anatomy.
+    for _,arm in ipairs({{y=1.5,spread=1},{y=-.28,spread=.88}}) do
+        for _,sx in ipairs({-1,1}) do
+            local y=arm.y
+            local midX=sx*2.78
+            local wristX=sx*4.15
+            local handX=sx*4.78
+            local down=arm.spread
+            ball(m,'Shoulder',Vector3.new(1.48,1.5,1.28),skin,CFrame.new(sx*1.82,y+.12,-.02),Enum.Material.Slate)
+            wedge(m,'ShoulderArmor',Vector3.new(1.62,1.28,1.0),armor2,CFrame.new(sx*2.03,y+.35,-.63)*CFrame.Angles(0,0,math.rad(-sx*13)),Enum.Material.Metal)
+            part(m,'Bicep',Vector3.new(2.05,.94,1.02),skin,CFrame.new(sx*2.55,y,-.04)*CFrame.Angles(0,0,math.rad(sx*11)),Enum.Material.Slate)
+            ball(m,'Elbow',Vector3.new(.95,.92,.9),shadow,CFrame.new(midX,y-.14*down,-.06),Enum.Material.Slate)
+            part(m,'Bracer',Vector3.new(1.75,.82,.91),armor,CFrame.new(sx*3.52,y-.25*down,-.1)*CFrame.Angles(0,0,math.rad(sx*8)),Enum.Material.Metal)
+            for tile=1,3 do
+                wedge(m,'BracerScale',Vector3.new(.56,.48,.26),tile==2 and armor2 or edge,CFrame.new(sx*(3.03+tile*.34),y+.14*down,-.62)*CFrame.Angles(0,0,math.rad(sx*8)),Enum.Material.Metal)
+            end
+            ball(m,'Wrist',Vector3.new(.7,.72,.7),shadow,CFrame.new(wristX,y-.34*down,-.12),Enum.Material.Slate)
+            ball(m,'ClawPalm',Vector3.new(1.12,.94,.84),armor,CFrame.new(handX,y-.4*down,-.16),Enum.Material.Slate)
+            for finger=1,3 do
+                local fx=handX+sx*(.22+(finger-2)*.35)
+                local fy=y-.25*down-(finger-2)*.28
+                wedge(m,'DarkClaw',Vector3.new(.27,.72,.3),edge,CFrame.new(fx,fy,-.34)*CFrame.Angles(0,0,math.rad(sx*105)),Enum.Material.Metal)
+            end
+            wedge(m,'ThumbClaw',Vector3.new(.3,.65,.32),edge,CFrame.new(sx*(handX-.42),y-.76*down,-.3)*CFrame.Angles(0,0,math.rad(-sx*50)),Enum.Material.Metal)
         end
     end
 
-    -- The reference's icy chest sigil is a branching rune, not a plain vertical stripe.
-    part(m,'RuneSpine',Vector3.new(.24,1.85,.16),rune,CFrame.new(0,.7,-1.67),Enum.Material.Neon)
-    for _,branch in ipairs({
-        {x=-.42,y=1.35,a=-42},{x=.42,y=1.35,a=42},
-        {x=-.68,y=.72,a=-28},{x=.68,y=.72,a=28},
-        {x=-.38,y=.02,a=36},{x=.38,y=.02,a=-36},
+    -- Heavy bent legs, plated knees and wolf-like feet with clear forward claws.
+    for _,sx in ipairs({-1,1}) do
+        part(m,'Thigh',Vector3.new(1.55,2.25,1.55),skin,CFrame.new(sx*.84,-2.62,.08)*CFrame.Angles(0,0,math.rad(-sx*5)),Enum.Material.Slate)
+        wedge(m,'ThighPlate',Vector3.new(1.28,1.42,.38),armor,CFrame.new(sx*.88,-2.38,-.79)*CFrame.Angles(0,0,math.rad(-sx*7)),Enum.Material.Metal)
+        ball(m,'Knee',Vector3.new(1.18,.86,1.0),shadow,CFrame.new(sx*.9,-3.6,-.04),Enum.Material.Slate)
+        part(m,'Greave',Vector3.new(1.1,1.85,1.18),armor,CFrame.new(sx*1.02,-4.45,-.05)*CFrame.Angles(0,0,math.rad(sx*8)),Enum.Material.Metal)
+        wedge(m,'ShinPlate',Vector3.new(.9,1.25,.32),armor2,CFrame.new(sx*1.02,-4.38,-.68)*CFrame.Angles(0,0,math.rad(sx*8)),Enum.Material.Metal)
+        ball(m,'WolfFoot',Vector3.new(1.55,.82,1.72),shadow,CFrame.new(sx*1.07,-5.52,-.35),Enum.Material.Slate)
+        for toe=1,3 do
+            wedge(m,'FootClaw',Vector3.new(.3,.58,.5),edge,CFrame.new(sx*1.07+(toe-2)*.43,-5.62,-1.05),Enum.Material.Metal)
+        end
+    end
+
+    -- Bright branching chest sigil with a central knot and long downward ray.
+    part(m,'RuneStem',Vector3.new(.23,1.72,.15),cyan,CFrame.new(0,.62,-1.54),Enum.Material.Neon)
+    part(m,'RuneCrossbar',Vector3.new(1.72,.2,.15),cyan,CFrame.new(0,1.05,-1.56),Enum.Material.Neon)
+    for _,ray in ipairs({
+        {x=-.48,y=.74,a=-42},{x=.48,y=.74,a=42},
+        {x=-.66,y=.28,a=-28},{x=.66,y=.28,a=28},
+        {x=-.34,y=-.12,a=36},{x=.34,y=-.12,a=-36},
     }) do
-        part(m,'RuneBranch',Vector3.new(.16,.95,.14),rune,CFrame.new(branch.x,branch.y,-1.69)*CFrame.Angles(0,0,math.rad(branch.a)),Enum.Material.Neon)
+        part(m,'RuneBranch',Vector3.new(.15,.78,.13),cyan,CFrame.new(ray.x,ray.y,-1.57)*CFrame.Angles(0,0,math.rad(ray.a)),Enum.Material.Neon)
+    end
+    for _,sx in ipairs({-1,1}) do
+        part(m,'RuneTail',Vector3.new(.12,.62,.12),cyanDim,CFrame.new(sx*.12,-.53,-1.55)*CFrame.Angles(0,0,math.rad(sx*8)),Enum.Material.Neon)
     end
     return finalize(m,root)
 end
 local function luminousPet()
     local m=Instance.new('Model')
     m.Name='Luminous Cthulhu'
-    local body=rgb(18,37,82)
-    local dark=rgb(12,25,60)
-    local mid=rgb(29,57,116)
-    local ice=rgb(196,241,255)
-    local cyan=rgb(82,211,255)
-    local root=ball(m,'Core',Vector3.new(4.5,5.5,3.1),body,CFrame.new(),Enum.Material.Slate)
+    local navy=rgb(16,34,80)
+    local deep=rgb(10,22,58)
+    local blue=rgb(31,63,133)
+    local mid=rgb(48,91,173)
+    local membrane=rgb(91,171,235)
+    local ice=rgb(190,239,255)
+    local cyan=rgb(76,208,255)
+    local root=ball(m,'Core',Vector3.new(4.25,5.3,2.9),navy,CFrame.new(),Enum.Material.Slate)
 
-    -- A hunched, deep torso and narrow waist anchor the tentacles and wings.
-    ball(m,'Ribcage',Vector3.new(4.25,4.5,2.8),body,CFrame.new(0,.65,0),Enum.Material.Slate)
-    ball(m,'Abdomen',Vector3.new(2.7,2.4,2.2),dark,CFrame.new(0,-2.1,-.05),Enum.Material.Slate)
-    ball(m,'HeadMantle',Vector3.new(3.25,2.8,2.65),dark,CFrame.new(0,3.1,-.08),Enum.Material.Slate)
-    wedge(m,'CrownSpire',Vector3.new(1.15,1.65,1.05),mid,CFrame.new(0,4.45,-.05),Enum.Material.Slate)
+    -- Hunched shoulders, compact waist and bent legs create the monster's broad stance.
+    ball(m,'Ribcage',Vector3.new(4.15,4.1,2.75),navy,CFrame.new(0,.62,.02),Enum.Material.Slate)
+    ball(m,'Abdomen',Vector3.new(2.75,2.35,2.15),deep,CFrame.new(0,-1.92,.02),Enum.Material.Slate)
     for _,sx in ipairs({-1,1}) do
-        wedge(m,'CrownFin',Vector3.new(.9,1.5,.82),mid,CFrame.new(sx*1.0,3.95,-.04)*CFrame.Angles(0,0,math.rad(-sx*28)),Enum.Material.Slate)
-        wedge(m,'TempleFin',Vector3.new(.7,1.1,.7),dark,CFrame.new(sx*1.48,3.15,.04)*CFrame.Angles(0,0,math.rad(-sx*38)),Enum.Material.Slate)
-    end
-    part(m,'FaceShadow',Vector3.new(1.25,1.35,.16),dark,CFrame.new(0,3.02,-1.38),Enum.Material.SmoothPlastic)
-    eye(m,-.48,3.25,-1.49,ice,Vector3.new(.34,.26,.14))
-    eye(m,.48,3.25,-1.49,ice,Vector3.new(.34,.26,.14))
-
-    -- Large thin bat wings. The dark stepped spars frame bright ice-blue membranes.
-    for _,sx in ipairs({-1,1}) do
-        local rootX=sx*1.65
-        wedge(m,'WingRoot',Vector3.new(1.25,2.75,.5),dark,CFrame.new(sx*2.05,2.15,.18)*CFrame.Angles(0,0,math.rad(-sx*20)),Enum.Material.Slate)
-        wedge(m,'WingOuter',Vector3.new(2.1,3.8,.4),mid,CFrame.new(sx*3.65,2.75,.22)*CFrame.Angles(0,0,math.rad(-sx*22)),Enum.Material.Slate)
-        wedge(m,'WingMembrane',Vector3.new(1.82,3.22,.22),rgb(54,123,211),CFrame.new(sx*3.55,2.76,-.06)*CFrame.Angles(0,0,math.rad(-sx*22)),Enum.Material.Ice)
-        wedge(m,'WingTip',Vector3.new(.72,1.18,.34),dark,CFrame.new(sx*4.45,4.2,.12)*CFrame.Angles(0,0,math.rad(-sx*34)),Enum.Material.Slate)
-        for feather=1,3 do
-            local fy=3.55-(feather-1)*1.0
-            wedge(m,'WingScallop',Vector3.new(.9,1.45,.28),feather==2 and rgb(99,177,240) or rgb(117,199,251),CFrame.new(sx*(2.85+feather*.28),fy,-.19)*CFrame.Angles(0,0,math.rad(-sx*(34+feather*5))),Enum.Material.Ice)
-            part(m,'WingVein',Vector3.new(.12,1.7,.1),cyan,CFrame.new(sx*(2.7+feather*.3),fy-.2,-.34)*CFrame.Angles(0,0,math.rad(-sx*28)),Enum.Material.Neon)
-        end
-        -- Arms hang under the wing roots and end in oversized icy talons.
-        part(m,'UpperArm',Vector3.new(1.25,2.6,1.35),body,CFrame.new(sx*2.55,-.45,-.05)*CFrame.Angles(0,0,math.rad(sx*12)),Enum.Material.Slate)
-        ball(m,'Wrist',Vector3.new(1.12,1.05,1.0),dark,CFrame.new(sx*2.75,-1.75,-.2),Enum.Material.Slate)
-        ball(m,'ClawPalm',Vector3.new(1.12,1.15,.9),ice,CFrame.new(sx*2.8,-2.35,-.35),Enum.Material.Ice)
+        ball(m,'ShoulderMass',Vector3.new(1.72,1.85,1.62),navy,CFrame.new(sx*1.88,1.62,.02),Enum.Material.Slate)
+        wedge(m,'ShoulderArmor',Vector3.new(1.35,1.1,.62),blue,CFrame.new(sx*1.95,2.06,-.64)*CFrame.Angles(0,0,math.rad(-sx*16)),Enum.Material.Metal)
+        part(m,'UpperArm',Vector3.new(1.18,2.25,1.24),navy,CFrame.new(sx*2.52,.25,-.02)*CFrame.Angles(0,0,math.rad(sx*15)),Enum.Material.Slate)
+        ball(m,'Elbow',Vector3.new(1.02,1.0,.95),deep,CFrame.new(sx*2.85,-.92,-.08),Enum.Material.Slate)
+        part(m,'Forearm',Vector3.new(1.05,1.65,1.03),blue,CFrame.new(sx*2.95,-1.72,-.11)*CFrame.Angles(0,0,math.rad(-sx*8)),Enum.Material.Slate)
+        ball(m,'ClawPalm',Vector3.new(.95,.92,.82),navy,CFrame.new(sx*3.0,-2.68,-.16),Enum.Material.Slate)
         for claw=1,3 do
-            wedge(m,'IceTalons',Vector3.new(.34,.92,.35),ice,CFrame.new(sx*(2.8+(claw-2)*.48),-3.05,-.42),Enum.Material.Ice)
+            wedge(m,'IceClaw',Vector3.new(.29,.72,.3),ice,CFrame.new(sx*(3.0+(claw-2)*.39),-3.24,-.33),Enum.Material.Ice)
         end
-        -- Angular, clawed feet and the reference's clustered ice growths.
-        part(m,'Leg',Vector3.new(1.5,2.25,1.5),body,CFrame.new(sx*1.15,-4.05,.08),Enum.Material.Slate)
-        wedge(m,'KneeShard',Vector3.new(.72,.92,.68),mid,CFrame.new(sx*1.15,-3.2,-.65),Enum.Material.Ice)
-        ball(m,'Foot',Vector3.new(1.55,.82,1.7),dark,CFrame.new(sx*1.2,-5.32,-.35),Enum.Material.Slate)
+        part(m,'Thigh',Vector3.new(1.42,2.2,1.4),navy,CFrame.new(sx*1.0,-3.2,.12)*CFrame.Angles(0,0,math.rad(-sx*11)),Enum.Material.Slate)
+        ball(m,'Knee',Vector3.new(1.1,.95,1.0),deep,CFrame.new(sx*1.15,-4.08,-.04),Enum.Material.Slate)
+        part(m,'LowerLeg',Vector3.new(1.12,1.55,1.2),blue,CFrame.new(sx*1.26,-4.86,-.02)*CFrame.Angles(0,0,math.rad(sx*9)),Enum.Material.Slate)
+        ball(m,'TalonedFoot',Vector3.new(1.45,.78,1.5),deep,CFrame.new(sx*1.3,-5.78,-.32),Enum.Material.Slate)
         for claw=1,3 do
-            wedge(m,'FootClaw',Vector3.new(.32,.55,.58),ice,CFrame.new(sx*(1.2+(claw-2)*.42),-5.45,-1.05),Enum.Material.Ice)
-        end
-        for k=1,4 do
-            wedge(m,'IceBloom',Vector3.new(.44,.86,.38),k%2==0 and cyan or ice,CFrame.new(sx*(2.15+k*.18),1.15-(k%2)*.55,-.56)*CFrame.Angles(0,0,math.rad(-sx*(25+k*7))),Enum.Material.Ice)
+            wedge(m,'FootTalons',Vector3.new(.28,.6,.52),ice,CFrame.new(sx*(1.3+(claw-2)*.4),-5.92,-.95),Enum.Material.Ice)
         end
     end
 
-    -- Six rounded, individually segmented face tendrils frame the glowing eyes and chest.
+    -- Tentacled cephalopod head: crown lobes, recessed face, and five long curling tendrils.
+    ball(m,'Head',Vector3.new(2.75,2.5,2.25),deep,CFrame.new(0,3.22,-.02),Enum.Material.Slate)
     for i=-2,2 do
-        local sx=i*.38
-        local reach=2.35+(.2*(2-math.abs(i)))
-        for seg=0,4 do
-            local t=seg/4
-            local x=sx+math.sin(t*math.pi*.9+i*.18)*(.38+t*.25)
-            local y=2.65-t*reach
-            local z=-1.35-t*.18
-            local size=Vector3.new(.62-t*.16,.72-t*.14,.64-t*.12)
-            ball(m,'FaceTendril',size,seg%2==0 and body or mid,CFrame.new(x,y,z),Enum.Material.Slate)
-            if seg==4 then
-                wedge(m,'TendrilTip',Vector3.new(.38,.72,.38),ice,CFrame.new(x,y-.38,z-.06),Enum.Material.Ice)
+        local sx=i*.48
+        local h=(i==0) and 1.75 or 1.35
+        wedge(m,'CrownLobe',Vector3.new(.8,h,.72),i%2==0 and blue or navy,CFrame.new(sx,4.3+(i==0 and .28 or 0),.02)*CFrame.Angles(0,0,math.rad(-i*9)),Enum.Material.Slate)
+    end
+    part(m,'FaceRecess',Vector3.new(1.3,1.12,.16),deep,CFrame.new(0,3.18,-1.18),Enum.Material.SmoothPlastic)
+    eye(m,-.43,3.3,-1.31,cyan,Vector3.new(.3,.22,.13))
+    eye(m,.43,3.3,-1.31,cyan,Vector3.new(.3,.22,.13))
+    local tentaclePaths={
+        {{-.78,3.2,-1.32},{-1.15,2.6,-1.45},{-1.32,1.85,-1.52},{-1.1,1.05,-1.55},{-.62,.72,-1.58}},
+        {{-.42,3.05,-1.4},{-.68,2.35,-1.55},{-.62,1.62,-1.6},{-.28,1.04,-1.62},{.16,.85,-1.62}},
+        {{0,3.02,-1.43},{.12,2.3,-1.58},{.48,1.72,-1.62},{.92,1.25,-1.6},{1.08,.62,-1.58}},
+        {{.4,3.05,-1.4},{.82,2.42,-1.52},{1.1,1.8,-1.58},{.98,1.15,-1.62},{.62,.7,-1.62}},
+        {{.8,3.18,-1.3},{1.22,2.62,-1.42},{1.42,2.02,-1.5},{1.28,1.45,-1.56},{1.52,1.08,-1.58}},
+    }
+    for index,path in ipairs(tentaclePaths) do
+        for point=1,#path do
+            local v=path[point]
+            local width=point==1 and .66 or (point==#path and .42 or .54)
+            ball(m,'FaceTendril',Vector3.new(width,.72,width),index%2==0 and blue or navy,CFrame.new(v[1],v[2],v[3]),Enum.Material.Slate)
+        end
+        for point=1,#path-1 do
+            local a,b=path[point],path[point+1]
+            local dx,dy=b[1]-a[1],b[2]-a[2]
+            local length=math.sqrt(dx*dx+dy*dy)
+            part(m,'TendrilBridge',Vector3.new(.42,length,.42),index%2==0 and blue or navy,CFrame.new((a[1]+b[1])/2,(a[2]+b[2])/2,(a[3]+b[3])/2)*CFrame.Angles(0,0,-math.atan2(dx,dy)),Enum.Material.Slate)
+        end
+        local last=path[#path]
+        wedge(m,'TendrilPoint',Vector3.new(.4,.62,.38),ice,CFrame.new(last[1],last[2]-.3,last[3]),Enum.Material.Ice)
+    end
+
+    -- Large up-swept bat wings with a dark rim, broad blue membrane, scallops and luminous veins.
+    for _,sx in ipairs({-1,1}) do
+        local wingAngle=math.rad(-sx*27)
+        wedge(m,'WingBase',Vector3.new(2.25,4.45,.52),navy,CFrame.new(sx*3.32,3.45,.24)*CFrame.Angles(0,0,wingAngle),Enum.Material.Slate)
+        wedge(m,'WingMembrane',Vector3.new(1.82,3.92,.24),membrane,CFrame.new(sx*3.25,3.5,-.08)*CFrame.Angles(0,0,wingAngle),Enum.Material.Ice)
+        wedge(m,'WingOuterRim',Vector3.new(.48,4.7,.58),blue,CFrame.new(sx*4.48,3.65,.13)*CFrame.Angles(0,0,wingAngle+math.rad(sx*3)),Enum.Material.Slate)
+        wedge(m,'WingHook',Vector3.new(.68,1.65,.5),navy,CFrame.new(sx*4.68,5.55,.12)*CFrame.Angles(0,0,math.rad(-sx*45)),Enum.Material.Slate)
+        for feather=1,4 do
+            local x=sx*(2.35+feather*.45)
+            local y=2.15-(feather%2)*.36
+            wedge(m,'WingScallop',Vector3.new(.78,1.48,.32),feather%2==0 and membrane or rgb(117,198,247),CFrame.new(x,y,-.25)*CFrame.Angles(0,0,math.rad(-sx*(38+feather*5))),Enum.Material.Ice)
+        end
+        part(m,'WingVein',Vector3.new(.14,3.45,.12),cyan,CFrame.new(sx*3.22,3.25,-.29)*CFrame.Angles(0,0,wingAngle),Enum.Material.Neon)
+        for vein=1,3 do
+            part(m,'WingBranch',Vector3.new(.1,1.42,.1),cyan,CFrame.new(sx*(2.65+vein*.34),3.8-vein*.6,-.3)*CFrame.Angles(0,0,math.rad(-sx*(48+vein*9))),Enum.Material.Neon)
+        end
+
+        -- Icy flower-like crystals cluster at shoulders, elbows, wrists and outer forearms.
+        for cluster=1,4 do
+            local cx=sx*(2.0+cluster*.25)
+            local cy=1.7-(cluster-1)*.82
+            for shard=1,3 do
+                wedge(m,'IceBloomShard',Vector3.new(.3,.78,.3),shard==2 and cyan or ice,CFrame.new(cx+sx*(shard-2)*.22,cy+(shard==2 and .15 or 0),-.78)*CFrame.Angles(0,0,math.rad(-sx*(20+(shard-2)*30))),Enum.Material.Ice)
             end
         end
     end
-    -- Thin luminous fissures run down the torso and limbs like the source illustration.
+
+    -- Bright branching frost veins are inlaid across the chest and limbs.
     for _,sx in ipairs({-1,1}) do
-        for stripe=1,3 do
-            part(m,'IcyVein',Vector3.new(.12,1.25,.1),cyan,CFrame.new(sx*(.75+stripe*.22),.25-stripe*.45,-1.43)*CFrame.Angles(0,0,math.rad(sx*(22+stripe*11))),Enum.Material.Neon)
+        for line=1,4 do
+            part(m,'FrostCrack',Vector3.new(.12,1.02,.1),cyan,CFrame.new(sx*(.38+line*.19),.9-line*.48,-1.31)*CFrame.Angles(0,0,math.rad(sx*(24+line*10))),Enum.Material.Neon)
         end
+        part(m,'ArmFrostCrack',Vector3.new(.11,1.45,.1),cyan,CFrame.new(sx*2.95,-1.45,-.66)*CFrame.Angles(0,0,math.rad(-sx*8)),Enum.Material.Neon)
     end
     return finalize(m,root)
 end
