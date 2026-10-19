@@ -1,0 +1,24 @@
+name: Patch Star and Items UI
+on:
+  push:
+    paths:
+      - 'patch_star_ui.py'
+      - '.github/workflows/patch-star-items.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Main.lua
+        run: python3 patch_star_ui.py
+      - name: Commit final Main.lua only
+        run: |
+          git config user.name "takingfromkids"
+          git config user.email "takingfromkids@gmail.com"
+          git rm patch_star_ui.py .github/workflows/patch-star-items.yml
+          git add Main.lua
+          git commit -m "Fix held Star animation and compact item UI"
+          git push
