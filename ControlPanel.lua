@@ -242,7 +242,7 @@ MorphColorsPage:GetPropertyChangedSignal("Visible"):Connect(function()
     if not MorphColorsPage.Visible then Morph.Visible=true end
 end)
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
-local GiftPanel=window("GiftPanel","Gift Panel","Choose a gift category",350,238,UDim2.new(.5,0,.5,0))
+local GiftPanel=window("GiftPanel","Gift Panel","Spawn eggs, pets, and stars",430,470,UDim2.new(.5,0,.5,0))
 GiftPanel.Visible=false
 GiftPanel.BackgroundTransparency=Main.BackgroundTransparency
 
@@ -268,25 +268,99 @@ end)
 bGift.MouseButton1Click:Connect(function() Main.Visible=false; GiftPanel.Visible=not GiftPanel.Visible end)
 
 section(GiftPanel,"GIFT CATEGORIES",64)
-local giftStatus=label(GiftPanel,"Choose Eggs, Pets, or Stars.",UDim2.fromOffset(12,197),UDim2.new(1,-24,0,22),10)
+local GiftCatalog={Eggs={'Unicorn Egg','Kitsune Egg','Night Flame Egg','Archangel Egg','World Burner Egg','Aetheron Egg','Cthulhu Egg','Luminous Cthulhu Egg','Sabertooth Egg','Skeletal Sabertooth Egg','Octophant Egg','Mecha Scrambler Egg'},Pets={'Unicorn','Kitsune','Night Flame','Archangel','World Burner','Aetheron','Cthulhu','Luminous Cthulhu','Sabertooth','Skeletal Sabertooth','Octophant','Mecha Scrambler'},Stars={'Star'}}
+local GiftSpawnItem=nil
+local giftStatus=label(GiftPanel,"Choose a category, then select an item.",UDim2.fromOffset(12,395),UDim2.new(1,-24,0,20),10)
 giftStatus.TextColor3=C.muted
 local giftCategoryButtons={}
 local selectedGiftCategory=nil
+local selectedGiftItem=nil
+local giftItems=Instance.new("ScrollingFrame")
+giftItems.Position=UDim2.fromOffset(12,124)
+giftItems.Size=UDim2.new(1,-24,0,258)
+giftItems.BackgroundColor3=C.card
+giftItems.BorderSizePixel=0
+giftItems.ScrollBarThickness=5
+giftItems.CanvasSize=UDim2.fromOffset(0,0)
+giftItems.Parent=GiftPanel
+corner(giftItems,10); stroke(giftItems,.5)
+local giftGrid=Instance.new("UIGridLayout")
+giftGrid.CellSize=UDim2.new(.5,-12,0,40)
+giftGrid.CellPadding=UDim2.fromOffset(8,8)
+giftGrid.SortOrder=Enum.SortOrder.LayoutOrder
+giftGrid.Parent=giftItems
+local giftPadding=Instance.new("UIPadding")
+giftPadding.PaddingTop=UDim.new(0,8)
+giftPadding.PaddingLeft=UDim.new(0,8)
+giftPadding.PaddingRight=UDim.new(0,8)
+giftPadding.Parent=giftItems
+giftGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    giftItems.CanvasSize=UDim2.fromOffset(0,giftGrid.AbsoluteContentSize.Y+16)
+end)
+local function renderGiftItems()
+    for _,child in ipairs(giftItems:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    local list=GiftCatalog[selectedGiftCategory] or {}
+    for i,name in ipairs(list) do
+        local itemButton=button(giftItems,name,UDim2.new(),UDim2.new(),true)
+        itemButton.LayoutOrder=i
+        itemButton.TextSize=10
+        itemButton:SetAttribute("RestingColor",selectedGiftItem==name and C.purple or C.card2)
+        itemButton.MouseButton1Click:Connect(function()
+            selectedGiftItem=name
+            giftStatus.Text="Selected: "..name
+            giftStatus.TextColor3=C.white
+            renderGiftItems()
+        end)
+    end
+end
 local function selectGiftCategory(name)
     selectedGiftCategory=name
+    selectedGiftItem=nil
     for category,categoryButton in pairs(giftCategoryButtons) do
         local selected=category==name
         categoryButton:SetAttribute("RestingColor",selected and C.purple or C.card2)
     end
-    giftStatus.Text=name.." category selected."
+    giftStatus.Text=name.." selected. Choose an item."
     giftStatus.TextColor3=C.white
+    renderGiftItems()
 end
 for i,name in ipairs({"Eggs","Pets","Stars"}) do
-    local categoryButton=button(GiftPanel,name,UDim2.fromOffset(12,82+(i-1)*36),UDim2.new(1,-24,0,30),true)
-    categoryButton.TextSize=12
+    local categoryButton=button(GiftPanel,name,UDim2.new((i-1)/3,4,0,82),UDim2.new(1/3,-8,0,30),true)
+    categoryButton.TextSize=11
     giftCategoryButtons[name]=categoryButton
     categoryButton.MouseButton1Click:Connect(function() selectGiftCategory(name) end)
 end
+local giftSpawn=button(GiftPanel,"SPAWN SELECTED",UDim2.new(1,-174,0,421),UDim2.fromOffset(162,32),false)
+local giftSpawning=false
+giftSpawn.MouseButton1Click:Connect(function()
+    if giftSpawning then return end
+    if not selectedGiftCategory or not selectedGiftItem then
+        giftStatus.Text="Select a category and item first."
+        giftStatus.TextColor3=C.orange
+        return
+    end
+    if not GiftSpawnItem then
+        giftStatus.Text="Item spawner is still loading."
+        giftStatus.TextColor3=C.orange
+        return
+    end
+    local category=selectedGiftCategory=="Stars" and "Star" or selectedGiftCategory
+    local name=selectedGiftItem
+    giftSpawning=true
+    giftSpawn.Text="BUILDING..."
+    giftStatus.Text="Building "..name.."..."
+    giftStatus.TextColor3=C.muted
+    task.spawn(function()
+        local success,ok,msg=pcall(GiftSpawnItem,category,name)
+        if not success then msg=ok; ok=false end
+        giftSpawning=false
+        giftSpawn.Text="SPAWN SELECTED"
+        giftStatus.Text=(ok and "Spawned: " or "Failed: ")..name.." • "..tostring(msg)
+        giftStatus.TextColor3=ok and C.green or C.red
+    end)
+end)
 
 -- Centered announcement layer.
 local Notify=Instance.new("Frame"); Notify.BackgroundTransparency=1; Notify.Size=UDim2.fromScale(1,1); Notify.Parent=Gui
@@ -2493,8 +2567,8 @@ for _,holder in ipairs({BP,P.Character}) do if holder then for _,o in ipairs(hol
 local oldPlaced=workspace:FindFirstChild('SAE_V7_PLACED') if oldPlaced then oldPlaced:Destroy() end
 local Placed=Instance.new('Folder') Placed.Name='SAE_V7_PLACED' Placed.Parent=workspace
 
-local Eggs={'Unicorn Egg','Kitsune Egg','Night Flame Egg','Archangel Egg','World Burner Egg','Aetheron Egg','Cthulhu Egg','Luminous Cthulhu Egg','Sabertooth Egg','Skeletal Sabertooth Egg','Octophant Egg','Mecha Scrambler Egg'}
-local Pets={'Unicorn','Kitsune','Night Flame','Archangel','World Burner','Aetheron','Cthulhu','Luminous Cthulhu','Sabertooth','Skeletal Sabertooth','Octophant','Mecha Scrambler'}
+local Eggs=GiftCatalog.Eggs
+local Pets=GiftCatalog.Pets
 local Aliases={
 ['Unicorn Egg']={'Unicorn Egg','UnicornEgg'},['Kitsune Egg']={'Kitsune Egg','KitsuneEgg'},['Night Flame Egg']={'Night Flame Egg','Nightflame Egg','NightFlameEgg'},['Archangel Egg']={'Archangel Egg','ArchAngel Egg','Arch Angel Egg','ArchAngelEgg'},['World Burner Egg']={'World Burner Egg','WorldBurnerEgg'},['Aetheron Egg']={'Aetheron Egg','AetheronEgg'},['Cthulhu Egg']={'Cthulhu Egg','CthulhuEgg'},['Luminous Cthulhu Egg']={'Luminous Cthulhu Egg','LuminousCthulhuEgg'},['Sabertooth Egg']={'Sabertooth Egg','SabertoothEgg'},['Skeletal Sabertooth Egg']={'Skeletal Sabertooth Egg','SkeletalSabertoothEgg','Skeletal Saber Tooth Egg'},['Octophant Egg']={'Octophant Egg','OctophantEgg'},['Mecha Scrambler Egg']={'Mecha Scrambler Egg','MechaScramblerEgg'},
 ['Unicorn']={'Unicorn'},['Kitsune']={'Kitsune'},['Night Flame']={'Night Flame','Nightflame','NightFlame'},['Archangel']={'Archangel','ArchAngel','Arch Angel'},['World Burner']={'World Burner','WorldBurner'},['Aetheron']={'Aetheron'},['Cthulhu']={'Cthulhu'},['Luminous Cthulhu']={'Luminous Cthulhu','LuminousCthulhu'},['Sabertooth']={'Sabertooth','Saber Tooth'},['Skeletal Sabertooth']={'Skeletal Sabertooth','SkeletalSabertooth','Skeletal Saber Tooth'},['Octophant']={'Octophant'},['Mecha Scrambler']={'Mecha Scrambler','MechaScrambler'},['Star']={'Star','Golden Star','Gold Star','Divine Star'}}
@@ -2854,6 +2928,7 @@ local function itemImage(cat,name)
     iconCache[key]=bestImage or false
     return bestImage
 end
+GiftSpawnItem=function(cat,name) return spawnTool(cat,name) end
 local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=itemImage(cat,name)or'' t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
 local C={bg=rgb(8,8,14),head=rgb(15,11,23),card=rgb(24,18,34),card2=rgb(37,25,50),border=rgb(84,57,110),p=rgb(142,51,236),p2=rgb(184,83,255),w=Color3.new(1,1,1),m=rgb(168,162,181),g=rgb(105,245,135),o=rgb(255,188,82),r=rgb(255,90,90)}
