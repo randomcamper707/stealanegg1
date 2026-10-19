@@ -57,6 +57,11 @@ local function executeEmbedded(label,source)
         warn('[SAE] '..label..' compile error: '..tostring(compileErr))
         return false
     end
+    if setfenv and getfenv then
+        local parentEnv=getfenv(fn)
+        local moduleEnv=setmetatable({}, {__index=parentEnv})
+        setfenv(fn,moduleEnv)
+    end
     local ok,err=xpcall(fn,function(e)
         return tostring(e)
     end)
@@ -833,19 +838,19 @@ local CONTROL_PANEL_SOURCE=[============[
 -- Steal An Egg - Combined Main (Control Panel + V7 3D Inventory)
 -- All functionality in one file. No external loads.
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
-local TextService = game:GetService("TextService")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+Players = game:GetService("Players")
+ReplicatedStorage = game:GetService("ReplicatedStorage")
+TweenService = game:GetService("TweenService")
+TextService = game:GetService("TextService")
+UserInputService = game:GetService("UserInputService")
+RunService = game:GetService("RunService")
 
-local P = Players.LocalPlayer
+P = Players.LocalPlayer
 if not P then return end
-local PG = P:FindFirstChildOfClass("PlayerGui") or P:WaitForChild("PlayerGui",10)
+PG = P:FindFirstChildOfClass("PlayerGui") or P:WaitForChild("PlayerGui",10)
 if not PG then return end
 
-local function arrlen(t)
+function arrlen(t)
     local n=0
     for _ in ipairs(t) do n=n+1 end
     return n
@@ -861,7 +866,7 @@ for _,n in ipairs({"SAE_LocalEggs","SAE_LocalNPCs","SAE_SafeZoneMarker"}) do
 end
 -- Earlier versions placed the morph under CurrentCamera. Remove every stale
 -- display rig and undo the local invisibility they left on the real character.
-local hadStaleMorph=false
+hadStaleMorph=false
 while true do
     local old=workspace:FindFirstChild("SAE_MorphShell",true)
     if not old then break end
@@ -878,7 +883,7 @@ if hadStaleMorph and P.Character then
     end
 end
 
-local CFG = {
+CFG = {
     AnnouncementProfile = {Name=P.DisplayName, Username=P.Name, UserId=P.UserId},
     Remotes = {
         Morph=nil, Announcement=nil, GlobalAnnouncement=nil,
@@ -887,15 +892,15 @@ local CFG = {
     }
 }
 
-local EGGS = {
+EGGS = {
     "MIXED","Skeleton Horse","World Burner","Equinox egg","Aetheron egg",
     "Gorilla King egg","Nightflame egg","Eternal Lunar Dragon egg","Unicorn egg",
     "Nibbles #013 Egg","Experiment #001 Egg","Scorched Dragon egg","Drilla egg",
     "Void Dragon egg","Rifborn egg","Riftbeasts egg","Shattered Rift egg",
     "Pegasus","ArchAngel","Oni Tiger egg","Kitsune egg"
 }
-local PATTERNS = {"ORIGINAL 6x20","ONE TYPE PER ROW","SPLIT ROWS 3+3","PAIRS 2+2+2","MIRRORED ROWS","ALTERNATING ROWS","DIAGONAL SEQUENCE"}
-local ALIAS = {
+PATTERNS = {"ORIGINAL 6x20","ONE TYPE PER ROW","SPLIT ROWS 3+3","PAIRS 2+2+2","MIRRORED ROWS","ALTERNATING ROWS","DIAGONAL SEQUENCE"}
+ALIAS = {
     ["Skeleton Horse"]={"Skeleton Horse","Skeleton Horse Egg","SkeletonHorse","SkeletonHorseEgg"},
     ["World Burner"]={"World Burner","World Burner Egg","WorldBurner","WorldBurnerEgg"},
     ["Equinox egg"]={"Equinox","Equinox Egg","EquinoxEgg"},
@@ -918,20 +923,20 @@ local ALIAS = {
     ["Kitsune egg"]={"Kitsune","Kitsune Egg","KitsuneEgg"}
 }
 
-local C = {
+C = {
     bg=Color3.fromRGB(8,8,14), head=Color3.fromRGB(15,11,23), card=Color3.fromRGB(24,18,34),
     card2=Color3.fromRGB(37,25,50), border=Color3.fromRGB(84,57,110), purple=Color3.fromRGB(142,51,236),
     purple2=Color3.fromRGB(184,83,255), white=Color3.fromRGB(255,255,255), muted=Color3.fromRGB(168,162,181),
     green=Color3.fromRGB(105,245,135), orange=Color3.fromRGB(255,188,82), red=Color3.fromRGB(255,60,60), blue=Color3.fromRGB(45,145,255)
 }
 
-local EggFolder=Instance.new("Folder"); EggFolder.Name="SAE_LocalEggs"; EggFolder.Parent=workspace
+EggFolder=Instance.new("Folder"); EggFolder.Name="SAE_LocalEggs"; EggFolder.Parent=workspace
 
-local function corner(o,r) local x=Instance.new("UICorner"); x.CornerRadius=UDim.new(0,r or 8); x.Parent=o; return x end
-local function stroke(o,a) local x=Instance.new("UIStroke"); x.Color=C.border; x.Thickness=1; x.Transparency=a or .2; x.Parent=o; return x end
-local function grad(o) local x=Instance.new("UIGradient"); x.Color=ColorSequence.new(Color3.fromRGB(110,35,205),Color3.fromRGB(177,69,253)); x.Rotation=15; x.Parent=o end
-local function label(par,t,p,s,z) local x=Instance.new("TextLabel"); x.BackgroundTransparency=1; x.Position=p; x.Size=s; x.Text=t or ""; x.TextColor3=C.white; x.Font=Enum.Font.GothamMedium; x.TextSize=z or 11; x.TextXAlignment=Enum.TextXAlignment.Left; x.TextYAlignment=Enum.TextYAlignment.Center; x.Parent=par; return x end
-local function button(par,t,p,s,dark)
+function corner(o,r) local x=Instance.new("UICorner"); x.CornerRadius=UDim.new(0,r or 8); x.Parent=o; return x end
+function stroke(o,a) local x=Instance.new("UIStroke"); x.Color=C.border; x.Thickness=1; x.Transparency=a or .2; x.Parent=o; return x end
+function grad(o) local x=Instance.new("UIGradient"); x.Color=ColorSequence.new(Color3.fromRGB(110,35,205),Color3.fromRGB(177,69,253)); x.Rotation=15; x.Parent=o end
+function label(par,t,p,s,z) local x=Instance.new("TextLabel"); x.BackgroundTransparency=1; x.Position=p; x.Size=s; x.Text=t or ""; x.TextColor3=C.white; x.Font=Enum.Font.GothamMedium; x.TextSize=z or 11; x.TextXAlignment=Enum.TextXAlignment.Left; x.TextYAlignment=Enum.TextYAlignment.Center; x.Parent=par; return x end
+function button(par,t,p,s,dark)
     local x=Instance.new("TextButton")
     x.Position=p; x.Size=s
     x.BackgroundColor3=dark and C.card2 or C.purple
@@ -997,10 +1002,10 @@ local function button(par,t,p,s,dark)
     end
     return x
 end
-local function textbox(par,ph,p,s,txt) local x=Instance.new("TextBox"); x.Position=p; x.Size=s; x.BackgroundColor3=C.card2; x.BorderSizePixel=0; x.Text=txt or ""; x.PlaceholderText=ph or ""; x.PlaceholderColor3=C.muted; x.TextColor3=C.white; x.Font=Enum.Font.GothamMedium; x.TextSize=11; x.ClearTextOnFocus=false; x.Parent=par; corner(x,8); stroke(x,.45); return x end
-local function card(par,p,s) local x=Instance.new("Frame"); x.Position=p; x.Size=s; x.BackgroundColor3=C.card; x.BorderSizePixel=0; x.Parent=par; corner(x,10); stroke(x,.55); return x end
-local function section(par,t,y) local x=label(par,t,UDim2.fromOffset(8,y),UDim2.new(1,-16,0,17),9); x.TextColor3=C.muted; x.Font=Enum.Font.GothamBold; return x end
-local function drag(handle,win)
+function textbox(par,ph,p,s,txt) local x=Instance.new("TextBox"); x.Position=p; x.Size=s; x.BackgroundColor3=C.card2; x.BorderSizePixel=0; x.Text=txt or ""; x.PlaceholderText=ph or ""; x.PlaceholderColor3=C.muted; x.TextColor3=C.white; x.Font=Enum.Font.GothamMedium; x.TextSize=11; x.ClearTextOnFocus=false; x.Parent=par; corner(x,8); stroke(x,.45); return x end
+function card(par,p,s) local x=Instance.new("Frame"); x.Position=p; x.Size=s; x.BackgroundColor3=C.card; x.BorderSizePixel=0; x.Parent=par; corner(x,10); stroke(x,.55); return x end
+function section(par,t,y) local x=label(par,t,UDim2.fromOffset(8,y),UDim2.new(1,-16,0,17),9); x.TextColor3=C.muted; x.Font=Enum.Font.GothamBold; return x end
+function drag(handle,win)
     local on=false; local start; local pos
     handle.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then on=true; start=i.Position; pos=win.Position end end)
     UserInputService.InputChanged:Connect(function(i) if on and i.UserInputType==Enum.UserInputType.MouseMovement then local d=i.Position-start; win.Position=UDim2.new(pos.X.Scale,pos.X.Offset+d.X,pos.Y.Scale,pos.Y.Offset+d.Y) end end)
@@ -1008,28 +1013,28 @@ local function drag(handle,win)
 end
 
 -- User-approved Roblox verified glyph. Do not change.
-local VERIFIED=utf8.char(0xE000)
-local function verified(par,size)
+VERIFIED=utf8.char(0xE000)
+function verified(par,size)
     local h=Instance.new("Frame"); h.BackgroundTransparency=1; h.Size=UDim2.fromOffset(size+2,size+4); h.Parent=par
     local x=Instance.new("TextLabel"); x.BackgroundTransparency=1; x.Size=UDim2.fromScale(1,1); x.Position=UDim2.fromOffset(0,1); x.Text=VERIFIED; x.Font=Enum.Font.GothamBold; x.TextSize=size; x.TextColor3=C.white; x.TextXAlignment=Enum.TextXAlignment.Center; x.TextYAlignment=Enum.TextYAlignment.Center; x.Parent=h
     return h
 end
 
-local function remote(path)
+function remote(path)
     if type(path)~="table" then return nil end
     local x=ReplicatedStorage
     for _,n in ipairs(path) do x=x:FindFirstChild(n); if not x then return nil end end
     if x:IsA("RemoteEvent") or x:IsA("RemoteFunction") then return x end
 end
-local function callRemote(key,...)
+function callRemote(key,...)
     local r=remote(CFG.Remotes[key]); if not r then return false end
     local a={...}
     return pcall(function() if r:IsA("RemoteEvent") then r:FireServer(table.unpack(a)) else r:InvokeServer(table.unpack(a)) end end)
 end
 
-local Gui=Instance.new("ScreenGui"); Gui.Name="SAE_FINAL_V9"; Gui.ResetOnSpawn=false; Gui.IgnoreGuiInset=false; Gui.DisplayOrder=700; Gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; Gui.Parent=PG
+Gui=Instance.new("ScreenGui"); Gui.Name="SAE_FINAL_V9"; Gui.ResetOnSpawn=false; Gui.IgnoreGuiInset=false; Gui.DisplayOrder=700; Gui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling; Gui.Parent=PG
 
-local function window(name,title,sub,w,h,pos)
+function window(name,title,sub,w,h,pos)
     local f=Instance.new("Frame"); f.Name=name; f.AnchorPoint=Vector2.new(.5,.5); f.Position=pos; f.Size=UDim2.fromOffset(w,h); f.BackgroundColor3=C.bg; f.BorderSizePixel=0; f.Parent=Gui; corner(f,13); stroke(f,.05)
     local hd=Instance.new("Frame"); hd.Size=UDim2.new(1,0,0,60); hd.BackgroundColor3=C.head; hd.BorderSizePixel=0; hd.Parent=f; corner(hd,13)
     local ac=Instance.new("Frame"); ac.Position=UDim2.new(0,10,1,-3); ac.Size=UDim2.new(1,-20,0,3); ac.BackgroundColor3=C.purple; ac.BorderSizePixel=0; ac.Parent=hd; corner(ac,99); grad(ac)
@@ -1063,31 +1068,31 @@ local function window(name,title,sub,w,h,pos)
 end
 
 -- Create every important panel immediately before any game scan.
-local Main=window("MainPanel","DEVELOPER CONTROL PANEL","Main control panel",344,172,UDim2.new(.22,0,.52,0))
+Main=window("MainPanel","DEVELOPER CONTROL PANEL","Main control panel",344,172,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
-local Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,360,UDim2.new(.74,0,.28,0))
+Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,360,UDim2.new(.74,0,.28,0))
 Morph.BackgroundTransparency=Main.BackgroundTransparency
-local MorphColorsPage=window("MorphColorsPanel","OVERHEAD TEXT COLORS","Choose a text color",350,250,UDim2.new(.74,0,.36,0))
+MorphColorsPage=window("MorphColorsPanel","OVERHEAD TEXT COLORS","Choose a text color",350,250,UDim2.new(.74,0,.36,0))
 MorphColorsPage.BackgroundTransparency=Main.BackgroundTransparency
 MorphColorsPage.Visible=false
 MorphColorsPage:GetPropertyChangedSignal("Visible"):Connect(function()
     if not MorphColorsPage.Visible then Morph.Visible=true end
 end)
-local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
-local GiftPanel=window("GiftPanel","Gift Panel","Choose an item and recipient",390,430,UDim2.new(.5,0,.5,0))
+Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
+GiftPanel=window("GiftPanel","Gift Panel","Choose an item and recipient",390,430,UDim2.new(.5,0,.5,0))
 GiftPanel.Visible=false
 GiftPanel.BackgroundTransparency=Main.BackgroundTransparency
 
 -- Remove any overlay left by older versions.
-local oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
+oldSnow=PG:FindFirstChild("SAE_SnowOverlay")
 if oldSnow then oldSnow:Destroy() end
 
 -- Permanent launchers so closed panels never disappear permanently.
-local Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-170); Launch.Size=UDim2.fromOffset(106,105); Launch.BackgroundTransparency=1; Launch.Parent=Gui
-local LL=Instance.new("UIListLayout"); LL.Padding=UDim.new(0,7); LL.Parent=Launch
-local bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
-local bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
-local bGift=button(Launch,"GIFT PANEL",UDim2.new(),UDim2.fromOffset(102,29),true)
+Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-170); Launch.Size=UDim2.fromOffset(106,105); Launch.BackgroundTransparency=1; Launch.Parent=Gui
+LL=Instance.new("UIListLayout"); LL.Padding=UDim.new(0,7); LL.Parent=Launch
+bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
+bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
+bGift=button(Launch,"GIFT PANEL",UDim2.new(),UDim2.fromOffset(102,29),true)
 bAdmin.MouseButton1Click:Connect(function() Main.Visible=not Main.Visible end)
 bMorph.MouseButton1Click:Connect(function()
     if MorphColorsPage.Visible then
@@ -1098,13 +1103,13 @@ bMorph.MouseButton1Click:Connect(function()
     end
 end)
 bGift.MouseButton1Click:Connect(function() Main.Visible=false; GiftPanel.Visible=not GiftPanel.Visible end)
-local giftCatalogPage=Instance.new("Frame")
+giftCatalogPage=Instance.new("Frame")
 giftCatalogPage.Name="CatalogPage"
 giftCatalogPage.Position=UDim2.fromOffset(0,60)
 giftCatalogPage.Size=UDim2.new(1,0,1,-60)
 giftCatalogPage.BackgroundTransparency=1
 giftCatalogPage.Parent=GiftPanel
-local giftRecipientPage=Instance.new("Frame")
+giftRecipientPage=Instance.new("Frame")
 giftRecipientPage.Name="RecipientPage"
 giftRecipientPage.Position=UDim2.fromOffset(0,60)
 giftRecipientPage.Size=UDim2.new(1,0,1,-60)
@@ -1123,7 +1128,7 @@ giftSuccessPageTitle=label(giftSuccessPage,"GIFT SENT!",UDim2.new(.1,0,.21,0),UD
 giftSuccessPageTitle.TextXAlignment=Enum.TextXAlignment.Center
 giftSuccessPageTitle.Font=Enum.Font.GothamBold
 giftSuccessPageTitle.TextColor3=C.white
-local successMark=label(giftSuccessPage,"✓",UDim2.new(.5,0,.43,0),UDim2.fromOffset(88,88),60)
+successMark=label(giftSuccessPage,"✓",UDim2.new(.5,0,.43,0),UDim2.fromOffset(88,88),60)
 successMark.AnchorPoint=Vector2.new(.5,.5)
 successMark.TextXAlignment=Enum.TextXAlignment.Center
 successMark.Font=Enum.Font.GothamBold
@@ -1135,36 +1140,36 @@ giftSuccessMessage=label(giftSuccessPage,"",UDim2.new(.1,0,.62,0),UDim2.new(.8,0
 giftSuccessMessage.TextXAlignment=Enum.TextXAlignment.Center
 giftSuccessMessage.TextWrapped=true
 giftSuccessMessage.TextColor3=C.white
-local giftDone=button(giftSuccessPage,"DONE",UDim2.new(.5,-55,.81,0),UDim2.fromOffset(110,30),true)
+giftDone=button(giftSuccessPage,"DONE",UDim2.new(.5,-55,.81,0),UDim2.fromOffset(110,30),true)
 giftDone.AnchorPoint=Vector2.new(0,0)
 section(giftCatalogPage,"GIFT CATEGORIES",2)
-local GiftCatalog={Eggs={'Unicorn Egg','Kitsune Egg','Night Flame Egg','Archangel Egg','World Burner Egg','Aetheron Egg','Cthulhu Egg','Luminous Cthulhu Egg','Sabertooth Egg','Skeletal Sabertooth Egg','Octophant Egg','Mecha Scrambler Egg'},Pets={'Unicorn','Kitsune','Night Flame','Archangel','World Burner','Aetheron','Cthulhu','Luminous Cthulhu','Sabertooth','Skeletal Sabertooth','Octophant','Mecha Scrambler'},Stars={'Star'}}
-local GiftBuildModel=nil
-local giftStatus=label(giftCatalogPage,"Choose a category, then select an item.",UDim2.fromOffset(12,278),UDim2.new(1,-24,0,20),10)
+GiftCatalog={Eggs={'Unicorn Egg','Kitsune Egg','Night Flame Egg','Archangel Egg','World Burner Egg','Aetheron Egg','Cthulhu Egg','Luminous Cthulhu Egg','Sabertooth Egg','Skeletal Sabertooth Egg','Octophant Egg','Mecha Scrambler Egg'},Pets={'Unicorn','Kitsune','Night Flame','Archangel','World Burner','Aetheron','Cthulhu','Luminous Cthulhu','Sabertooth','Skeletal Sabertooth','Octophant','Mecha Scrambler'},Stars={'Star'}}
+GiftBuildModel=nil
+giftStatus=label(giftCatalogPage,"Choose a category, then select an item.",UDim2.fromOffset(12,278),UDim2.new(1,-24,0,20),10)
 giftStatus.TextColor3=C.muted
-local giftCategoryButtons={}
-local selectedGiftCategory=nil
-local selectedGiftItem=nil
+giftCategoryButtons={}
+selectedGiftCategory=nil
+selectedGiftItem=nil
 local giftAction,giftSend,giftItemLabel,giftRecipientStatus,recipientInput,recipientPreview,giftTargetStatus,giftPrompt,giftQuantityBadge,giftLoadingOverlay,giftSpinner
-local selectedRecipient=nil
-local giftQuantity=1
-local recipientLookupVersion=0
-local previewBuildVersion=0
-local giftSpinnerTween=nil
-local giftSending=false
+selectedRecipient=nil
+giftQuantity=1
+recipientLookupVersion=0
+previewBuildVersion=0
+giftSpinnerTween=nil
+giftSending=false
 giftDone.MouseButton1Click:Connect(function()
     giftSuccessPage.Visible=false
     giftCatalogPage.Visible=true
     selectedRecipient=nil
     recipientInput.Text=""
 end)
-local function giftVerb()
+function giftVerb()
     if selectedGiftCategory=="Eggs" then return "GIFT EGG" end
     if selectedGiftCategory=="Pets" then return "GIFT PET" end
     if selectedGiftCategory=="Stars" then return "GIFT STAR" end
     return "GIFT ITEM"
 end
-local giftItems=Instance.new("ScrollingFrame")
+giftItems=Instance.new("ScrollingFrame")
 giftItems.Position=UDim2.fromOffset(12,61)
 giftItems.Size=UDim2.new(1,-24,0,204)
 giftItems.BackgroundColor3=C.card
@@ -1173,12 +1178,12 @@ giftItems.ScrollBarThickness=5
 giftItems.CanvasSize=UDim2.fromOffset(0,0)
 giftItems.Parent=giftCatalogPage
 corner(giftItems,10); stroke(giftItems,.5)
-local giftGrid=Instance.new("UIGridLayout")
+giftGrid=Instance.new("UIGridLayout")
 giftGrid.CellSize=UDim2.new(.5,-12,0,38)
 giftGrid.CellPadding=UDim2.fromOffset(8,7)
 giftGrid.SortOrder=Enum.SortOrder.LayoutOrder
 giftGrid.Parent=giftItems
-local giftPadding=Instance.new("UIPadding")
+giftPadding=Instance.new("UIPadding")
 giftPadding.PaddingTop=UDim.new(0,8)
 giftPadding.PaddingLeft=UDim.new(0,8)
 giftPadding.PaddingRight=UDim.new(0,8)
@@ -1186,7 +1191,7 @@ giftPadding.Parent=giftItems
 giftGrid:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     giftItems.CanvasSize=UDim2.fromOffset(0,giftGrid.AbsoluteContentSize.Y+16)
 end)
-local function renderGiftItems()
+function renderGiftItems()
     for _,child in ipairs(giftItems:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
@@ -1204,7 +1209,7 @@ local function renderGiftItems()
         end)
     end
 end
-local function selectGiftCategory(name)
+function selectGiftCategory(name)
     selectedGiftCategory=name
     selectedGiftItem=nil
     for category,categoryButton in pairs(giftCategoryButtons) do
@@ -1224,7 +1229,7 @@ end
 giftAction=button(giftCatalogPage,"GIFT ITEM",UDim2.new(1,-154,0,310),UDim2.fromOffset(142,32),false)
 
 section(giftRecipientPage,"CHOOSE A RECIPIENT",4)
-local giftBack=button(giftRecipientPage,"BACK",UDim2.fromOffset(12,24),UDim2.fromOffset(68,27),true)
+giftBack=button(giftRecipientPage,"BACK",UDim2.fromOffset(12,24),UDim2.fromOffset(68,27),true)
 recipientPreview=Instance.new("ImageLabel")
 recipientPreview.Position=UDim2.fromOffset(12,61)
 recipientPreview.Size=UDim2.fromOffset(74,74)
@@ -1245,23 +1250,23 @@ giftLoadingOverlay.BorderSizePixel=0
 giftLoadingOverlay.Visible=false
 giftLoadingOverlay.ZIndex=10
 giftLoadingOverlay.Parent=giftRecipientPage
-local loadingTitle=label(giftLoadingOverlay,"SEARCHING FOR PLAYER...",UDim2.new(.5,-135,.5,-22),UDim2.fromOffset(270,24),12)
+loadingTitle=label(giftLoadingOverlay,"SEARCHING FOR PLAYER...",UDim2.new(.5,-135,.5,-22),UDim2.fromOffset(270,24),12)
 loadingTitle.TextXAlignment=Enum.TextXAlignment.Center
 loadingTitle.Font=Enum.Font.GothamBold
 loadingTitle.ZIndex=11
 giftSpinner=label(giftLoadingOverlay,"◌",UDim2.new(.5,-20,.5,8),UDim2.fromOffset(40,40),30)
 giftSpinner.TextXAlignment=Enum.TextXAlignment.Center
 giftSpinner.ZIndex=11
-local giftItemViewport=Instance.new("ViewportFrame")
+giftItemViewport=Instance.new("ViewportFrame")
 giftItemViewport.Position=UDim2.fromOffset(12,148)
 giftItemViewport.Size=UDim2.fromOffset(92,102)
 giftItemViewport.BackgroundColor3=C.card
 giftItemViewport.BorderSizePixel=0
 giftItemViewport.Parent=giftRecipientPage
 corner(giftItemViewport,10); stroke(giftItemViewport,.45)
-local giftWorld=Instance.new("WorldModel")
+giftWorld=Instance.new("WorldModel")
 giftWorld.Parent=giftItemViewport
-local giftCamera=Instance.new("Camera")
+giftCamera=Instance.new("Camera")
 giftCamera.FieldOfView=35
 giftCamera.Parent=giftItemViewport
 giftItemViewport.CurrentCamera=giftCamera
@@ -1277,9 +1282,9 @@ giftItemLabel.TextColor3=C.white
 giftPrompt=label(giftRecipientPage,"Find a player to choose a quantity.",UDim2.fromOffset(116,173),UDim2.new(1,-128,0,43),9)
 giftPrompt.TextWrapped=true
 giftPrompt.TextColor3=C.muted
-local quantityLabel=label(giftRecipientPage,"QUANTITY",UDim2.fromOffset(116,216),UDim2.fromOffset(76,16),8)
+quantityLabel=label(giftRecipientPage,"QUANTITY",UDim2.fromOffset(116,216),UDim2.fromOffset(76,16),8)
 quantityLabel.TextColor3=C.muted
-local quantityButtons={}
+quantityButtons={}
 for i,count in ipairs({1,2,3}) do
     local q=button(giftRecipientPage,tostring(count),UDim2.fromOffset(116+(i-1)*49,234),UDim2.fromOffset(42,27),true)
     q:SetAttribute("RestingColor",count==giftQuantity and C.purple or C.card2)
@@ -1313,7 +1318,7 @@ startGiftSpinner=function()
     giftSpinnerTween=TweenService:Create(giftSpinner,TweenInfo.new(.75,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut,-1,false),{Rotation=360})
     giftSpinnerTween:Play()
 end
-local function refreshGiftPreview()
+function refreshGiftPreview()
     previewBuildVersion=previewBuildVersion+1
     local version=previewBuildVersion
     giftQuantityBadge.Text="×"..tostring(giftQuantity)
@@ -1346,7 +1351,7 @@ local function refreshGiftPreview()
         giftItemLabel.Text=selectedGiftItem
     end)
 end
-local function queueRecipientLookup()
+function queueRecipientLookup()
     recipientLookupVersion=recipientLookupVersion+1
     local version=recipientLookupVersion
     local username=recipientInput.Text:gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")
@@ -1399,7 +1404,7 @@ giftBack.MouseButton1Click:Connect(function()
 end)
 giftSend=button(giftRecipientPage,"SEND GIFT",UDim2.new(1,-132,0,322),UDim2.fromOffset(120,30),false)
 giftSend.Visible=false
-local function showGiftSentConfirmation()
+function showGiftSentConfirmation()
     giftRecipientPage.Visible=false
     giftSuccessPage.Visible=true
     giftSuccessPageTitle.Text="GIFT SENT!"
@@ -1464,9 +1469,9 @@ giftAction.MouseButton1Click:Connect(function()
     refreshGiftPreview()
 end)
 -- Centered announcement layer.
-local Notify=Instance.new("Frame"); Notify.BackgroundTransparency=1; Notify.Size=UDim2.fromScale(1,1); Notify.Parent=Gui
-local function nt(par,t,col,z,font) local x=label(par,t,UDim2.new(),UDim2.fromOffset(0,46),z); x.AutomaticSize=Enum.AutomaticSize.X; x.Font=font or Enum.Font.GothamBlack; x.TextColor3=col; x.TextStrokeTransparency=0; x.TextStrokeColor3=Color3.new(0,0,0); return x end
-local function notice(uid,sender,before,red,after,font)
+Notify=Instance.new("Frame"); Notify.BackgroundTransparency=1; Notify.Size=UDim2.fromScale(1,1); Notify.Parent=Gui
+function nt(par,t,col,z,font) local x=label(par,t,UDim2.new(),UDim2.fromOffset(0,46),z); x.AutomaticSize=Enum.AutomaticSize.X; x.Font=font or Enum.Font.GothamBlack; x.TextColor3=col; x.TextStrokeTransparency=0; x.TextStrokeColor3=Color3.new(0,0,0); return x end
+function notice(uid,sender,before,red,after,font)
     local row=Instance.new("Frame"); row.BackgroundTransparency=1; row.AutomaticSize=Enum.AutomaticSize.X; row.Size=UDim2.fromOffset(0,50); row.AnchorPoint=Vector2.new(.5,0); row.Position=UDim2.new(.5,0,0,-60); row.Parent=Notify
     local l=Instance.new("UIListLayout"); l.FillDirection=Enum.FillDirection.Horizontal; l.HorizontalAlignment=Enum.HorizontalAlignment.Center; l.VerticalAlignment=Enum.VerticalAlignment.Center; l.Padding=UDim.new(0,4); l.Parent=row
     local im=Instance.new("ImageLabel"); im.BackgroundTransparency=1; im.Size=UDim2.fromOffset(40,40); im.Image="rbxthumb://type=AvatarHeadShot&id="..tostring(uid or P.UserId).."&w=150&h=150"; im.Parent=row
@@ -1475,28 +1480,28 @@ local function notice(uid,sender,before,red,after,font)
     task.delay(4,function() if row.Parent then local tw=TweenService:Create(row,TweenInfo.new(.2),{Position=UDim2.new(.5,0,0,-60)}); tw:Play(); tw.Completed:Wait(); if row.Parent then row:Destroy() end end end)
 end
 
-local function norm(s) return string.lower(tostring(s or "")):gsub("[^%w]","") end
-local function rootOf(o)
+function norm(s) return string.lower(tostring(s or "")):gsub("[^%w]","") end
+function rootOf(o)
     if not o then return nil end
     if o:IsA("BasePart") then return o end
     if o:IsA("Model") then return o.PrimaryPart or o:FindFirstChild("HumanoidRootPart",true) or o:FindFirstChildWhichIsA("BasePart",true) end
 end
-local function pivot(o,cf) if o:IsA("Model") then o:PivotTo(cf) elseif o:IsA("BasePart") then o.CFrame=cf end end
+function pivot(o,cf) if o:IsA("Model") then o:PivotTo(cf) elseif o:IsA("BasePart") then o.CFrame=cf end end
 
-local function groundHit(pos,ignore)
+function groundHit(pos,ignore)
     local rp=RaycastParams.new(); rp.FilterType=Enum.RaycastFilterType.Exclude
     local ex={EggFolder}; if P.Character then table.insert(ex,P.Character) end; if ignore then table.insert(ex,ignore) end; rp.FilterDescendantsInstances=ex
     return workspace:Raycast(pos+Vector3.new(0,250,0),Vector3.new(0,-1000,0),rp)
 end
 
-local function groundHitNear(pos,ignore)
+function groundHitNear(pos,ignore)
     -- Short raycast around the active character height. This avoids choosing
     -- roofs/ceilings that a 250-stud-above ray can hit first.
     local rp=RaycastParams.new(); rp.FilterType=Enum.RaycastFilterType.Exclude
     local ex={EggFolder}; if P.Character then table.insert(ex,P.Character) end; if ignore then table.insert(ex,ignore) end; rp.FilterDescendantsInstances=ex
     return workspace:Raycast(pos+Vector3.new(0,10,0),Vector3.new(0,-80,0),rp)
 end
-local function groundObject(o,pos,yaw)
+function groundObject(o,pos,yaw)
     -- Prefer the real raycast floor, but never throw an egg away just because
     -- the game's floor has CanQuery disabled or the executor misses the raycast.
     local hit=groundHitNear(pos,o)
@@ -1518,7 +1523,7 @@ local function groundObject(o,pos,yaw)
     return ok
 end
 
-local function createAvatar(uid)
+function createAvatar(uid)
     local m
     local ok=pcall(function() m=Players:CreateHumanoidModelFromUserIdAsync(uid) end)
     if ok and m then return m end
@@ -1527,9 +1532,9 @@ local function createAvatar(uid)
 end
 -- Egg resolver. Games often store egg visuals inside nested Models, Tools or Folders,
 -- so resolve the matching visual instead of requiring the named object itself to be a Model.
-local EggCache={}
+EggCache={}
 
-local function eggTextMatches(value,want)
+function eggTextMatches(value,want)
     local n=norm(value)
     if n=="" then return false end
     if want[n] then return true end
@@ -1541,7 +1546,7 @@ local function eggTextMatches(value,want)
     return false
 end
 
-local function matchObj(o,want)
+function matchObj(o,want)
     if eggTextMatches(o.Name,want) then return true end
     for _,a in ipairs({"EggName","DisplayName","ItemName","Title","Type","PetName","Name"}) do
         local v=o:GetAttribute(a)
@@ -1551,7 +1556,7 @@ local function matchObj(o,want)
     return false
 end
 
-local function usableEggSource(o,container)
+function usableEggSource(o,container)
     if not o or o==EggFolder then return nil end
     if o:IsDescendantOf(EggFolder) then return nil end
 
@@ -1585,7 +1590,7 @@ local function usableEggSource(o,container)
     return nil
 end
 
-local function findEgg(name)
+function findEgg(name)
     local cached=EggCache[name]
     if cached and cached.Parent then return cached end
 
@@ -1609,9 +1614,9 @@ end
 -- Build a stripped visual template from the REAL egg object already replicated by the game.
 -- Scripts, sounds, particles and interaction objects are removed once so large batches
 -- can keep the original mesh/texture/decal appearance without cloning the heavy behavior.
-local EggTemplateCache={}
+EggTemplateCache={}
 
-local function stripEggTemplate(o)
+function stripEggTemplate(o)
     local remove={}
     for _,x in ipairs(o:GetDescendants()) do
         if x:IsA("Script") or x:IsA("LocalScript") or x:IsA("ModuleScript")
@@ -1633,7 +1638,7 @@ local function stripEggTemplate(o)
     for _,x in ipairs(remove) do pcall(function() x:Destroy() end) end
 end
 
-local function templateInfo(name)
+function templateInfo(name)
     local cached=EggTemplateCache[name]
     if cached~=nil then return cached or nil end
 
@@ -1689,7 +1694,7 @@ local function templateInfo(name)
     return info
 end
 
-local function availableEggs()
+function availableEggs()
     local a={}
     for i=2,arrlen(EGGS) do
         local name=EGGS[i]
@@ -1700,19 +1705,19 @@ end
 
 -- Safe-zone state is declared before map/layout code so GENERAL egg spawning
 -- can always reserve a no-spawn band around the Safe Zone.
-local SafeObj=nil
-local SafePos=nil
-local SafeName="Not locked"
-local detectSafe=nil
+SafeObj=nil
+SafePos=nil
+SafeName="Not locked"
+detectSafe=nil
 
 -- Map-center detection. General egg spawning is anchored to the map frame.
-local MapFloor=nil
-local MapCF=nil
-local MapSize=nil
-local MapName="Not detected"
-local MapMarker=nil
+MapFloor=nil
+MapCF=nil
+MapSize=nil
+MapName="Not detected"
+MapMarker=nil
 
-local function updateMapMarker()
+function updateMapMarker()
     if MapMarker then MapMarker:Destroy(); MapMarker=nil end
     if not MapCF then return end
     local m=Instance.new("Part")
@@ -1730,7 +1735,7 @@ local function updateMapMarker()
     MapMarker=m
 end
 
-local function reservedZoneName(value)
+function reservedZoneName(value)
     local n=norm(value)
     return n:find("safezone",1,true)
         or n:find("eggdropoff",1,true)
@@ -1743,7 +1748,7 @@ local function reservedZoneName(value)
         or n:find("plot",1,true)
 end
 
-local function floorCandidateScore(o)
+function floorCandidateScore(o)
     if not o:IsA("BasePart") or not o.Anchored or not o.CanCollide or o.Transparency>=.98 then return -1 end
     local s=o.Size
     if s.X<20 or s.Z<20 then return -1 end
@@ -1760,7 +1765,7 @@ local function floorCandidateScore(o)
     return score
 end
 
-local function detectMapCenter()
+function detectMapCenter()
     local root=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
     local playerPos=root and root.Position or Vector3.zero
     local nearHit=root and groundHitNear(root.Position,nil) or nil
@@ -1840,7 +1845,7 @@ local function detectMapCenter()
     return true,MapName
 end
 
-local function setMapCenterHere()
+function setMapCenterHere()
     local r=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
     if not r then return false,"Character unavailable." end
     local hit=groundHitNear(r.Position,nil)
@@ -1853,7 +1858,7 @@ local function setMapCenterHere()
     return true,MapName
 end
 
-local function getMapFrame()
+function getMapFrame()
     if MapFloor and MapFloor.Parent then
         local topCenter=MapFloor.CFrame:PointToWorldSpace(Vector3.new(0,MapFloor.Size.Y/2,0))
         local look=Vector3.new(MapFloor.CFrame.LookVector.X,0,MapFloor.CFrame.LookVector.Z)
@@ -1881,9 +1886,9 @@ local function getMapFrame()
     return MapCF or CFrame.new(), MapSize or Vector3.new(155,1,250)
 end
 
-local COMPACT_SPAWN_BOUNDS=Vector3.new(155,1,250)
+COMPACT_SPAWN_BOUNDS=Vector3.new(155,1,250)
 
-local function safeClearanceRadius()
+function safeClearanceRadius()
     -- Hard minimum keeps GENERAL eggs out of the white Safe Zone even when the
     -- game's Safe Zone object has an unhelpful name or auto-detection misses it.
     local radius=70
@@ -1900,14 +1905,14 @@ local function safeClearanceRadius()
     return math.clamp(radius,70,110)
 end
 
-local function playableGroundHit(pos,referenceY)
+function playableGroundHit(pos,referenceY)
     local hit=groundHitNear(pos,nil)
     if not hit then return nil end
     if referenceY and math.abs(hit.Position.Y-referenceY)>16 then return nil end
     return hit
 end
 
-local function findPlayableSpawnFrame()
+function findPlayableSpawnFrame()
     local root=P.Character and P.Character:FindFirstChild("HumanoidRootPart")
     if not root then return nil,nil end
 
