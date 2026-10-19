@@ -3212,6 +3212,20 @@ for _,holder in ipairs({BP,P.Character}) do if holder then for _,o in ipairs(hol
 local oldPlaced=workspace:FindFirstChild('SAE_V7_PLACED') if oldPlaced then oldPlaced:Destroy() end
 local Placed=Instance.new('Folder') Placed.Name='SAE_V7_PLACED' Placed.Parent=workspace
 
+local GiftCatalog={
+    Eggs={
+        'Unicorn Egg','Kitsune Egg','Night Flame Egg','Archangel Egg',
+        'World Burner Egg','Aetheron Egg','Cthulhu Egg','Luminous Cthulhu Egg',
+        'Sabertooth Egg','Skeletal Sabertooth Egg','Octophant Egg','Mecha Scrambler Egg'
+    },
+    Pets={
+        'Unicorn','Kitsune','Night Flame','Archangel',
+        'World Burner','Aetheron','Cthulhu','Luminous Cthulhu',
+        'Sabertooth','Skeletal Sabertooth','Octophant','Mecha Scrambler'
+    },
+    Star={'Star'}
+}
+
 local Eggs=GiftCatalog.Eggs
 local Pets=GiftCatalog.Pets
 local Aliases={
