@@ -372,15 +372,14 @@ local function makeStarModel()
     m.PrimaryPart=root
 
     local gui
+    local guiImage
     if CUSTOM_ASSET then
-        gui=Instance.new('SurfaceGui')
+        gui=Instance.new('BillboardGui')
         gui.Name='ExactStarReference'
-        gui.Face=Enum.NormalId.Front
         gui.AlwaysOnTop=true
         gui.LightInfluence=0
-        gui.Brightness=1
-        gui.SizingMode=Enum.SurfaceGuiSizingMode.FixedSize
-        gui.CanvasSize=Vector2.new(112,95)
+        gui.Size=UDim2.fromOffset(224,190)
+        gui.StudsOffsetWorldSpace=Vector3.zero
         gui.Enabled=false
         gui.Adornee=root
         gui.Parent=root
@@ -388,16 +387,20 @@ local function makeStarModel()
         local image=Instance.new('ImageLabel')
         image.Name='ReferenceImage'
         image.BackgroundTransparency=1
+        image.AnchorPoint=Vector2.new(.5,.5)
+        image.Position=UDim2.fromScale(.5,.5)
         image.Size=UDim2.fromScale(1,1)
         image.Image=CUSTOM_ASSET
         image.ScaleType=Enum.ScaleType.Fit
         image.ResampleMode=Enum.ResamplerMode.Default
+        image.ClipsDescendants=false
         image.Parent=gui
+        guiImage=image
     end
 
     m:SetAttribute('SAE_REFERENCE_STAR',true)
     m:SetAttribute('SAE_EXACT_IMAGE_FACE',CUSTOM_ASSET~=nil)
-    return m,gui
+    return m,gui,guiImage
 end
 
 local busy={}
@@ -439,16 +442,16 @@ local function replace(tool)
         handle.Massless=true
         handle.Parent=new
 
-        local model,surface=makeStarModel()
+        local model,surface,guiImage=makeStarModel()
         model.Parent=new
         local drawing=makeDrawing()
 
-        local state={model=model,surface=surface,drawing=drawing,conn=nil}
+        local state={model=model,surface=surface,image=guiImage,drawing=drawing,conn=nil}
         live[new]=state
 
         local function setVisible(on)
-            if state.surface then state.surface.Enabled=on and not state.drawing end
-            if state.drawing then state.drawing.Visible=on end
+            if state.surface then state.surface.Enabled=on end
+            if state.drawing then state.drawing.Visible=on and not state.surface end
         end
 
         local function update()
@@ -468,19 +471,26 @@ local function replace(tool)
 
             -- Position from the supplied holding reference: large, beside the face,
             -- with the lower-left of the Star overlapping the raised hand.
+            local now=os.clock()
+            local bob=math.sin(now*2.1)*.055
             local pos=hand.Position
-                +hrp.CFrame.UpVector*1.35
-                +hrp.CFrame.RightVector*.02
-                +hrp.CFrame.LookVector*.10
+                +hrp.CFrame.UpVector*(.76+bob)
+                -hrp.CFrame.RightVector*.18
+                +hrp.CFrame.LookVector*.16
 
             local cf=CFrame.lookAt(pos,cam.CFrame.Position,Vector3.yAxis)
-                *CFrame.Angles(0,0,math.rad(-2))
             model:PivotTo(cf)
 
-            if state.drawing then
+            if state.image and state.surface then
+                local pulse=1+math.sin(now*2.1)*.015
+                state.image.Rotation=-4+math.sin(now*1.8)*1.2
+                state.surface.Size=UDim2.fromOffset(math.floor(224*pulse),math.floor(190*pulse))
+            end
+
+            if state.drawing and not state.surface then
                 local v,onScreen=cam:WorldToViewportPoint(pos)
                 if onScreen and v.Z>0 then
-                    local width=math.clamp(cam.ViewportSize.Y*.245,215,310)
+                    local width=math.clamp(cam.ViewportSize.Y*.205,180,245)
                     local height=width*(95/112)
                     state.drawing.Size=Vector2.new(width,height)
                     state.drawing.Position=Vector2.new(v.X-width*.5,v.Y-height*.5)
@@ -3587,7 +3597,54 @@ local function itemImage(cat,name)
     iconCache[key]=bestImage or false
     return bestImage
 end
-local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=itemImage(cat,name)or'' t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP pcall(function() game:GetService('StarterGui'):SetCore('SendNotification',{Title='ITEM SPAWNED',Text=name..' has been added to your inventory.',Duration=3}) end) return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
+local spawnToastSerial=0
+local function showInventoryToast(name)
+    spawnToastSerial+=1
+    local serial=spawnToastSerial
+    local old=PG:FindFirstChild('SAE_ITEM_SPAWN_TOAST')
+    if old then old:Destroy() end
+
+    local sg=Instance.new('ScreenGui')
+    sg.Name='SAE_ITEM_SPAWN_TOAST'
+    sg.ResetOnSpawn=false
+    sg.IgnoreGuiInset=true
+    sg.DisplayOrder=950
+    sg.Parent=PG
+
+    local frame=Instance.new('Frame')
+    frame.AnchorPoint=Vector2.new(.5,1)
+    frame.Position=UDim2.new(.5,0,1,-32)
+    frame.Size=UDim2.fromOffset(350,44)
+    frame.BackgroundColor3=Color3.fromRGB(16,13,24)
+    frame.BackgroundTransparency=.08
+    frame.BorderSizePixel=0
+    frame.Parent=sg
+    local c=Instance.new('UICorner') c.CornerRadius=UDim.new(0,10) c.Parent=frame
+    local st=Instance.new('UIStroke') st.Color=Color3.fromRGB(151,72,235) st.Transparency=.2 st.Thickness=1 st.Parent=frame
+
+    local text=Instance.new('TextLabel')
+    text.BackgroundTransparency=1
+    text.Size=UDim2.new(1,-20,1,0)
+    text.Position=UDim2.fromOffset(10,0)
+    text.Text=name..' has been added to your inventory.'
+    text.TextColor3=Color3.fromRGB(255,255,255)
+    text.Font=Enum.Font.GothamBold
+    text.TextSize=13
+    text.TextWrapped=true
+    text.Parent=frame
+
+    task.delay(2.35,function()
+        if serial~=spawnToastSerial or not sg.Parent then return end
+        local TS=game:GetService('TweenService')
+        TS:Create(frame,TweenInfo.new(.22),{BackgroundTransparency=1}):Play()
+        TS:Create(text,TweenInfo.new(.22),{TextTransparency=1}):Play()
+        st.Transparency=1
+        task.wait(.24)
+        if sg.Parent then sg:Destroy() end
+    end)
+end
+
+local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=itemImage(cat,name)or'' t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP showInventoryToast(name) return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
 local C={bg=rgb(8,8,14),head=rgb(15,11,23),card=rgb(24,18,34),card2=rgb(37,25,50),border=rgb(84,57,110),p=rgb(142,51,236),p2=rgb(184,83,255),w=Color3.new(1,1,1),m=rgb(168,162,181),g=rgb(105,245,135),o=rgb(255,188,82),r=rgb(255,90,90)}
 local function corner(o,r)local x=Instance.new('UICorner')x.CornerRadius=UDim.new(0,r or 8)x.Parent=o end
@@ -3598,7 +3655,7 @@ local gui=Instance.new('ScreenGui')gui.Name='SAE_ITEMS_V7'gui.ResetOnSpawn=false
 local StarterGui=game:GetService('StarterGui')
 pcall(function()StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack,false)end)
 local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38))
-local win=Instance.new('Frame')win.Size=UDim2.fromOffset(440,380)win.Position=UDim2.new(.5,-220,.5,-190)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
+local win=Instance.new('Frame')win.Size=UDim2.fromOffset(410,350)win.Position=UDim2.new(.5,-205,.5,-175)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
 local head=Instance.new('Frame')head.Size=UDim2.new(1,0,0,62)head.BackgroundColor3=C.head head.BorderSizePixel=0 head.Parent=win corner(head,13)
 local title=label(head,'DIVINE ITEM SPAWNER · REFERENCE EGGS',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,24),15)title.Font=Enum.Font.GothamBold
 label(head,'25% smaller • refined Unicorn, Night Flame, Sabertooth',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
@@ -3610,7 +3667,7 @@ UIS.InputChanged:Connect(function(i)if dragging and i.UserInputType==Enum.UserIn
 UIS.InputEnded:Connect(function(i)if i.UserInputType==Enum.UserInputType.MouseButton1 then dragging=false end end)
 local tabs=Instance.new('Frame')tabs.BackgroundTransparency=1 tabs.Position=UDim2.fromOffset(14,72)tabs.Size=UDim2.new(1,-28,0,38)tabs.Parent=win
 local content=Instance.new('ScrollingFrame')content.Position=UDim2.fromOffset(14,118)content.Size=UDim2.new(1,-28,1,-190)content.BackgroundColor3=C.card content.BorderSizePixel=0 content.ScrollBarThickness=5 content.CanvasSize=UDim2.fromOffset(0,0)content.Parent=win corner(content,10)stroke(content,.5)
-local grid=Instance.new('UIGridLayout')grid.CellSize=UDim2.new(.5,-9,0,42)grid.CellPadding=UDim2.fromOffset(8,8)grid.SortOrder=Enum.SortOrder.LayoutOrder grid.Parent=content
+local grid=Instance.new('UIGridLayout')grid.CellSize=UDim2.new(.5,-9,0,38)grid.CellPadding=UDim2.fromOffset(8,8)grid.SortOrder=Enum.SortOrder.LayoutOrder grid.Parent=content
 local pad=Instance.new('UIPadding')pad.PaddingTop=UDim.new(0,8)pad.PaddingLeft=UDim.new(0,8)pad.PaddingRight=UDim.new(0,8)pad.Parent=content
 grid:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()content.CanvasSize=UDim2.fromOffset(0,grid.AbsoluteContentSize.Y+16)end)
 local status=label(win,'Select an item',UDim2.new(0,16,1,-61),UDim2.new(1,-200,0,18),10,C.m)
