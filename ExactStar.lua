@@ -1,6 +1,8 @@
--- Final held Star replacement for Steal An Egg
--- Uses the supplied chunky tan reference and manually follows the player's hand
--- so the Star is always visible instead of relying on Tool grip orientation.
+-- Final held Star replacement for Steal An Egg.
+-- The visible front is taken directly from the supplied Star reference instead of
+-- redrawing the eyes, mouth, studs, proportions, or colour by hand.
+-- A solid tan backing provides real 3D thickness while the exact reference face
+-- is shown on the front. Designed for the Real PC executor used by both testers.
 
 local Players=game:GetService('Players')
 local RunService=game:GetService('RunService')
@@ -8,6 +10,76 @@ local P=Players.LocalPlayer
 if not P then return end
 local BP=P:FindFirstChildOfClass('Backpack') or P:WaitForChild('Backpack',10)
 if not BP then return end
+
+local REFERENCE_URL='https://raw.githubusercontent.com/randomcamper707/stealanegg1/refs/heads/main/StarReference.b64?v='..tostring(os.time())
+local LOCAL_FILE='sae_exact_star_reference.png'
+
+local function pureBase64Decode(data)
+    local alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    data=tostring(data or ''):gsub('[^'..alphabet..'=]','')
+    return (data:gsub('.',function(x)
+        if x=='=' then return '' end
+        local p=alphabet:find(x,1,true)
+        if not p then return '' end
+        local f=p-1
+        local r=''
+        for i=6,1,-1 do
+            r=r..((f%2^i-f%2^(i-1)>0) and '1' or '0')
+        end
+        return r
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?',function(x)
+        if #x~=8 then return '' end
+        local c=0
+        for i=1,8 do
+            if x:sub(i,i)=='1' then c=c+2^(8-i) end
+        end
+        return string.char(c)
+    end))
+end
+
+local function getReferenceAsset()
+    local assetLoader=getcustomasset or getsynasset
+    if type(assetLoader)~='function' or type(writefile)~='function' then
+        warn('[SAE] Exact Star reference requires writefile + getcustomasset support.')
+        return nil
+    end
+
+    local ok,b64=pcall(function()
+        return game:HttpGet(REFERENCE_URL,true)
+    end)
+    if not ok or type(b64)~='string' or #b64<1000 then
+        warn('[SAE] Could not download exact Star reference.')
+        return nil
+    end
+
+    local decoder=base64_decode or base64decode
+    if not decoder and type(base64)=='table' then decoder=base64.decode end
+    if not decoder and type(crypt)=='table' and type(crypt.base64)=='table' then decoder=crypt.base64.decode end
+
+    local bytes
+    local decoded=pcall(function()
+        bytes=(type(decoder)=='function') and decoder(b64) or pureBase64Decode(b64)
+    end)
+    if not decoded or type(bytes)~='string' or #bytes<1000 then
+        warn('[SAE] Could not decode exact Star reference.')
+        return nil
+    end
+
+    local wrote=pcall(function() writefile(LOCAL_FILE,bytes) end)
+    if not wrote then
+        warn('[SAE] Could not prepare exact Star reference file.')
+        return nil
+    end
+
+    local loaded,asset=pcall(function() return assetLoader(LOCAL_FILE) end)
+    if not loaded or type(asset)~='string' or asset=='' then
+        warn('[SAE] Could not load exact Star reference as a custom asset.')
+        return nil
+    end
+    return asset
+end
+
+local REFERENCE_ASSET=getReferenceAsset()
 
 local function allParts(o)
     local t={}
@@ -17,12 +89,13 @@ local function allParts(o)
     return t
 end
 
-local function part(m,name,size,color,cf,shape)
+local function part(m,name,size,color,cf,transparency)
     local p=Instance.new('Part')
     p.Name=name
     p.Size=size
     p.Color=color
     p.CFrame=cf or CFrame.new()
+    p.Transparency=transparency or 0
     p.Material=Enum.Material.SmoothPlastic
     p.TopSurface=Enum.SurfaceType.Smooth
     p.BottomSurface=Enum.SurfaceType.Smooth
@@ -31,7 +104,6 @@ local function part(m,name,size,color,cf,shape)
     p.CanTouch=false
     p.CanQuery=false
     p.Massless=true
-    if shape then p.Shape=shape end
     p.Parent=m
     return p
 end
@@ -52,71 +124,62 @@ local function wedge(m,name,size,color,cf)
     return p
 end
 
-local function line(m,a,b,width,color,z)
-    local mid=(a+b)/2
-    local d=b-a
-    return part(m,'Mouth',Vector3.new(width,width,d.Magnitude),color,CFrame.lookAt(Vector3.new(mid.X,mid.Y,z),Vector3.new(b.X,b.Y,z)))
-end
-
-local function referenceStar()
+local function makeReferenceStar()
     local m=Instance.new('Model')
     m.Name='Star'
 
-    local tan=Color3.fromRGB(191,166,99)
-    local raised=Color3.fromRGB(205,183,116)
-    local dark=Color3.fromRGB(31,29,24)
-    local white=Color3.fromRGB(252,252,248)
-    local depth=.82
-
-    local root=part(m,'Core',Vector3.new(2.75,2.75,depth),tan,CFrame.new())
+    -- The backing is deliberately plain. All visible face/stud artwork comes
+    -- from the user's supplied reference image rather than a recreated design.
+    local tan=Color3.fromRGB(190,166,104)
+    local depth=.72
+    local root=part(m,'Core',Vector3.new(2.65,2.55,depth),tan,CFrame.new())
 
     for i=0,4 do
         local a=math.rad(90-i*72)
-        local x,y=math.cos(a)*1.88,math.sin(a)*1.88
-        wedge(m,'StarPoint',Vector3.new(2.28,3.06,depth),tan,
-            CFrame.new(x,y,0)*CFrame.Angles(0,(i==1 or i==2) and math.rad(180) or 0,a-math.rad(90)))
+        local x,y=math.cos(a)*1.76,math.sin(a)*1.76
+        wedge(m,'SolidStarPoint',Vector3.new(2.18,2.9,depth),tan,
+            CFrame.new(x,y,.03)*CFrame.Angles(0,(i==1 or i==2) and math.rad(180) or 0,a-math.rad(90)))
     end
 
-    local faceZ=-(depth/2+.105)
-    local studs={
-        {-1.00,1.55},{.05,1.70},{1.02,1.17},
-        {-1.62,.82},{-.62,.83},{.38,.84},{1.47,.62},
-        {-1.87,.02},{-.94,.08},{.00,.22},{.94,.08},{1.85,.01},
-        {-1.42,-.69},{-.52,-.66},{.54,-.69},{1.39,-.73},
-        {-.70,-1.46},{.38,-1.50}
-    }
-    for _,s in ipairs(studs) do
-        part(m,'RaisedStud',Vector3.new(.53,.34,.20),raised,CFrame.new(s[1],s[2],faceZ))
-    end
+    -- 112x95 reference => 1.178947 aspect ratio. This keeps its exact proportions.
+    local width=5.95
+    local height=width*(95/112)
+    local face=part(m,'ExactReferenceFace',Vector3.new(width,height,.035),Color3.new(1,1,1),CFrame.new(0,0,-depth/2-.035),1)
 
-    part(m,'EyeL',Vector3.new(.63,.88,.22),dark,CFrame.new(-.79,.14,faceZ-.13),Enum.PartType.Ball)
-    part(m,'EyeR',Vector3.new(.63,.88,.22),dark,CFrame.new(.79,.14,faceZ-.13),Enum.PartType.Ball)
-    part(m,'EyeHighlightL',Vector3.new(.16,.16,.10),white,CFrame.new(-.66,.40,faceZ-.25),Enum.PartType.Ball)
-    part(m,'EyeHighlightR',Vector3.new(.16,.16,.10),white,CFrame.new(.92,.40,faceZ-.25),Enum.PartType.Ball)
+    if REFERENCE_ASSET then
+        local gui=Instance.new('SurfaceGui')
+        gui.Name='ExactStarReference'
+        gui.Face=Enum.NormalId.Front
+        gui.AlwaysOnTop=false
+        gui.LightInfluence=0
+        gui.Brightness=1
+        gui.SizingMode=Enum.SurfaceGuiSizingMode.FixedSize
+        gui.CanvasSize=Vector2.new(112,95)
+        gui.Adornee=face
+        gui.Parent=face
 
-    local mouth={
-        Vector2.new(-.38,-.46),Vector2.new(-.18,-.66),
-        Vector2.new(0,-.53),Vector2.new(.18,-.66),Vector2.new(.38,-.46)
-    }
-    for i=1,#mouth-1 do
-        line(m,mouth[i],mouth[i+1],.095,dark,faceZ-.17)
+        local image=Instance.new('ImageLabel')
+        image.Name='ReferenceImage'
+        image.BackgroundTransparency=1
+        image.Size=UDim2.fromScale(1,1)
+        image.Position=UDim2.fromScale(0,0)
+        image.Image=REFERENCE_ASSET
+        image.ScaleType=Enum.ScaleType.Fit
+        image.ResampleMode=Enum.ResamplerMode.Pixelated
+        image.Parent=gui
+    else
+        -- Keep the solid body visible rather than substituting another invented face.
+        face.Transparency=1
     end
 
     m.PrimaryPart=root
     m:SetAttribute('SAE_REFERENCE_STAR',true)
+    m:SetAttribute('SAE_EXACT_IMAGE_FACE',REFERENCE_ASSET~=nil)
     return m
 end
 
-local template=referenceStar()
+local template=makeReferenceStar()
 template.Parent=nil
-
-local function fit(m,target)
-    local ok,sz=pcall(function() return m:GetExtentsSize() end)
-    if ok and sz then
-        local mx=math.max(sz.X,sz.Y,sz.Z)
-        if mx>.01 then pcall(function() m:ScaleTo(target/mx) end) end
-    end
-end
 
 local busy={}
 local liveConnections={}
@@ -138,13 +201,15 @@ local function attachVisual(tool,model)
         local hrp=ch:FindFirstChild('HumanoidRootPart')
         if not hand or not hrp then return end
 
+        -- Match the supplied holding reference: large Star raised beside the face,
+        -- with the lower-left area overlapping the player's hand.
         local pos=hand.Position
             +hrp.CFrame.UpVector*1.45
-            +hrp.CFrame.RightVector*.08
-            +hrp.CFrame.LookVector*.18
+            +hrp.CFrame.RightVector*.04
+            +hrp.CFrame.LookVector*.12
 
         local cf=CFrame.lookAt(pos,pos+hrp.CFrame.LookVector,hrp.CFrame.UpVector)
-            *CFrame.Angles(0,0,math.rad(-5))
+            *CFrame.Angles(0,0,math.rad(-3))
         model:PivotTo(cf)
     end
 
@@ -158,7 +223,6 @@ local function attachVisual(tool,model)
     tool.Unequipped:Connect(function() disconnect(tool) end)
     tool.Destroying:Connect(function() disconnect(tool) end)
 
-    -- Covers the case where the replacement happens while the original Star is already equipped.
     task.defer(function()
         if tool.Parent==P.Character then start() end
     end)
@@ -183,7 +247,7 @@ local function replace(tool)
 
         local h=Instance.new('Part')
         h.Name='Handle'
-        h.Size=Vector3.new(.4,.4,.4)
+        h.Size=Vector3.new(.35,.35,.35)
         h.Transparency=1
         h.Anchored=false
         h.CanCollide=false
@@ -193,7 +257,6 @@ local function replace(tool)
         h.Parent=new
 
         local model=template:Clone()
-        fit(model,5.8)
         model.Parent=new
         for _,p in ipairs(allParts(model)) do
             p.Anchored=true
@@ -225,4 +288,4 @@ end
 watch(BP)
 watch(P.Character)
 P.CharacterAdded:Connect(function(c) task.wait(.2) watch(c) end)
-print('[SAE] Reference Star hand placement ready.')
+print('[SAE] Exact supplied Star reference ready in hand.')
