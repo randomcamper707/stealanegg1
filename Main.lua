@@ -1,5 +1,6 @@
 -- Steal An Egg - FINAL loader
--- Exact game pet rigs + corrected held Star, then the intact full control panel.
+-- Exact game pet rigs + corrected held Star + final motion/size polish,
+-- then the intact full control panel.
 
 local env=(getgenv and getgenv()) or _G
 if env.SAE_FINAL_LOADING then return end
@@ -37,13 +38,17 @@ env.SAE_MAIN_V7_LOADING=nil
 local nonce=tostring(os.time())
 local PETS='https://raw.githubusercontent.com/randomcamper707/stealanegg1/refs/heads/main/ExactPets.lua?v='..nonce
 local STAR='https://raw.githubusercontent.com/randomcamper707/stealanegg1/refs/heads/main/ExactStar.lua?v='..nonce
+local POLISH='https://raw.githubusercontent.com/randomcamper707/stealanegg1/refs/heads/main/FinalPolish.lua?v='..nonce
 local BASE='https://raw.githubusercontent.com/randomcamper707/stealanegg1/7eb4de5f692f28c297cbd4b6fceb973c540af700/ControlPanel.lua?v='..nonce
 
 local petSource=fetch(PETS,'exact pet rigs')
 if petSource then run(petSource,'exact pet rigs') end
 
-local starSource=fetch(STAR,'exact held star')
-if starSource then run(starSource,'exact held star') end
+local starSource=fetch(STAR,'held reference Star')
+if starSource then run(starSource,'held reference Star') end
+
+local polishSource=fetch(POLISH,'final pet/egg polish')
+if polishSource then run(polishSource,'final pet/egg polish') end
 
 local baseSource=fetch(BASE,'full control panel')
 if baseSource then run(baseSource,'full control panel') end
