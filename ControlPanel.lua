@@ -242,7 +242,7 @@ MorphColorsPage:GetPropertyChangedSignal("Visible"):Connect(function()
     if not MorphColorsPage.Visible then Morph.Visible=true end
 end)
 local Console=window("ConsolePanel","SERVER CONSOLE","TAB opens or closes this window",690,380,UDim2.new(.5,0,.5,0)); Console.Visible=false
-local GiftPanel=window("GiftPanel","Gift Panel","Spawn eggs, pets, and stars",430,470,UDim2.new(.5,0,.5,0))
+local GiftPanel=window("GiftPanel","Gift Panel","Choose an item and recipient",390,430,UDim2.new(.5,0,.5,0))
 GiftPanel.Visible=false
 GiftPanel.BackgroundTransparency=Main.BackgroundTransparency
 
@@ -266,27 +266,48 @@ bMorph.MouseButton1Click:Connect(function()
     end
 end)
 bGift.MouseButton1Click:Connect(function() Main.Visible=false; GiftPanel.Visible=not GiftPanel.Visible end)
-
-section(GiftPanel,"GIFT CATEGORIES",64)
+local giftCatalogPage=Instance.new("Frame")
+giftCatalogPage.Name="CatalogPage"
+giftCatalogPage.Position=UDim2.fromOffset(0,60)
+giftCatalogPage.Size=UDim2.new(1,0,1,-60)
+giftCatalogPage.BackgroundTransparency=1
+giftCatalogPage.Parent=GiftPanel
+local giftRecipientPage=Instance.new("Frame")
+giftRecipientPage.Name="RecipientPage"
+giftRecipientPage.Position=UDim2.fromOffset(0,60)
+giftRecipientPage.Size=UDim2.new(1,0,1,-60)
+giftRecipientPage.BackgroundTransparency=1
+giftRecipientPage.Visible=false
+giftRecipientPage.Parent=GiftPanel
+section(giftCatalogPage,"GIFT CATEGORIES",2)
 local GiftCatalog={Eggs={'Unicorn Egg','Kitsune Egg','Night Flame Egg','Archangel Egg','World Burner Egg','Aetheron Egg','Cthulhu Egg','Luminous Cthulhu Egg','Sabertooth Egg','Skeletal Sabertooth Egg','Octophant Egg','Mecha Scrambler Egg'},Pets={'Unicorn','Kitsune','Night Flame','Archangel','World Burner','Aetheron','Cthulhu','Luminous Cthulhu','Sabertooth','Skeletal Sabertooth','Octophant','Mecha Scrambler'},Stars={'Star'}}
 local GiftSpawnItem=nil
-local giftStatus=label(GiftPanel,"Choose a category, then select an item.",UDim2.fromOffset(12,395),UDim2.new(1,-24,0,20),10)
+local giftStatus=label(giftCatalogPage,"Choose a category, then select an item.",UDim2.fromOffset(12,278),UDim2.new(1,-24,0,20),10)
 giftStatus.TextColor3=C.muted
 local giftCategoryButtons={}
 local selectedGiftCategory=nil
 local selectedGiftItem=nil
+local giftAction,giftSend,giftItemLabel,giftRecipientStatus,recipientInput,recipientPreview,giftTargetStatus
+local selectedRecipient=nil
+local recipientLookupVersion=0
+local function giftVerb()
+    if selectedGiftCategory=="Eggs" then return "GIFT EGG" end
+    if selectedGiftCategory=="Pets" then return "GIFT PET" end
+    if selectedGiftCategory=="Stars" then return "GIFT STAR" end
+    return "GIFT ITEM"
+end
 local giftItems=Instance.new("ScrollingFrame")
-giftItems.Position=UDim2.fromOffset(12,124)
-giftItems.Size=UDim2.new(1,-24,0,258)
+giftItems.Position=UDim2.fromOffset(12,61)
+giftItems.Size=UDim2.new(1,-24,0,204)
 giftItems.BackgroundColor3=C.card
 giftItems.BorderSizePixel=0
 giftItems.ScrollBarThickness=5
 giftItems.CanvasSize=UDim2.fromOffset(0,0)
-giftItems.Parent=GiftPanel
+giftItems.Parent=giftCatalogPage
 corner(giftItems,10); stroke(giftItems,.5)
 local giftGrid=Instance.new("UIGridLayout")
-giftGrid.CellSize=UDim2.new(.5,-12,0,40)
-giftGrid.CellPadding=UDim2.fromOffset(8,8)
+giftGrid.CellSize=UDim2.new(.5,-12,0,38)
+giftGrid.CellPadding=UDim2.fromOffset(8,7)
 giftGrid.SortOrder=Enum.SortOrder.LayoutOrder
 giftGrid.Parent=giftItems
 local giftPadding=Instance.new("UIPadding")
@@ -301,8 +322,7 @@ local function renderGiftItems()
     for _,child in ipairs(giftItems:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
-    local list=GiftCatalog[selectedGiftCategory] or {}
-    for i,name in ipairs(list) do
+    for i,name in ipairs(GiftCatalog[selectedGiftCategory] or {}) do
         local itemButton=button(giftItems,name,UDim2.new(),UDim2.new(),true)
         itemButton.LayoutOrder=i
         itemButton.TextSize=10
@@ -311,6 +331,7 @@ local function renderGiftItems()
             selectedGiftItem=name
             giftStatus.Text="Selected: "..name
             giftStatus.TextColor3=C.white
+            giftAction.Text=giftVerb()
             renderGiftItems()
         end)
     end
@@ -319,47 +340,108 @@ local function selectGiftCategory(name)
     selectedGiftCategory=name
     selectedGiftItem=nil
     for category,categoryButton in pairs(giftCategoryButtons) do
-        local selected=category==name
-        categoryButton:SetAttribute("RestingColor",selected and C.purple or C.card2)
+        categoryButton:SetAttribute("RestingColor",category==name and C.purple or C.card2)
     end
     giftStatus.Text=name.." selected. Choose an item."
     giftStatus.TextColor3=C.white
+    giftAction.Text=giftVerb()
     renderGiftItems()
 end
 for i,name in ipairs({"Eggs","Pets","Stars"}) do
-    local categoryButton=button(GiftPanel,name,UDim2.new((i-1)/3,4,0,82),UDim2.new(1/3,-8,0,30),true)
-    categoryButton.TextSize=11
+    local categoryButton=button(giftCatalogPage,name,UDim2.new((i-1)/3,4,0,22),UDim2.new(1/3,-8,0,30),true)
+    categoryButton.TextSize=10
     giftCategoryButtons[name]=categoryButton
     categoryButton.MouseButton1Click:Connect(function() selectGiftCategory(name) end)
 end
-local giftSpawn=button(GiftPanel,"SPAWN SELECTED",UDim2.new(1,-174,0,421),UDim2.fromOffset(162,32),false)
-local giftSpawning=false
-giftSpawn.MouseButton1Click:Connect(function()
-    if giftSpawning then return end
-    if not selectedGiftCategory or not selectedGiftItem then
-        giftStatus.Text="Select a category and item first."
-        giftStatus.TextColor3=C.orange
+giftAction=button(giftCatalogPage,"GIFT ITEM",UDim2.new(1,-154,0,310),UDim2.fromOffset(142,32),false)
+
+section(giftRecipientPage,"CHOOSE A RECIPIENT",4)
+local giftBack=button(giftRecipientPage,"BACK",UDim2.fromOffset(12,25),UDim2.fromOffset(68,28),true)
+recipientPreview=Instance.new("ImageLabel")
+recipientPreview.Position=UDim2.fromOffset(12,66)
+recipientPreview.Size=UDim2.fromOffset(92,92)
+recipientPreview.BackgroundColor3=C.card2
+recipientPreview.BorderSizePixel=0
+recipientPreview.ScaleType=Enum.ScaleType.Crop
+recipientPreview.Parent=giftRecipientPage
+corner(recipientPreview,10); stroke(recipientPreview,.45)
+recipientInput=textbox(giftRecipientPage,"Enter Roblox username",UDim2.fromOffset(116,72),UDim2.new(1,-128,0,36),"")
+giftTargetStatus=label(giftRecipientPage,"Avatar preview appears after username lookup.",UDim2.fromOffset(116,112),UDim2.new(1,-128,0,42),10)
+giftTargetStatus.TextWrapped=true
+giftTargetStatus.TextColor3=C.muted
+giftItemLabel=label(giftRecipientPage,"Selected gift: none",UDim2.fromOffset(12,174),UDim2.new(1,-24,0,22),11)
+giftItemLabel.TextColor3=C.white
+giftRecipientStatus=label(giftRecipientPage,"",UDim2.fromOffset(12,202),UDim2.new(1,-24,0,38),10)
+giftRecipientStatus.TextWrapped=true
+giftRecipientStatus.TextColor3=C.muted
+local function queueRecipientLookup()
+    recipientLookupVersion=recipientLookupVersion+1
+    local version=recipientLookupVersion
+    local username=recipientInput.Text:gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")
+    selectedRecipient=nil
+    recipientPreview.Image=""
+    if username=="" then
+        giftTargetStatus.Text="Avatar preview appears after username lookup."
+        giftTargetStatus.TextColor3=C.muted
         return
     end
-    if not GiftSpawnItem then
-        giftStatus.Text="Item spawner is still loading."
-        giftStatus.TextColor3=C.orange
-        return
-    end
-    local category=selectedGiftCategory=="Stars" and "Star" or selectedGiftCategory
-    local name=selectedGiftItem
-    giftSpawning=true
-    giftSpawn.Text="BUILDING..."
-    giftStatus.Text="Building "..name.."..."
-    giftStatus.TextColor3=C.muted
-    task.spawn(function()
-        local success,ok,msg=pcall(GiftSpawnItem,category,name)
-        if not success then msg=ok; ok=false end
-        giftSpawning=false
-        giftSpawn.Text="SPAWN SELECTED"
-        giftStatus.Text=(ok and "Spawned: " or "Failed: ")..name.." • "..tostring(msg)
-        giftStatus.TextColor3=ok and C.green or C.red
+    giftTargetStatus.Text="Looking up Roblox username..."
+    giftTargetStatus.TextColor3=C.muted
+    task.delay(.55,function()
+        if version~=recipientLookupVersion or recipientInput.Text:gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")~=username then return end
+        task.spawn(function()
+            local ok,userId=pcall(function() return Players:GetUserIdFromNameAsync(username) end)
+            if version~=recipientLookupVersion then return end
+            if not ok or not userId then
+                giftTargetStatus.Text="Username not found. Check the spelling and try again."
+                giftTargetStatus.TextColor3=C.red
+                return
+            end
+            selectedRecipient={UserId=userId,Username=username}
+            recipientPreview.Image="rbxthumb://type=AvatarHeadShot&id="..tostring(userId).."&w=150&h=150"
+            giftTargetStatus.Text="Roblox avatar found for @"..username
+            giftTargetStatus.TextColor3=C.green
+        end)
     end)
+end
+recipientInput:GetPropertyChangedSignal("Text"):Connect(queueRecipientLookup)
+recipientInput.FocusLost:Connect(function(enterPressed) if enterPressed then queueRecipientLookup() end end)
+giftBack.MouseButton1Click:Connect(function()
+    recipientLookupVersion=recipientLookupVersion+1
+    selectedRecipient=nil
+    giftRecipientPage.Visible=false
+    giftCatalogPage.Visible=true
+end)
+giftSend=button(giftRecipientPage,"GIFT ITEM",UDim2.new(1,-154,0,310),UDim2.fromOffset(142,32),false)
+giftSend.MouseButton1Click:Connect(function()
+    if not selectedGiftItem then
+        giftRecipientStatus.Text="Go back and select an item first."
+        giftRecipientStatus.TextColor3=C.orange
+        return
+    end
+    if not selectedRecipient then
+        giftRecipientStatus.Text="Enter a valid Roblox username first."
+        giftRecipientStatus.TextColor3=C.orange
+        return
+    end
+    giftRecipientStatus.Text="Recipient preview is ready. This client has no configured server gift endpoint, so it cannot put the item in another player's inventory."
+    giftRecipientStatus.TextColor3=C.orange
+end)
+giftAction.MouseButton1Click:Connect(function()
+    if not selectedGiftItem then
+        giftStatus.Text="Choose an item first."
+        giftStatus.TextColor3=C.orange
+        return
+    end
+    giftRecipientPage.Visible=true
+    giftCatalogPage.Visible=false
+    giftSend.Text=giftVerb()
+    giftItemLabel.Text="Selected gift: "..selectedGiftItem
+    giftRecipientStatus.Text="Enter a Roblox username to preview the recipient."
+    giftRecipientStatus.TextColor3=C.muted
+    recipientInput.Text=""
+    recipientPreview.Image=""
+    selectedRecipient=nil
 end)
 
 -- Centered announcement layer.
@@ -2928,6 +3010,7 @@ local function itemImage(cat,name)
     iconCache[key]=bestImage or false
     return bestImage
 end
+GiftSpawnItem=function(cat,name) return spawnTool(cat,name) end
 GiftSpawnItem=function(cat,name) return spawnTool(cat,name) end
 local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=itemImage(cat,name)or'' t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
