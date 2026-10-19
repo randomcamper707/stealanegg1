@@ -1,6 +1,7 @@
 -- Final polish layer for Steal An Egg.
 -- Does not replace or redraw pet visuals.
--- Adds gentle placed-pet idle motion (maximum 4 studs) and enlarges V7 inventory eggs.
+-- Adds gentle breathing while pets are equipped, 15-stud placed-pet roaming,
+-- and keeps the enlarged inventory eggs from the previous final build.
 
 local Players=game:GetService('Players')
 local RunService=game:GetService('RunService')
@@ -73,16 +74,47 @@ local function enlargeEggTool(tool)
     end)
 end
 
+-- Equipped-pet breathing. This only scales the existing pet rig by a tiny amount;
+-- it never swaps, recolours, rebuilds, or otherwise changes the approved visuals.
+local equippedStates={}
+local function registerPetTool(tool)
+    if not tool or not tool:IsA('Tool') or not PETS[tool.Name] then return end
+    if equippedStates[tool] then return end
+
+    task.defer(function()
+        task.wait(.04)
+        if not tool.Parent or equippedStates[tool] then return end
+        local model=tool:FindFirstChildWhichIsA('Model') or tool:FindFirstChildWhichIsA('Model',true)
+        if not model or not model:FindFirstChildWhichIsA('BasePart',true) then return end
+
+        local ok,baseScale=pcall(function() return model:GetScale() end)
+        if not ok or not baseScale then baseScale=1 end
+
+        equippedStates[tool]={
+            model=model,
+            baseScale=baseScale,
+            phase=math.random()*math.pi*2,
+            nextScale=0,
+            breathing=false
+        }
+        tool:SetAttribute('SAE_FINAL_EQUIPPED_BREATH',true)
+    end)
+end
+
 local function watchTools(container)
     if not container then return end
     container.ChildAdded:Connect(function(child)
         if child:IsA('Tool') then
             task.wait()
             enlargeEggTool(child)
+            registerPetTool(child)
         end
     end)
     for _,child in ipairs(container:GetChildren()) do
-        if child:IsA('Tool') then enlargeEggTool(child) end
+        if child:IsA('Tool') then
+            enlargeEggTool(child)
+            registerPetTool(child)
+        end
     end
 end
 
@@ -93,15 +125,22 @@ P.CharacterAdded:Connect(function(char)
     watchTools(char)
 end)
 
--- Placed-pet idle motion. The model itself is not rebuilt or recoloured.
+-- Placed-pet idle motion. The approved model itself is not rebuilt or recoloured.
 local petStates={}
-local MAX_RADIUS=4
-local MOVE_SPEED=.78
+local MAX_RADIUS=15
+local MOVE_SPEED=1.35
 
 local function randomTarget()
     local a=math.random()*math.pi*2
-    local r=math.sqrt(math.random())*MAX_RADIUS
+    -- Bias slightly toward the outside so the pet actually uses the new roaming area.
+    local r=(.35+.65*math.sqrt(math.random()))*MAX_RADIUS
     return Vector3.new(math.cos(a)*r,0,math.sin(a)*r)
+end
+
+local function chooseTarget(s,now)
+    s.target=randomTarget()
+    local distance=(s.target-s.current).Magnitude
+    s.nextTarget=now+math.max(4.5,distance/MOVE_SPEED+1.1)
 end
 
 local function registerPet(model)
@@ -112,16 +151,18 @@ local function registerPet(model)
     local ok,baseScale=pcall(function() return model:GetScale() end)
     if not ok or not baseScale then baseScale=1 end
 
-    model:SetAttribute('SAE_FINAL_PET_MOTION',true)
-    petStates[model]={
+    local state={
         origin=model:GetPivot(),
         current=Vector3.zero,
-        target=randomTarget(),
-        nextTarget=os.clock()+math.random(220,420)/100,
+        target=Vector3.zero,
+        nextTarget=0,
         phase=math.random()*math.pi*2,
         baseScale=baseScale,
         nextScale=0
     }
+    chooseTarget(state,os.clock())
+    model:SetAttribute('SAE_FINAL_PET_MOTION',true)
+    petStates[model]=state
 end
 
 local function watchPlaced(folder)
@@ -148,13 +189,34 @@ end)
 
 RunService.Heartbeat:Connect(function(dt)
     local now=os.clock()
+
+    -- Breathing is also visible while a pet is equipped/held.
+    for tool,s in pairs(equippedStates) do
+        local model=s.model
+        if not tool.Parent or not model or not model.Parent then
+            equippedStates[tool]=nil
+        elseif tool.Parent==P.Character then
+            if now>=s.nextScale then
+                s.nextScale=now+.10
+                local breath=math.sin(now*2.05+s.phase)
+                pcall(function()
+                    model:ScaleTo(s.baseScale*(1+breath*.0065))
+                end)
+                s.breathing=true
+            end
+        elseif s.breathing then
+            pcall(function() model:ScaleTo(s.baseScale) end)
+            s.breathing=false
+        end
+    end
+
+    -- Placed pets roam naturally but are hard-clamped to 15 studs from placement.
     for model,s in pairs(petStates) do
         if not model.Parent then
             petStates[model]=nil
         else
             if now>=s.nextTarget or (s.target-s.current).Magnitude<.08 then
-                s.target=randomTarget()
-                s.nextTarget=now+math.random(260,480)/100
+                chooseTarget(s,now)
             end
 
             local delta=s.target-s.current
@@ -164,7 +226,6 @@ RunService.Heartbeat:Connect(function(dt)
                 s.current=s.current+delta.Unit*step
             end
 
-            -- A very small scale pulse plus vertical rise/fall gives a breathing idle.
             local breath=math.sin(now*2.1+s.phase)
             if now>=s.nextScale then
                 s.nextScale=now+.12
@@ -186,7 +247,7 @@ RunService.Heartbeat:Connect(function(dt)
     end
 end)
 
--- Remove the old contradictory '25% smaller' subtitle once the inventory UI appears.
+-- Remove the old contradictory subtitle once the inventory UI appears.
 task.spawn(function()
     local pg=P:FindFirstChildOfClass('PlayerGui') or P:WaitForChild('PlayerGui',10)
     if not pg then return end
@@ -194,9 +255,9 @@ task.spawn(function()
     if not gui then return end
     for _,d in ipairs(gui:GetDescendants()) do
         if d:IsA('TextLabel') and tostring(d.Text):find('25%% smaller') then
-            d.Text='Larger eggs • exact pets • polished held items'
+            d.Text='Larger eggs • exact pets • 15-stud pet roaming'
         end
     end
 end)
 
-print('[SAE] Final polish ready: larger inventory eggs + 4-stud pet idle movement.')
+print('[SAE] Final polish ready: equipped breathing + 15-stud pet roaming + larger eggs.')
