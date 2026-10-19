@@ -448,8 +448,8 @@ local function findNativeStar()
     end
 end
 
-local NATIVE_TEMPLATE=findNativeStar()
-if NATIVE_TEMPLATE then NATIVE_TEMPLATE.Parent=nil end
+-- The supplied Star reference is authoritative. Never substitute another in-game Star.
+local NATIVE_TEMPLATE=nil
 
 local function fitModel(model,target)
     local ok,sz=pcall(function() return model:GetExtentsSize() end)
@@ -481,8 +481,8 @@ local function handScreenGeometry(char)
     local p,on=cam:WorldToViewportPoint(gripWorld)
     if not on or p.Z<=0 then return nil end
 
-    local top=cam:WorldToViewportPoint(gripWorld+hrp.CFrame.UpVector*3.65)
-    local h=math.clamp(math.abs(top.Y-p.Y),150,310)
+    local top=cam:WorldToViewportPoint(gripWorld+hrp.CFrame.UpVector*2.55)
+    local h=math.clamp(math.abs(top.Y-p.Y),135,230)
     local w=h*(112/95)
     return p,w,h
 end
