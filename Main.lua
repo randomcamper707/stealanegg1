@@ -50,9 +50,6 @@ if starSource then run(starSource,'held reference Star') end
 local polishSource=fetch(POLISH,'final pet/egg polish')
 if polishSource then run(polishSource,'final pet/egg polish') end
 
-local baseSource=fetch(BASE,'full control panel')
-if baseSource then run(baseSource,'full control panel') end
-
 -- Apply the spawner edits to the fetched source before compiling it.
 local function replaceLiteral(source,oldText,newText)
     local first,last=source:find(oldText,1,true)
