@@ -35,8 +35,8 @@ env.SAE_V7=nil
 env.SAE_MAIN_V7_LOADING=nil
 
 local nonce=tostring(os.time())
-local PATCH='https://raw.githubusercontent.com/randomcamper707/stealanegg1/refs/heads/main/ReferenceModels.lua?v='..nonce
-local BASE='https://raw.githubusercontent.com/randomcamper707/stealanegg1/e598304740acb4afd2213969f47b5a884bb09668/ControlPanel.lua?v='..nonce
+local PATCH='https://raw.githubusercontent.com/randomcamper707/stealanegg1/94f1c9feb80a7f1c6ba24e97d081294df6c8253b/ReferenceModels.lua?v='..nonce..nonce
+local BASE='https://raw.githubusercontent.com/randomcamper707/stealanegg1/7eb4de5f692f28c297cbd4b6fceb973c540af700/ControlPanel.lua?v='..nonce..nonce
 
 local patchSource=fetch(PATCH,'final reference models')
 if patchSource then
