@@ -9,7 +9,7 @@ m=re.search(r"local EMBEDDED_REFERENCE_B64=\[========\[\n(.*?)\n\]========\]", o
 if not m:
     raise SystemExit('embedded star reference not found')
 b64=m.group(1)
-new=f'''local EXACT_STAR_SOURCE=[============[
+new=r'''local EXACT_STAR_SOURCE=[============[
 -- Exact held Star visual. Uses the supplied Star reference as a PlayerGui overlay
 -- locked to the equipped right hand, so it cannot disappear because of Billboard/SurfaceGui behaviour.
 
@@ -22,7 +22,7 @@ local BP=P:FindFirstChildOfClass('Backpack') or P:WaitForChild('Backpack',10)
 if not PG or not BP then return end
 
 local EMBEDDED_REFERENCE_B64=[========[
-{b64}
+__B64__
 ]========]
 
 local B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -151,6 +151,6 @@ end
 watch(BP)
 watch(P.Character)
 P.CharacterAdded:Connect(function(c) task.wait(.2) watch(c) end)
-]============]'''
+]============]'''.replace('__B64__',b64)
 s=s[:start]+new+s[end+len('\n]============]'):]
 p.write_text(s,encoding='utf-8')
