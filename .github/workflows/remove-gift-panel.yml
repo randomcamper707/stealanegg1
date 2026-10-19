@@ -1,0 +1,25 @@
+name: Remove Gift Panel
+
+on:
+  push:
+    paths:
+      - '.github/workflows/remove-gift-panel.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 patch_remove_gift.py
+      - run: |
+          git config user.name "takingfromkids"
+          git config user.email "actions@users.noreply.github.com"
+          git add Main.lua
+          git rm -f patch_remove_gift.py .github/workflows/remove-gift-panel.yml
+          git commit -m "Remove Gift Panel completely"
+          git push
