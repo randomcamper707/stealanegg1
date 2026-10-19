@@ -18,8 +18,9 @@ jobs:
           fetch-depth: 0
 
       - name: Build self-contained Main.lua
-        shell: python
+        shell: bash
         run: |
+          python - <<'PY'
           from pathlib import Path
           import re
 
@@ -44,7 +45,7 @@ jobs:
               1,
           )
 
-          # Fix the gift-spinner forward declaration so the local functions are the ones later callers use.
+          # Fix the gift-spinner forward declaration so later callbacks use the intended local functions.
           first_spinner = 'stopGiftSpinner=function()'
           if first_spinner in control and 'local stopGiftSpinner,startGiftSpinner\nstopGiftSpinner=function()' not in control:
               control = control.replace(first_spinner, 'local stopGiftSpinner,startGiftSpinner\n' + first_spinner, 1)
@@ -57,8 +58,7 @@ jobs:
           if 'local local giftSuccessPageTitle' in control:
               raise SystemExit('ControlPanel compile typo was not removed')
 
-          # Make ExactStar completely self-contained. The supplied reference image data is embedded
-          # directly into the Star block, so Main.lua no longer downloads StarReference.b64.
+          # Embed the supplied Star reference directly in the Star source.
           embedded = 'local EMBEDDED_REFERENCE_B64=[========[\n' + star_reference + '\n]========]\n'
           star = re.sub(
               r"local REFERENCE_URL=.*?\nlocal LOCAL_FILE=",
@@ -72,7 +72,7 @@ jobs:
               1,
           )
           if 'game:HttpGet(REFERENCE_URL,true)' in star:
-              raise SystemExit('ExactStar still depends on an external StarReference download')
+              raise SystemExit('ExactStar still depends on StarReference.b64')
 
           def long_string(text, level=12):
               eq = '=' * level
@@ -84,109 +84,113 @@ jobs:
               return '[' + eq + '[\n' + text.rstrip() + '\n]' + eq + ']'
 
           header = r'''-- STEAL AN EGG - SELF-CONTAINED MAIN
--- Generated from the approved active modules. No external Lua files are loaded.
--- Night Flame / Luminous Cthulhu approved pet rigs are preserved unchanged.
+          -- All approved production logic is embedded in this Main.lua. No external Lua files are loaded.
+          -- Night Flame and Luminous Cthulhu approved pet rigs are preserved unchanged.
 
-local env=(getgenv and getgenv()) or _G
-if env.SAE_SINGLE_MAIN_RUNNING then
-    warn('[SAE] Main.lua is already running in this session.')
-    return
-end
-env.SAE_SINGLE_MAIN_RUNNING=true
+          local env=(getgenv and getgenv()) or _G
+          if env.SAE_SINGLE_MAIN_RUNNING then
+              warn('[SAE] Main.lua is already running in this session.')
+              return
+          end
+          env.SAE_SINGLE_MAIN_RUNNING=true
 
-local Players=game:GetService('Players')
-local StarterGui=game:GetService('StarterGui')
-local player=Players.LocalPlayer
-local playerGui=player and (player:FindFirstChildOfClass('PlayerGui') or player:WaitForChild('PlayerGui',10))
+          local Players=game:GetService('Players')
+          local StarterGui=game:GetService('StarterGui')
+          local player=Players.LocalPlayer
+          local playerGui=player and (player:FindFirstChildOfClass('PlayerGui') or player:WaitForChild('PlayerGui',10))
 
-local statusGui
-local statusLabel
-if playerGui then
-    local old=playerGui:FindFirstChild('SAE_SINGLE_BOOT_STATUS')
-    if old then old:Destroy() end
-    statusGui=Instance.new('ScreenGui')
-    statusGui.Name='SAE_SINGLE_BOOT_STATUS'
-    statusGui.ResetOnSpawn=false
-    statusGui.DisplayOrder=999999
-    statusGui.IgnoreGuiInset=true
-    statusGui.Parent=playerGui
+          local statusGui
+          local statusLabel
+          if playerGui then
+              local old=playerGui:FindFirstChild('SAE_SINGLE_BOOT_STATUS')
+              if old then old:Destroy() end
+              statusGui=Instance.new('ScreenGui')
+              statusGui.Name='SAE_SINGLE_BOOT_STATUS'
+              statusGui.ResetOnSpawn=false
+              statusGui.DisplayOrder=999999
+              statusGui.IgnoreGuiInset=true
+              statusGui.Parent=playerGui
 
-    statusLabel=Instance.new('TextLabel')
-    statusLabel.AnchorPoint=Vector2.new(.5,.5)
-    statusLabel.Position=UDim2.fromScale(.5,.5)
-    statusLabel.Size=UDim2.fromOffset(440,110)
-    statusLabel.BackgroundColor3=Color3.fromRGB(18,20,27)
-    statusLabel.TextColor3=Color3.fromRGB(245,247,255)
-    statusLabel.Font=Enum.Font.GothamBold
-    statusLabel.TextSize=17
-    statusLabel.TextWrapped=true
-    statusLabel.Text='STEAL AN EGG\nLoading single-file build...'
-    statusLabel.Parent=statusGui
-    local corner=Instance.new('UICorner')
-    corner.CornerRadius=UDim.new(0,12)
-    corner.Parent=statusLabel
-end
+              statusLabel=Instance.new('TextLabel')
+              statusLabel.AnchorPoint=Vector2.new(.5,.5)
+              statusLabel.Position=UDim2.fromScale(.5,.5)
+              statusLabel.Size=UDim2.fromOffset(440,110)
+              statusLabel.BackgroundColor3=Color3.fromRGB(18,20,27)
+              statusLabel.TextColor3=Color3.fromRGB(245,247,255)
+              statusLabel.Font=Enum.Font.GothamBold
+              statusLabel.TextSize=17
+              statusLabel.TextWrapped=true
+              statusLabel.Text='STEAL AN EGG\nLoading single-file build...'
+              statusLabel.Parent=statusGui
+              local corner=Instance.new('UICorner')
+              corner.CornerRadius=UDim.new(0,12)
+              corner.Parent=statusLabel
+          end
 
-local function setStatus(text,isError)
-    if statusLabel and statusLabel.Parent then
-        statusLabel.Text=text
-        statusLabel.TextColor3=isError and Color3.fromRGB(255,105,105) or Color3.fromRGB(245,247,255)
-    end
-end
+          local function setStatus(text,isError)
+              if statusLabel and statusLabel.Parent then
+                  statusLabel.Text=text
+                  statusLabel.TextColor3=isError and Color3.fromRGB(255,105,105) or Color3.fromRGB(245,247,255)
+              end
+          end
 
-local function executeEmbedded(label,source)
-    setStatus('STEAL AN EGG\nLoading '..label..'...')
-    local fn,compileErr=loadstring(source)
-    if not fn then
-        setStatus('FAILED TO COMPILE '..label..'\n'..tostring(compileErr),true)
-        warn('[SAE] '..label..' compile error: '..tostring(compileErr))
-        return false
-    end
-    local ok,err=xpcall(fn,function(e)
-        local trace=(debug and debug.traceback) and debug.traceback(tostring(e),2) or tostring(e)
-        return trace
-    end)
-    if not ok then
-        setStatus(label..' RUNTIME ERROR\n'..tostring(err),true)
-        warn('[SAE] '..label..' runtime error: '..tostring(err))
-        return false
-    end
-    return true
-end
+          local function executeEmbedded(label,source)
+              setStatus('STEAL AN EGG\nLoading '..label..'...')
+              local fn,compileErr=loadstring(source)
+              if not fn then
+                  setStatus('FAILED TO COMPILE '..label..'\n'..tostring(compileErr),true)
+                  warn('[SAE] '..label..' compile error: '..tostring(compileErr))
+                  return false
+              end
+              local ok,err=xpcall(fn,function(e)
+                  return tostring(e)
+              end)
+              if not ok then
+                  setStatus(label..' RUNTIME ERROR\n'..tostring(err),true)
+                  warn('[SAE] '..label..' runtime error: '..tostring(err))
+                  return false
+              end
+              return true
+          end
 
--- Clear stale flags left by older split-file builds.
-env.SAE_V7=nil
-env.SAE_MAIN_V7_LOADING=nil
-env.SAE_FINAL_NATIVE_OVERRIDE=nil
-env.SAE_EXACT_PETS=nil
-env.SAE_FINAL_POLISH=nil
-env.SAE_FINAL_ALL_LOADING=nil
-'''
+          env.SAE_V7=nil
+          env.SAE_MAIN_V7_LOADING=nil
+          env.SAE_FINAL_NATIVE_OVERRIDE=nil
+          env.SAE_EXACT_PETS=nil
+          env.SAE_FINAL_POLISH=nil
+          env.SAE_FINAL_ALL_LOADING=nil
+          '''
 
           footer = r'''
-local allOkay=true
-allOkay=executeEmbedded('approved exact pets',EXACT_PETS_SOURCE) and allOkay
-allOkay=executeEmbedded('held Star',EXACT_STAR_SOURCE) and allOkay
-allOkay=executeEmbedded('pet/egg polish',FINAL_POLISH_SOURCE) and allOkay
-allOkay=executeEmbedded('control panel',CONTROL_PANEL_SOURCE) and allOkay
+          local allOkay=true
+          allOkay=executeEmbedded('approved exact pets',EXACT_PETS_SOURCE) and allOkay
+          allOkay=executeEmbedded('held Star',EXACT_STAR_SOURCE) and allOkay
+          allOkay=executeEmbedded('pet/egg polish',FINAL_POLISH_SOURCE) and allOkay
+          allOkay=executeEmbedded('control panel',CONTROL_PANEL_SOURCE) and allOkay
 
-env.SAE_SINGLE_MAIN_RUNNING=nil
+          env.SAE_SINGLE_MAIN_RUNNING=nil
 
-if allOkay then
-    setStatus('STEAL AN EGG\nLoaded successfully')
-    task.delay(1.0,function()
-        if statusGui and statusGui.Parent then statusGui:Destroy() end
-    end)
-else
-    pcall(function()
-        StarterGui:SetCore('SendNotification',{
-            Title='Steal An Egg',
-            Text='A module failed to load. The error is shown on screen.',
-            Duration=8
-        })
-    end)
-end
-'''
+          if allOkay then
+              setStatus('STEAL AN EGG\nLoaded successfully')
+              task.delay(1.0,function()
+                  if statusGui and statusGui.Parent then statusGui:Destroy() end
+              end)
+          else
+              pcall(function()
+                  StarterGui:SetCore('SendNotification',{
+                      Title='Steal An Egg',
+                      Text='A module failed to load. The error is shown on screen.',
+                      Duration=8
+                  })
+              end)
+          end
+          '''
+
+          # The Lua strings above are indented only to keep this workflow valid YAML/Python.
+          # Remove that fixed indentation in the generated Main.lua.
+          import textwrap
+          header = textwrap.dedent(header)
+          footer = textwrap.dedent(footer)
 
           bundled = header
           bundled += '\nlocal EXACT_PETS_SOURCE=' + long_string(pets) + '\n'
@@ -197,8 +201,8 @@ end
 
           Path('Main.lua').write_text(bundled,encoding='utf-8')
 
-          # Remove the split production layers. The obsolete resolver/model experiments are intentionally
-          # not bundled because the approved exact-pet/Star layers supersede them and loading both would conflict.
+          # Delete split production layers. The obsolete resolver/model experiments are superseded
+          # by the approved exact-pet and exact-Star logic and must not be loaded alongside them.
           for name in [
               'ControlPanel.lua','ExactPets.lua','ExactReferenceResolver.lua','ExactStar.lua',
               'FinalPolish.lua','ReferenceModels.lua','StarReference.b64'
@@ -208,6 +212,7 @@ end
                   p.unlink()
 
           print(f'Generated self-contained Main.lua: {len(bundled):,} bytes')
+          PY
 
       - name: Commit consolidated build
         shell: bash
