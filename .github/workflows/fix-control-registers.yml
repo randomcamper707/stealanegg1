@@ -1,0 +1,84 @@
+name: Fix Control Panel Register Limit
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-control-registers.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refactor embedded control panel locals
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('Main.lua')
+          text=p.read_text(encoding='utf-8')
+          start_marker='local CONTROL_PANEL_SOURCE=[============[\n'
+          end_marker='\n]============]\n\nlocal allOkay=true'
+          start=text.find(start_marker)
+          if start < 0:
+              raise SystemExit('CONTROL_PANEL_SOURCE start marker not found')
+          body_start=start+len(start_marker)
+          end=text.find(end_marker,body_start)
+          if end < 0:
+              raise SystemExit('CONTROL_PANEL_SOURCE end marker not found')
+
+          control=text[body_start:end]
+          # Keep the two earlier startup fixes in place.
+          control=control.replace('local local giftSuccessPageTitle,giftSuccessMessage','local giftSuccessPage,giftSuccessPageTitle,giftSuccessMessage',1)
+          control=control.replace('local stopGiftSpinner,startGiftSpinner\nlocal function queueRecipientLookup()','local function queueRecipientLookup()',1)
+
+          # Luau has a hard 200-local-register limit per function/chunk. The control panel
+          # is a single very large chunk, so move early top-level declarations into the
+          # chunk environment instead. Nested locals remain local because they are indented.
+          lines=control.splitlines()
+          changed=0
+          limit=min(1100,len(lines))
+          for i in range(limit):
+              line=lines[i]
+              if not line.startswith('local '):
+                  continue
+              rest=line[6:]
+              if rest.startswith('function '):
+                  lines[i]=rest
+                  changed+=1
+              elif '=' in rest:
+                  lines[i]=rest
+                  changed+=1
+              # Bare forward declarations such as `local a,b` stay local to preserve syntax.
+          control='\n'.join(lines)
+          if changed < 25:
+              raise SystemExit(f'Unexpectedly few declarations refactored: {changed}')
+
+          text=text[:body_start]+control+text[end:]
+
+          # Isolate globals created by the refactor when the executor supports setfenv/getfenv.
+          needle="""    local ok,err=xpcall(fn,function(e)\n        return tostring(e)\n    end)"""
+          replacement="""    if setfenv and getfenv then\n        local parentEnv=getfenv(fn)\n        local moduleEnv=setmetatable({}, {__index=parentEnv})\n        setfenv(fn,moduleEnv)\n    end\n    local ok,err=xpcall(fn,function(e)\n        return tostring(e)\n    end)"""
+          if needle in text and 'local moduleEnv=setmetatable' not in text:
+              text=text.replace(needle,replacement,1)
+
+          p.write_text(text,encoding='utf-8')
+          print(f'Refactored {changed} early top-level locals out of the Luau register pool')
+          PY
+
+      - name: Commit fix
+        shell: bash
+        run: |
+          set -e
+          git config user.name 'takingfromkids'
+          git config user.email 'actions@users.noreply.github.com'
+          git add Main.lua
+          git commit -m 'Fix control panel Luau local register limit'
+          git push origin main
