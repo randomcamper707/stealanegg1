@@ -55,15 +55,13 @@ end
 local function line(m,a,b,width,color,z)
     local mid=(a+b)/2
     local d=b-a
-    local p=part(m,'Mouth',Vector3.new(width,width,d.Magnitude),color,CFrame.lookAt(Vector3.new(mid.X,mid.Y,z),Vector3.new(b.X,b.Y,z)))
-    return p
+    return part(m,'Mouth',Vector3.new(width,width,d.Magnitude),color,CFrame.lookAt(Vector3.new(mid.X,mid.Y,z),Vector3.new(b.X,b.Y,z)))
 end
 
 local function referenceStar()
     local m=Instance.new('Model')
     m.Name='Star'
 
-    -- Colours matched to the user's reference: muted biscuit/tan, not bright yellow.
     local tan=Color3.fromRGB(191,166,99)
     local raised=Color3.fromRGB(205,183,116)
     local dark=Color3.fromRGB(31,29,24)
@@ -72,7 +70,6 @@ local function referenceStar()
 
     local root=part(m,'Core',Vector3.new(2.75,2.75,depth),tan,CFrame.new())
 
-    -- Five broad rounded-looking points. The overlap gives the chunky Roblox star silhouette.
     for i=0,4 do
         local a=math.rad(90-i*72)
         local x,y=math.cos(a)*1.88,math.sin(a)*1.88
@@ -80,7 +77,6 @@ local function referenceStar()
             CFrame.new(x,y,0)*CFrame.Angles(0,(i==1 or i==2) and math.rad(180) or 0,a-math.rad(90)))
     end
 
-    -- Raised rectangular studs visible on the supplied star.
     local faceZ=-(depth/2+.105)
     local studs={
         {-1.00,1.55},{.05,1.70},{1.02,1.17},
@@ -93,7 +89,6 @@ local function referenceStar()
         part(m,'RaisedStud',Vector3.new(.53,.34,.20),raised,CFrame.new(s[1],s[2],faceZ))
     end
 
-    -- Kawaii face from the reference.
     part(m,'EyeL',Vector3.new(.63,.88,.22),dark,CFrame.new(-.79,.14,faceZ-.13),Enum.PartType.Ball)
     part(m,'EyeR',Vector3.new(.63,.88,.22),dark,CFrame.new(.79,.14,faceZ-.13),Enum.PartType.Ball)
     part(m,'EyeHighlightL',Vector3.new(.16,.16,.10),white,CFrame.new(-.66,.40,faceZ-.25),Enum.PartType.Ball)
@@ -143,25 +138,30 @@ local function attachVisual(tool,model)
         local hrp=ch:FindFirstChild('HumanoidRootPart')
         if not hand or not hrp then return end
 
-        -- Reference position: the star sits above the hand and beside the face.
         local pos=hand.Position
             +hrp.CFrame.UpVector*1.45
             +hrp.CFrame.RightVector*.08
             +hrp.CFrame.LookVector*.18
 
-        -- The model's decorated face is on local -Z, so this faces it forward.
         local cf=CFrame.lookAt(pos,pos+hrp.CFrame.LookVector,hrp.CFrame.UpVector)
             *CFrame.Angles(0,0,math.rad(-5))
         model:PivotTo(cf)
     end
 
-    tool.Equipped:Connect(function()
+    local function start()
         update()
         disconnect(tool)
         liveConnections[tool]=RunService.RenderStepped:Connect(update)
-    end)
+    end
+
+    tool.Equipped:Connect(start)
     tool.Unequipped:Connect(function() disconnect(tool) end)
     tool.Destroying:Connect(function() disconnect(tool) end)
+
+    -- Covers the case where the replacement happens while the original Star is already equipped.
+    task.defer(function()
+        if tool.Parent==P.Character then start() end
+    end)
 end
 
 local function replace(tool)
@@ -203,7 +203,6 @@ local function replace(tool)
             p.Massless=true
         end
 
-        -- Keep the invisible Roblox handle in the hand; the visible star follows it manually.
         new.Grip=CFrame.new()
         attachVisual(new,model)
 
