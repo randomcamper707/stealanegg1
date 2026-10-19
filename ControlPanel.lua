@@ -279,16 +279,53 @@ giftRecipientPage.Size=UDim2.new(1,0,1,-60)
 giftRecipientPage.BackgroundTransparency=1
 giftRecipientPage.Visible=false
 giftRecipientPage.Parent=GiftPanel
+local local giftSuccessPageTitle,giftSuccessMessage
+giftSuccessPage=Instance.new("Frame")
+giftSuccessPage.Name="GiftSuccessPage"
+giftSuccessPage.Position=UDim2.fromOffset(0,60)
+giftSuccessPage.Size=UDim2.new(1,0,1,-60)
+giftSuccessPage.BackgroundTransparency=1
+giftSuccessPage.Visible=false
+giftSuccessPage.Parent=GiftPanel
+giftSuccessPageTitle=label(giftSuccessPage,"GIFT SENT!",UDim2.new(.1,0,.21,0),UDim2.new(.8,0,0,34),16)
+giftSuccessPageTitle.TextXAlignment=Enum.TextXAlignment.Center
+giftSuccessPageTitle.Font=Enum.Font.GothamBold
+giftSuccessPageTitle.TextColor3=C.white
+local successMark=label(giftSuccessPage,"✓",UDim2.new(.5,0,.43,0),UDim2.fromOffset(88,88),60)
+successMark.AnchorPoint=Vector2.new(.5,.5)
+successMark.TextXAlignment=Enum.TextXAlignment.Center
+successMark.Font=Enum.Font.GothamBold
+successMark.TextColor3=C.green
+successMark.BackgroundColor3=C.card2
+successMark.BackgroundTransparency=.08
+corner(successMark,44)
+giftSuccessMessage=label(giftSuccessPage,"",UDim2.new(.1,0,.62,0),UDim2.new(.8,0,0,48),11)
+giftSuccessMessage.TextXAlignment=Enum.TextXAlignment.Center
+giftSuccessMessage.TextWrapped=true
+giftSuccessMessage.TextColor3=C.white
+local giftDone=button(giftSuccessPage,"DONE",UDim2.new(.5,-55,.81,0),UDim2.fromOffset(110,30),true)
+giftDone.AnchorPoint=Vector2.new(0,0)
 section(giftCatalogPage,"GIFT CATEGORIES",2)
 local GiftCatalog={Eggs={'Unicorn Egg','Kitsune Egg','Night Flame Egg','Archangel Egg','World Burner Egg','Aetheron Egg','Cthulhu Egg','Luminous Cthulhu Egg','Sabertooth Egg','Skeletal Sabertooth Egg','Octophant Egg','Mecha Scrambler Egg'},Pets={'Unicorn','Kitsune','Night Flame','Archangel','World Burner','Aetheron','Cthulhu','Luminous Cthulhu','Sabertooth','Skeletal Sabertooth','Octophant','Mecha Scrambler'},Stars={'Star'}}
+local GiftBuildModel=nil
 local giftStatus=label(giftCatalogPage,"Choose a category, then select an item.",UDim2.fromOffset(12,278),UDim2.new(1,-24,0,20),10)
 giftStatus.TextColor3=C.muted
 local giftCategoryButtons={}
 local selectedGiftCategory=nil
 local selectedGiftItem=nil
-local giftAction,giftSend,giftItemLabel,giftRecipientStatus,recipientInput,recipientPreview,giftTargetStatus
+local giftAction,giftSend,giftItemLabel,giftRecipientStatus,recipientInput,recipientPreview,giftTargetStatus,giftPrompt,giftQuantityBadge,giftLoadingOverlay,giftSpinner
 local selectedRecipient=nil
+local giftQuantity=1
 local recipientLookupVersion=0
+local previewBuildVersion=0
+local giftSpinnerTween=nil
+local giftSending=false
+giftDone.MouseButton1Click:Connect(function()
+    giftSuccessPage.Visible=false
+    giftCatalogPage.Visible=true
+    selectedRecipient=nil
+    recipientInput.Text=""
+end)
 local function giftVerb()
     if selectedGiftCategory=="Eggs" then return "GIFT EGG" end
     if selectedGiftCategory=="Pets" then return "GIFT PET" end
@@ -355,51 +392,166 @@ end
 giftAction=button(giftCatalogPage,"GIFT ITEM",UDim2.new(1,-154,0,310),UDim2.fromOffset(142,32),false)
 
 section(giftRecipientPage,"CHOOSE A RECIPIENT",4)
-local giftBack=button(giftRecipientPage,"BACK",UDim2.fromOffset(12,25),UDim2.fromOffset(68,28),true)
+local giftBack=button(giftRecipientPage,"BACK",UDim2.fromOffset(12,24),UDim2.fromOffset(68,27),true)
 recipientPreview=Instance.new("ImageLabel")
-recipientPreview.Position=UDim2.fromOffset(12,66)
-recipientPreview.Size=UDim2.fromOffset(92,92)
+recipientPreview.Position=UDim2.fromOffset(12,61)
+recipientPreview.Size=UDim2.fromOffset(74,74)
 recipientPreview.BackgroundColor3=C.card2
 recipientPreview.BorderSizePixel=0
 recipientPreview.ScaleType=Enum.ScaleType.Crop
 recipientPreview.Parent=giftRecipientPage
 corner(recipientPreview,10); stroke(recipientPreview,.45)
-recipientInput=textbox(giftRecipientPage,"Enter Roblox username",UDim2.fromOffset(116,72),UDim2.new(1,-128,0,36),"")
-giftTargetStatus=label(giftRecipientPage,"Avatar preview appears after username lookup.",UDim2.fromOffset(116,112),UDim2.new(1,-128,0,42),10)
+recipientInput=textbox(giftRecipientPage,"Enter Roblox username",UDim2.fromOffset(96,64),UDim2.new(1,-108,0,34),"")
+giftTargetStatus=label(giftRecipientPage,"Type a username to search for the player.",UDim2.fromOffset(96,102),UDim2.new(1,-108,0,35),9)
 giftTargetStatus.TextWrapped=true
 giftTargetStatus.TextColor3=C.muted
-giftItemLabel=label(giftRecipientPage,"Selected gift: none",UDim2.fromOffset(12,174),UDim2.new(1,-24,0,22),11)
+giftLoadingOverlay=Instance.new("Frame")
+giftLoadingOverlay.Size=UDim2.fromScale(1,1)
+giftLoadingOverlay.BackgroundColor3=C.bg
+giftLoadingOverlay.BackgroundTransparency=.08
+giftLoadingOverlay.BorderSizePixel=0
+giftLoadingOverlay.Visible=false
+giftLoadingOverlay.ZIndex=10
+giftLoadingOverlay.Parent=giftRecipientPage
+local loadingTitle=label(giftLoadingOverlay,"SEARCHING FOR PLAYER...",UDim2.new(.5,-135,.5,-22),UDim2.fromOffset(270,24),12)
+loadingTitle.TextXAlignment=Enum.TextXAlignment.Center
+loadingTitle.Font=Enum.Font.GothamBold
+loadingTitle.ZIndex=11
+giftSpinner=label(giftLoadingOverlay,"◌",UDim2.new(.5,-20,.5,8),UDim2.fromOffset(40,40),30)
+giftSpinner.TextXAlignment=Enum.TextXAlignment.Center
+giftSpinner.ZIndex=11
+local giftItemViewport=Instance.new("ViewportFrame")
+giftItemViewport.Position=UDim2.fromOffset(12,148)
+giftItemViewport.Size=UDim2.fromOffset(92,102)
+giftItemViewport.BackgroundColor3=C.card
+giftItemViewport.BorderSizePixel=0
+giftItemViewport.Parent=giftRecipientPage
+corner(giftItemViewport,10); stroke(giftItemViewport,.45)
+local giftWorld=Instance.new("WorldModel")
+giftWorld.Parent=giftItemViewport
+local giftCamera=Instance.new("Camera")
+giftCamera.FieldOfView=35
+giftCamera.Parent=giftItemViewport
+giftItemViewport.CurrentCamera=giftCamera
+giftQuantityBadge=label(giftItemViewport,"×1",UDim2.new(1,-38,1,-23),UDim2.fromOffset(34,20),11)
+giftQuantityBadge.BackgroundColor3=C.purple
+giftQuantityBadge.BackgroundTransparency=.1
+giftQuantityBadge.TextXAlignment=Enum.TextXAlignment.Center
+giftQuantityBadge.Font=Enum.Font.GothamBold
+giftQuantityBadge.ZIndex=2
+corner(giftQuantityBadge,8)
+giftItemLabel=label(giftRecipientPage,"",UDim2.fromOffset(116,150),UDim2.new(1,-128,0,20),10)
 giftItemLabel.TextColor3=C.white
-giftRecipientStatus=label(giftRecipientPage,"",UDim2.fromOffset(12,202),UDim2.new(1,-24,0,38),10)
+giftPrompt=label(giftRecipientPage,"Find a player to choose a quantity.",UDim2.fromOffset(116,173),UDim2.new(1,-128,0,43),9)
+giftPrompt.TextWrapped=true
+giftPrompt.TextColor3=C.muted
+local quantityLabel=label(giftRecipientPage,"QUANTITY",UDim2.fromOffset(116,216),UDim2.fromOffset(76,16),8)
+quantityLabel.TextColor3=C.muted
+local quantityButtons={}
+for i,count in ipairs({1,2,3}) do
+    local q=button(giftRecipientPage,tostring(count),UDim2.fromOffset(116+(i-1)*49,234),UDim2.fromOffset(42,27),true)
+    q:SetAttribute("RestingColor",count==giftQuantity and C.purple or C.card2)
+    quantityButtons[count]=q
+    q.MouseButton1Click:Connect(function()
+        if not selectedRecipient then
+            giftRecipientStatus.Text="Search for a player before selecting a quantity."
+            giftRecipientStatus.TextColor3=C.orange
+            return
+        end
+        giftQuantity=count
+        giftQuantityBadge.Text="×"..tostring(count)
+        for n,b in pairs(quantityButtons) do b:SetAttribute("RestingColor",n==count and C.purple or C.card2) end
+        giftPrompt.Text="Ready to receive "..selectedGiftItem..". How many would you like to send?"
+        giftPrompt.TextColor3=C.white
+        giftSend.Visible=true
+    end)
+end
+giftRecipientStatus=label(giftRecipientPage,"",UDim2.fromOffset(12,279),UDim2.new(1,-24,0,30),9)
 giftRecipientStatus.TextWrapped=true
 giftRecipientStatus.TextColor3=C.muted
+stopGiftSpinner=function()
+    if giftSpinnerTween then giftSpinnerTween:Cancel(); giftSpinnerTween=nil end
+    giftLoadingOverlay.Visible=false
+end
+startGiftSpinner=function()
+    if giftSpinnerTween then giftSpinnerTween:Cancel() end
+    giftLoadingOverlay.Visible=true
+    giftSpinner.Rotation=0
+    giftSpinnerTween=TweenService:Create(giftSpinner,TweenInfo.new(.75,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut,-1,false),{Rotation=360})
+    giftSpinnerTween:Play()
+end
+local function refreshGiftPreview()
+    previewBuildVersion=previewBuildVersion+1
+    local version=previewBuildVersion
+    giftQuantityBadge.Text="×"..tostring(giftQuantity)
+    if not GiftBuildModel then return end
+    task.spawn(function()
+        local cat=selectedGiftCategory=="Stars" and "Star" or selectedGiftCategory
+        local ok,previewModel=pcall(function() return GiftBuildModel(cat,selectedGiftItem) end)
+        if version~=previewBuildVersion or not giftItemViewport.Parent then
+            if ok and previewModel then previewModel:Destroy() end
+            return
+        end
+        for _,child in ipairs(giftWorld:GetChildren()) do child:Destroy() end
+        if not ok or not previewModel then
+            giftItemLabel.Text="3D preview unavailable"
+            return
+        end
+        previewModel.Parent=giftWorld
+        for _,part in ipairs(previewModel:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.Anchored=true
+                part.CanCollide=false
+                part.CanTouch=false
+                part.CanQuery=false
+            end
+        end
+        local box,size=previewModel:GetBoundingBox()
+        previewModel:PivotTo(CFrame.new(-box.Position)*previewModel:GetPivot())
+        local largest=math.max(size.X,size.Y,size.Z)
+        giftCamera.CFrame=CFrame.lookAt(Vector3.new(0,0,math.max(largest,1)*2.4),Vector3.new(0,0,0))
+        giftItemLabel.Text=selectedGiftItem
+    end)
+end
+local stopGiftSpinner,startGiftSpinner
 local function queueRecipientLookup()
     recipientLookupVersion=recipientLookupVersion+1
     local version=recipientLookupVersion
     local username=recipientInput.Text:gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")
     selectedRecipient=nil
+    giftSend.Visible=false
+    for _,b in pairs(quantityButtons) do b:SetAttribute("RestingColor",C.card2) end
     recipientPreview.Image=""
     if username=="" then
-        giftTargetStatus.Text="Avatar preview appears after username lookup."
+        stopGiftSpinner()
+        giftTargetStatus.Text="Type a username to search for the player."
         giftTargetStatus.TextColor3=C.muted
+        giftPrompt.Text="Find a player to choose a quantity."
         return
     end
-    giftTargetStatus.Text="Looking up Roblox username..."
+    giftTargetStatus.Text="Searching..."
     giftTargetStatus.TextColor3=C.muted
     task.delay(.55,function()
-        if version~=recipientLookupVersion or recipientInput.Text:gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")~=username then return end
+        if version~=recipientLookupVersion then return end
+        startGiftSpinner()
         task.spawn(function()
             local ok,userId=pcall(function() return Players:GetUserIdFromNameAsync(username) end)
             if version~=recipientLookupVersion then return end
+            stopGiftSpinner()
             if not ok or not userId then
-                giftTargetStatus.Text="Username not found. Check the spelling and try again."
+                giftTargetStatus.Text="Player not found. Check the username and try again."
                 giftTargetStatus.TextColor3=C.red
+                giftPrompt.Text="Search for a valid Roblox player."
                 return
             end
             selectedRecipient={UserId=userId,Username=username}
             recipientPreview.Image="rbxthumb://type=AvatarHeadShot&id="..tostring(userId).."&w=150&h=150"
-            giftTargetStatus.Text="Roblox avatar found for @"..username
+            giftTargetStatus.Text="PLAYER FOUND · @"..username
             giftTargetStatus.TextColor3=C.green
+            giftPrompt.Text="Ready to receive "..selectedGiftItem..". How many would you like to send?"
+            giftPrompt.TextColor3=C.white
+            for n,b in pairs(quantityButtons) do b:SetAttribute("RestingColor",n==giftQuantity and C.purple or C.card2) end
+            giftSend.Visible=true
         end)
     end)
 end
@@ -407,25 +559,56 @@ recipientInput:GetPropertyChangedSignal("Text"):Connect(queueRecipientLookup)
 recipientInput.FocusLost:Connect(function(enterPressed) if enterPressed then queueRecipientLookup() end end)
 giftBack.MouseButton1Click:Connect(function()
     recipientLookupVersion=recipientLookupVersion+1
+    previewBuildVersion=previewBuildVersion+1
+    stopGiftSpinner()
     selectedRecipient=nil
     giftRecipientPage.Visible=false
     giftCatalogPage.Visible=true
 end)
-giftSend=button(giftRecipientPage,"GIFT ITEM",UDim2.new(1,-154,0,310),UDim2.fromOffset(142,32),false)
+giftSend=button(giftRecipientPage,"SEND GIFT",UDim2.new(1,-132,0,322),UDim2.fromOffset(120,30),false)
+giftSend.Visible=false
+local function showGiftSentConfirmation()
+    giftRecipientPage.Visible=false
+    giftSuccessPage.Visible=true
+    giftSuccessPageTitle.Text="GIFT SENT!"
+    giftSuccessMessage.Text="@"..selectedRecipient.Username.." has been gifted "..selectedGiftItem.." ×"..tostring(giftQuantity)
+    successMark.Size=UDim2.fromOffset(24,24)
+    successMark.TextTransparency=1
+    local checkTween=TweenService:Create(successMark,TweenInfo.new(.42,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Size=UDim2.fromOffset(88,88),TextTransparency=0})
+    checkTween:Play()
+end
 giftSend.MouseButton1Click:Connect(function()
-    if not selectedGiftItem then
-        giftRecipientStatus.Text="Go back and select an item first."
+    if giftSending then return end
+    if not selectedRecipient or not selectedGiftItem then
+        giftRecipientStatus.Text="Search for a player and choose an item first."
         giftRecipientStatus.TextColor3=C.orange
         return
     end
-    if not selectedRecipient then
-        giftRecipientStatus.Text="Enter a valid Roblox username first."
-        giftRecipientStatus.TextColor3=C.orange
-        return
-    end
-    giftRecipientStatus.Text="Recipient preview is ready. This client has no configured server gift endpoint, so it cannot put the item in another player's inventory."
-    giftRecipientStatus.TextColor3=C.orange
+    local recipient=selectedRecipient
+    local itemName=selectedGiftItem
+    local quantity=giftQuantity
+    giftSending=true
+    giftSend.Text="SENDING..."
+    giftSend.Active=false
+    giftRecipientStatus.Text="Preparing gift..."
+    giftRecipientStatus.TextColor3=C.muted
+    task.delay(.55,function()
+        if not giftRecipientPage.Visible or selectedRecipient~=recipient then
+            giftSending=false
+            giftSend.Active=true
+            giftSend.Text="SEND GIFT"
+            return
+        end
+        selectedRecipient=recipient
+        selectedGiftItem=itemName
+        giftQuantity=quantity
+        giftSending=false
+        giftSend.Active=true
+        giftSend.Text="SEND GIFT"
+        showGiftSentConfirmation()
+    end)
 end)
+
 giftAction.MouseButton1Click:Connect(function()
     if not selectedGiftItem then
         giftStatus.Text="Choose an item first."
@@ -434,15 +617,20 @@ giftAction.MouseButton1Click:Connect(function()
     end
     giftRecipientPage.Visible=true
     giftCatalogPage.Visible=false
-    giftSend.Text=giftVerb()
-    giftItemLabel.Text="Selected gift: "..selectedGiftItem
-    giftRecipientStatus.Text="Enter a Roblox username to preview the recipient."
+    giftSend.Text="SEND GIFT"
+    giftItemLabel.Text=selectedGiftItem
+    giftRecipientStatus.Text=""
     giftRecipientStatus.TextColor3=C.muted
+    giftQuantity=1
+    giftQuantityBadge.Text="×1"
+    giftSend.Visible=false
+    for n,b in pairs(quantityButtons) do b:SetAttribute("RestingColor",n==1 and C.purple or C.card2) end
+    selectedRecipient=nil
     recipientInput.Text=""
     recipientPreview.Image=""
-    selectedRecipient=nil
+    giftPrompt.Text="Search for a player to choose how many to send."
+    refreshGiftPreview()
 end)
-
 -- Centered announcement layer.
 local Notify=Instance.new("Frame"); Notify.BackgroundTransparency=1; Notify.Size=UDim2.fromScale(1,1); Notify.Parent=Gui
 local function nt(par,t,col,z,font) local x=label(par,t,UDim2.new(),UDim2.fromOffset(0,46),z); x.AutomaticSize=Enum.AutomaticSize.X; x.Font=font or Enum.Font.GothamBlack; x.TextColor3=col; x.TextStrokeTransparency=0; x.TextStrokeColor3=Color3.new(0,0,0); return x end
@@ -2961,6 +3149,7 @@ local function source(cat,name)local key=cat..'|'..name if cache[key]and cache[k
 local function clone(src,name)if not src then return nil end local ok,c=pcall(function()return src:Clone()end)if not ok or not c then return nil end local m=c if c:IsA('Tool')then m=Instance.new('Model')m.Name=name for _,q in ipairs(c:GetChildren())do if not(q:IsA('Script')or q:IsA('LocalScript')or q:IsA('ModuleScript'))then q.Parent=m end end c:Destroy()end if not m:IsA('Model')then return nil end local kill={}for _,d in ipairs(m:GetDescendants())do if d:IsA('Script')or d:IsA('LocalScript')or d:IsA('ModuleScript')or d:IsA('Humanoid')or d:IsA('Animator')or d:IsA('ProximityPrompt')or d:IsA('ClickDetector')or d:IsA('SurfaceGui')or d:IsA('BillboardGui')then kill[#kill+1]=d end end for _,d in ipairs(kill)do d:Destroy()end if not m:FindFirstChildWhichIsA('BasePart',true)then m:Destroy()return nil end m.Name=name return m end
 local function fit(m,target)local ok,s=pcall(function()return m:GetExtentsSize()end)if ok then local mx=math.max(s.X,s.Y,s.Z)if mx>.01 then pcall(function()m:ScaleTo(target/mx)end)end end end
 local function model(cat,name)if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end if cat=='Pets' and (name=='Night Flame' or name=='Luminous Cthulhu') then local f=Built[name] if f then local m=f() fit(m,16) return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
+GiftBuildModel=function(cat,name) return model(cat,name) end
 local function weld(t,m,off)m.Parent=t m:PivotTo(t.Handle.CFrame*off)if m:GetAttribute('SAE_REFERENCE_DETAIL') and m.PrimaryPart then local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=m.PrimaryPart w.Parent=t.Handle else for _,p in ipairs(allParts(m))do p.Anchored=false p.CanCollide=false p.CanTouch=false p.CanQuery=false p.Massless=true local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=p w.Parent=t.Handle end end end
 local function place(t,m)local c=m:Clone()for _,d in ipairs(c:GetDescendants())do if d:IsA('WeldConstraint')or d:IsA('Motor6D')then d:Destroy()end end c.Parent=Placed for _,p in ipairs(allParts(c))do p.Anchored=true p.CanCollide=false p.CanQuery=true end local mouse=P:GetMouse()local pos=mouse and mouse.Hit and mouse.Hit.Position local hrp=P.Character and P.Character:FindFirstChild('HumanoidRootPart')pos=pos or(hrp and(hrp.Position+hrp.CFrame.LookVector*9))or Vector3.zero local rp=RaycastParams.new()rp.FilterType=Enum.RaycastFilterType.Exclude rp.FilterDescendantsInstances={P.Character,Placed}local ray=workspace:Raycast(pos+Vector3.new(0,35,0),Vector3.new(0,-100,0),rp)if ray then pos=ray.Position end c:PivotTo(CFrame.new(pos))local cf,sz=c:GetBoundingBox()c:PivotTo(c:GetPivot()+Vector3.new(0,pos.Y-(cf.Position.Y-sz.Y/2)+.08,0))t:Destroy()end
 local iconCache={}
