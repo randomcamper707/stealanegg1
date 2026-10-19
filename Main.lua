@@ -39,7 +39,7 @@ local nonce=tostring(os.time())
 local PETS='https://raw.githubusercontent.com/randomcamper707/stealanegg1/refs/heads/main/ExactPets.lua?v='..nonce
 local STAR='https://raw.githubusercontent.com/randomcamper707/stealanegg1/refs/heads/main/ExactStar.lua?v='..nonce
 local POLISH='https://raw.githubusercontent.com/randomcamper707/stealanegg1/refs/heads/main/FinalPolish.lua?v='..nonce
-local BASE='https://raw.githubusercontent.com/randomcamper707/stealanegg1/7eb4de5f692f28c297cbd4b6fceb973c540af700/ControlPanel.lua?v='..nonce
+local BASE='https://raw.githubusercontent.com/randomcamper707/stealanegg1/46ab3155cb1d2be20e048e4551a18dd0add0c9ec/ControlPanel.lua?v='..nonce
 
 local petSource=fetch(PETS,'exact pet rigs')
 if petSource then run(petSource,'exact pet rigs') end
@@ -52,5 +52,34 @@ if polishSource then run(polishSource,'final pet/egg polish') end
 
 local baseSource=fetch(BASE,'full control panel')
 if baseSource then run(baseSource,'full control panel') end
+
+-- Keep the divine item spawner compact and give it a clean, short title.
+-- The control panel builds this GUI asynchronously, so wait for it to appear.
+task.spawn(function()
+    local player=game:GetService('Players').LocalPlayer
+    local playerGui=player and player:WaitForChild('PlayerGui',10)
+    if not playerGui then return end
+    for _=1,100 do
+        local itemsGui=playerGui:FindFirstChild('SAE_ITEMS_V7')
+        local content=itemsGui and itemsGui:FindFirstChildWhichIsA('ScrollingFrame',true)
+        local window=content and content.Parent
+        if window and window:IsA('Frame') then
+            window.Name='ItemSpawnerWindow'
+            window.Size=UDim2.fromOffset(350,320)
+            window.Position=UDim2.new(.5,-175,.5,-160)
+            for _,descendant in ipairs(window:GetDescendants()) do
+                if descendant:IsA('TextLabel') then
+                    if descendant.Text=='DIVINE ITEM SPAWNER · REFERENCE EGGS' then
+                        descendant.Text='ITEM SPAWNER'
+                    elseif descendant.Text=='25% smaller • refined Unicorn, Night Flame, Sabertooth' then
+                        descendant:Destroy()
+                    end
+                end
+            end
+            return
+        end
+        task.wait(.1)
+    end
+end)
 
 env.SAE_FINAL_LOADING=nil
