@@ -53,33 +53,35 @@ if polishSource then run(polishSource,'final pet/egg polish') end
 local baseSource=fetch(BASE,'full control panel')
 if baseSource then run(baseSource,'full control panel') end
 
--- Keep the divine item spawner compact and give it a clean, short title.
--- The control panel builds this GUI asynchronously, so wait for it to appear.
-task.spawn(function()
-    local player=game:GetService('Players').LocalPlayer
-    local playerGui=player and player:WaitForChild('PlayerGui',10)
-    if not playerGui then return end
-    for _=1,100 do
-        local itemsGui=playerGui:FindFirstChild('SAE_ITEMS_V7')
-        local content=itemsGui and itemsGui:FindFirstChildWhichIsA('ScrollingFrame',true)
-        local window=content and content.Parent
-        if window and window:IsA('Frame') then
-            window.Name='ItemSpawnerWindow'
-            window.Size=UDim2.fromOffset(350,320)
-            window.Position=UDim2.new(.5,-175,.5,-160)
-            for _,descendant in ipairs(window:GetDescendants()) do
-                if descendant:IsA('TextLabel') then
-                    if descendant.Text=='DIVINE ITEM SPAWNER · REFERENCE EGGS' then
-                        descendant.Text='ITEM SPAWNER'
-                    elseif descendant.Text=='25% smaller • refined Unicorn, Night Flame, Sabertooth' then
-                        descendant:Destroy()
-                    end
-                end
-            end
-            return
+-- Apply the spawner edits to the fetched source before compiling it.
+local function replaceLiteral(source,oldText,newText)
+    local first,last=source:find(oldText,1,true)
+    if not first then return nil end
+    return source:sub(1,first-1)..newText..source:sub(last+1)
+end
+
+local baseSource=fetch(BASE,'full control panel')
+if baseSource then
+    local edits={
+        {"win.Size=UDim2.fromOffset(440,380)","win.Size=UDim2.fromOffset(350,320)"},
+        {"win.Position=UDim2.new(.5,-220,.5,-190)","win.Position=UDim2.new(.5,-175,.5,-160)"},
+        {"DIVINE ITEM SPAWNER · REFERENCE EGGS","ITEM SPAWNER"},
+        {"label(head,'25% smaller • refined Unicorn, Night Flame, Sabertooth',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)",""}
+    }
+    local missing={}
+    for _,edit in ipairs(edits) do
+        local updated=replaceLiteral(baseSource,edit[1],edit[2])
+        if updated then
+            baseSource=updated
+        else
+            table.insert(missing,edit[1])
         end
-        task.wait(.1)
     end
-end)
+    if #missing==0 then
+        run(baseSource,'full control panel')
+    else
+        warn('[SAE] Spawner source edits did not match; panel was not started.')
+    end
+end
 
 env.SAE_FINAL_LOADING=nil
