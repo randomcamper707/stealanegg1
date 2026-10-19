@@ -273,11 +273,10 @@ P.CharacterAdded:Connect(function(char) task.wait(.2) watch(char) end)
 ]============]
 
 local EXACT_STAR_SOURCE=[============[
--- Final held Star replacement for Steal An Egg.
--- The visible front is taken directly from the supplied Star reference instead of
--- redrawing the eyes, mouth, studs, proportions, or colour by hand.
--- A solid tan backing provides real 3D thickness while the exact reference face
--- is shown on the front. Designed for the Real PC executor used by both testers.
+-- Exact held Star visual for Steal An Egg.
+-- The visible Star is the supplied reference itself. There is deliberately no
+-- visible primitive fallback, so a failed image loader can never show a fake
+-- blocky/tan Star over the avatar.
 
 local Players=game:GetService('Players')
 local RunService=game:GetService('RunService')
@@ -289,19 +288,15 @@ if not BP then return end
 local EMBEDDED_REFERENCE_B64=[========[
 iVBORw0KGgoAAAANSUhEUgAAAHAAAABfCAYAAAAwGkOoAAA4IElEQVR42u29eZhkR3Un+jsn4t7cau19U3ertSCptYtFiE0SMjIGvH1UYRsPg3mMeDYeY8Bgjxm7up7H4+cxzHjheYyNMYufzVRhAWKTEXILs0hgSQhJrb0lJPVe1V1LVmbeJeKc+SMiM6taCyAkuzWfsr/8qiqzOuveOHG23/mdE8Cz/DExMcHd779z/5d23nfHRz9w33ffv//uO//r0o03//XXP/nFz/wcQACAqakpg//DHvRsvnhVJSLSb3/7azvWVG59p3XH3jic6mhRdOB8AalYtMtBPLq46pp/umPjrv/yjrHvTE2NmfHxaf+cAP/NhTfBRJPywJ4bTkvzm/95uHJ4Q3NhHt5DVCw5JfIQgc9pzUiD9mebs288vO4XfvkX/q9P7949YS+7bNI9J8B/M+GBMD3G95//+zY5NnX9UDr/ksXmfCkKqwRSBUQAFUBFkUjLNQYqdi7Zmn/z0R0/99bX/9JnVKcM0fizXhP52XjRN9zwCkPj056OfvQPBitzL1lYWnKeK4kgIRGCCCCiEPWAKgSJXWiWUi/2Vi7YcN8n3//Jj/800bjX/wN84rNOA3VqzND4tN/79d/8xaptf9yVhXi17EVIxENEAChUARUHVQWEQaRwSpI2PB/T9Us3HHnpi943/tN3PdvN6bNqB6pOMJ3957L3xt84t8Ltf1DxqROQKpHzAhGBqkBEoaIgUah3CIL1cETkilI21I5V1g6Vr6qf+55rf+Xn3zY7NjZm7rrrLn3OhD7Tfm8XcN9NbxxS1/wokR/MCydehIqyhPc+mE0RiHcQ7+C8QxBs0EzyHagWPDfHsp73nfaGc2758sSH/+Lln5qe9rosHXlOgM/AY3p6jGlyUri96v31qr1gYcn5UmCc8wAUEBdMpveAF6hETVSF+CBA9gz1BAXz4mzmtlX3bX/h+tm/2PzOR2rYBUD1WedS7LMoZfD3fvUdb65V7H8oMvbDI6PGMMEwQaTE3OwMXNYBAIhGH6gKhUJUQSB4APWkgYGBGoTYZmXmzl9z7MzJS67+HaLJ31bdaQjwz2ng0yw8YFIf/Ma7t8H7P2m1coWxXElqsCaF94qsk6FwBbwovGqMQBVOBU4EooCXkFtYk2BoeC1Gh4cxOrLWpJiXi1Y//M7/9LlPnk007if02WVKnxUaSAS9+yvFOwYH7NDMkUXfbLbNjBwEAHjxyLMlpAnDVtKYAAIKgEQADWZUVWDSFHv2PID9+xZwyqkb0M47pD7XdY3Z6o+n935y9wfufPkunD2HiQmenJyU5zTwR9W+iaB9e65/y7ZKor90+OCMFlmbXVkiyzIUWQ6Xl2gvdVCWClWCCEEVIQJVxJ/Da94LykLx4N5HMXdsEUdnjmGhmfPhOe9PGWzufNeOr/0WEXTnzp30nAl9Oh67gvZZr79WMxg5cvCIAEwiBGMsmABjDABCmReA7/o+goLC7SlBJSim9w5JWoEXhvMeTAQWg44Tbh7d53dWH3rPH/zd310+Pj7uny3AN5/o2nfLp35hm+HkLQ89ckAbjWGupHVACQYEZQaYQMQoiwIqEgMXioJTEBEIDCAIUpXR7hRwTuBF4cSDHFHLM63CQbyk8b0/+rGPH2yM7dmjz4ao9IQV4PTOu4gIWh+o/FpqMXLsWFMGhwapKDowpAAC6EkadE0RkvhgNiVGoiEv1OgUgzwi1KYMqIAgUHEQRzxblH774JELf7Hx+XfR5KRMTU/zcwJ8Co+JiQkeG5uWO6+7amuSVN+yb/8xHR4eZe9LePFQhKAE6qFaBsH1fJ0GKK2rjfG5/JbFUcgTNWhhyBUdcsfUas/plnTmV3/m47et27Nnj+oJroUnpAB3Rd+Xwvwaw4wcPZZJY2CURAyYUxBbgBnKBooEoBSCKLyu0HppSF+ICsB5D6+ArdWQ1qswaQJOLMgaECfsxcuOocPr3rjuW++YnJyU6RNcC0+43aUTE0yTk7r3uqtO8pLc9sDemZE9d+9DvV4nIkHpCFkmcL6ESomiKDA0aHHGGRswPJyCTLgl1pXCgyrIWDz44ALuuPMgdpy2GUNDFXjnoUowlmETg0Yl0S2bGuoHthS7l0698r0//eZ/lnBNJ2RaccLlgdM77yIAosT/kUCjt97ygG91YGaOduBVAGUwKYCwnnlewpoU1lp4VRilnllZbjqD1xSkVUWlanD/AwfAxFAxEB/3shEQiE4/bY1c8fJq9eTK0h8p0YsQronixzyngU+MuoTrueezbxngWnqn93zS/fcf1qRSYSEP5z2AAgwHJgYbAyaLJDGoJAqBBzHHmBOP9YEkEGUcnlnCUquAOII4jimGQMShdIBNgRedt1Hy1QP6ebP2df/tiv/2pQ996KrkbW/7y/I5AT6ZAGOt764vXfX2wUb6wYUlJ6VTLl0LKg5QhiKkC9AEzAQigqhAvEAoCO3xBRgUiFjAnASfKR5QgMAIsY9CiCGqSJl1oGpxKN1w6F8qZ/zsf37VVTdpyEr0OQE+kfYR8OB1Vw11Cn9LrZqc0s69FIXjomxD1YEkXLJSMKVQ7t2CqodSsHEcUwyJuKiqdCE5EIUEXygIGlE7VcP7zBQuhBkGpINpnfbRutYhWfvHJ616/q6ZmRkdHxsXnCCCPHEirOkxJkBbpby2XrOntNq5QJSJCIYMDExYXAaIKTxpuYcDFAQmCmsb3yTSx/hDQMHLItaucIFAxYhQAJSZmq4jo+5wY2Mtfd9s++D54+PjXjFxwmx8PmEswdi0qE6wd+4q50SD9nhAFMQcBcYgIrAaMML3Qauw4vuukLrf9zSr92Yf5O6/Fj6DmXt/h0AgJS5CtVislH/26c9/5JK4Ieg5AcbH1NQYE0G/+7mHX1NJ+eXtrFAgKElvyQkQIggTlAkaFz4gMCu1iB7HM1BPI+NGYAYf9yRmgLqCJigUHh5KbIqyzWnqLx4ctN+49vrtv0xEeiLgpSdUkqqe3poYA/VQaBQMdaVIAEdsM5pPAsEEj9f7mXo+UR9XeMcLtat1zBzAbYp/TjUoqijUl2CahdX9rmpm0LBH3/vFm/5k6ERAav7V/3i4YQJ2TRB23kV7AHP2+HTx4PXvPK+TtW8qXacSBAeCGkAJHh4eZT8NUwVEAYkCi6rapZZRDFyOTyOIGCAf/g8FgQFR4yjmMIiRkBK8D7hqJ89QGx3Ghi3r4H3uhwZqptXKf+vUF//ZH95551i6c+dZDpjUf4sIlX50gYTP2LVrgnbuvIvGxs5STN9FN6w9iwDg0kt3KrAn3tgupW5Usfwzdk/Y/fXs72spv/7wkcO+yHMjXkFgEIAARwtACOlCBK3hpadtIgKyFoa4h5WqUAxMpC9AeDjnogBDQBRMcdgUhICpGjZQEIqiQJ63cd4FZ8KkgqJoq7WsTFyWhf7Y5os//LWVm3PXyjV93LV4/HV4RgTYFRB6kdddBADT08CePWfpD1u53nvz/zs81CDJF+c2GmO2KLlLCPgZEF0oIqo+p8X5BXTaGVKTYHCgjrRaRVqpRNMZNM5LyP0IBOdK5EWOhYVFZHkBAkM0VuaXQWrEgGiJwYFhrF49ClEf0BgVeBGo9yARlCJoNlvIsxLOldi0cQ3WbxhFK2sBTBBRraRMrvRHbJr+91Wjo1cfWbj34Pqzp5d+uI0/xsAYfhSh0uObuGmenp4GAHy/RpDDd04MuAzSWji4MU3qGxqN4Vwg29imp6hIwWQGvaeLAFUnWimL4uxOtgSGjtZqZiBJgdJ5LLUKBTwxeZRlDl84wANpUsOmzRthUsbyoMZ7H4SiABugKAsc2HcI7awE2Kwwo10tJFZ477Bl80nYsHEN8iJblmoQRBSkHsyMhYUW9u87BGMJGzeug/dFAAEMIyqr1uopNZuLODafLZ209aRZcf7uhGwOJoKSgmBF9F5P/hEoVWHSo5YrtyWoPzhy7n+ae3KhjskPIlBaIbjpcabjBKZTU2b2nH+p+3Z+shWplt6fA2Bd7vU8BddF6ew8Fz20//AaV2Jo6/YtGBmqoZpWgkNgC/UhunPe4djcAlrtRYAUIk5BKlAlImZAQVoCkBD2O+C27+zF6Lr1OO/8HfC+hIlBRlAwgfcKqODo3DHkbYe0Vg8stKipEstKRAEjNcZi/6OH0RgawM6zT0aetUNuSQrVENMZBpaWOliYX4RhA2KCRsFydHRMgEkSXZhvC0zFXHjB88DkkRgbjH7PXQtKn8OLQoTRaosymwPG2PuMTW5n5tvSqrmjTNY8OLLtV+ZWCnTKYBrA2Lg8kX+1MYw3ROQB+EfunFrV6dzyWuPzl1YYjUf1pjN0sVglzm1hEVtNGQpBagEngjL3gCc4R9i796BWanVyribinRATgSwAA4KFiKLZXCTnczQGqsTsKUQqBCYPUPBTsVwLZka1MowH985g29YN8NIGqY9CQQC3ocjyEkvNDuqVBpAVwbyq9NCYYD4JibFIU4MsVzx4+/1YvbqBPG/DmJAyUC+oUTSbbVhO0ainIT0x3M0ggwVQgRQlGZOYO+58UAcbda3VEnWu6AMLceNkWYZOp62Dg0NkrTGVNNncaNQ2s9rLvBIWlpzadG7//F2/cV/p8juqtTNuHBh83g1EVxxeIUzsUaKVLsvGHjv/V3/1zlUXn7PxLVl2+9srJttOcGAIvFN455CXJVQEi0ve+14CzACUvLPwpSX1CblCVURY4RjKIAVEfaC4q4crOwApmARMMTiJAQYjCE/BYCawASppAqYKCBbWGHgfEj4VgXqCqIOUijIDOuKQJoTl1M6gCQT1QOk9ijIL2uAZReF7xCdjDKw1vYDGUAqVJNwjhQ0Q1b6HDoQURJFlObWWOsTkkBc54j4AkYE1BkXuUeQKrQNORZ3LtNXJVFXA5ECAGRgY2HJsxm0ZHKpePthYfIfT5sFs/z9+psyWPj2w42evjwoWLeU003jorLJEpB98/7vefOFpld9tmEdOLrMOFnP1nSwHCo9qwkSGQKxERACTYe3uVASAmQjGRO1RQ4lNAxssWmkWhZrIy7QEJwrxCk4IpF0oJa4NMVgVrABzgMTK0qGTd+B8G855kJce+AwieBfxTSUoApKCLv7ZjTDjryspyDCKokCRlRB4qJQwNoG1CmOCMIkSeGcin8YHwJs8oI/NJZkIWV5gZFUKIxx/J2Sk4f9bEFtoWDOiAPNExCeBwmlWlvqNr9+l27adqqf5fWyqfuOW0y75ZfXJLy/tvfqWpQeuvsYj+Xsiuh+A7za32l/4qTefs2XTxr8abByz2WLTEZhRlkayHPAETZK4vtLHOEh7FbYeImCCQEUUgIkLKL3dCITFAwFlWaJ0CdiaPiYciJyAUrduEPMxRZk7ZJ0cYA91kfcSEUtWEwVfBHPZExuD1C9TmG45T2GYoRo00CZB48UpCleCOMBuWeagmsCrBWsfbwVpEFCsfBibgJiRZUW4DdGYrkQwITCpIL7HEQj7jnswPAAlBtOqVWuRZTmsEvZ/7z512pC1607hNLUXpTa5qNXO3tt64NPfaOXZHxPRl1QnmOuN5gdGRur20OEZ32w5m7WVixxwBUJjSLwA7cFL6O2w3j2BwWx7ORXAgUCk3L1+iAAkDHGA9+jijKGcowpS7uEq3YX2CkjkejofPo/AAdsEg5H0iEqBQrgybQgZkAHBxGtCzA0ZqgZOGIABU9A0JgIJR36NQVY4lE6CyVYNn6O93RjulAXGGrTbHRAIAoGHBE3vXhp1643LNr32N5rCQjxQb1Qxv9CCV4s0JZo98pDJskVqd9oyd3TWS5E3rNFXVQx9ceY7H72MaFLswODAjsXmnGYLRzn1JSqmCmsTOBEADjZJwSYBRyfPRMvMV/QxJGADMAPiAaYKlDUEEtFTsiEIe4DyYPepi6Bw/4YkQmcKePXQ3k0rjKkgSQ3KwoEg4AhIS/RH3IPJNEJrBImbLLylEBIwJYEnqgBziqRCUOeXlZsEIIZ1At9pIy8KpKmJESr3C/MaBEQMVJME4hW1Wg1FWfaqGYTgBqwBVDy8FySpXYYOxd/jkHU0Bup4+JEFzDdztDttHDk6h6HBDdi8cQvPN+fBZHWpaV1tsJZ4kT+dvekTL7G1xvDVx2bm3uM64lNlY8iBuW8GWu0l1Oop2CqqFUa9VkFiGdYmYArCUyY4X6KTt/HQ9w4iywoYK0E2wfFEsq2Hczlq9RTqATUEMnEzcuiotcYiTSpgMPJWB2wES60l3LnnIaxaNQBRAyYOOZl6qHIo4pKiVjM9K6HLfV/UDVYCM1D6Au2Ow133HsL6DcPxXm1gVTBgosZ5UeRliSGTghnwvgwmMlZHVAkMxcDgIPbtm8eBQwWMScBGEWKesI5KFqVbRDvrwKY1QBTGMoxNwKToFCXyokCzWeDRfXNYdf8MkrTE3LEOlprzwIaNYFIwHJGxSaedS72ant0sWv/dzi8uPbjUrsG3hGcWF6AiICJUK1WsWj0IIaBsxtiQCliTw1hGtZKgXkuRVgyIDTpZgU7WwcG5BRw8eAQh3+3yNhnEFsyKgcEKNm5chXolQSWpxA7TUDZKq3W0MsLDj8zh0OEZuFwBrqE+vAqPPDKLfQfmoWRiNUjhXIwiXRs7tq3HyTvW9QqzXSMRku6wkAE5DUEO2xQP71vE9/YvRD0ImqkkYDUYqBHOOXcjwCkOHhHUGwlGRqsYrFm0FucDCkQWTIqiyPDQ3mM4fOQW2AQwJvhxLwKFQ1phbD1pNQZHG0gTCxGBc4KlpSU0mxmWWiUAxpEjGY4dc/jeIxnWrK3j6PwsWp0OyrIEGwPTvTdV5J1MiiK7wrYX/W0k1qcmNQu5RpMlICpDOG9MzLVDVOe8R+kEeZZjqZmDGTCW4T2wetVqpJUyEI+YYdjEupuLEZdHmhKSJGyANOHY+uVBpoZbb3sE11z7Hdy/dw6dvIJVo1uw78B+nHfuVvzkj5+LxcWD8AKwcN8vMQPiMNioxOpCn1BNsSTUFSZTqNyvHh3GqTsMOoWDEw9RjtFwgFfVeQwNpbjjrhl84R9vB0yCTnse27atwxWvPBVXXn4mEt9C3smhYrB27QA2b6kjy0NU7r0HiKPvJbgCKApC3iEclQzNxSY6HQcvBJAFowqyBknFYGS0gwMHDuLQEcLgEGN4ZBRFUUSfzhDnUDoHy+Ayzz9CGzdeVH/Pvz/vxq1bknMX5o6KUiAVsAWqFQKzh6qPUWg0UNQLVXp8S1WFlIAiRJfWMCppFbV6DZWqwpiQ90E9LCtqFQYgPb/w1Rvvwv+6+ma0ygrUNPCOd78fV7zqdfjU1DTe9a634x1vfTled+V2dBYXwJwGCoUEaj0Q/FgAvLs8F12WB8ZgiwFGwE/JJAEUj/4RCjAFJz7YMHhgX473TlyL//vXd+F1P/t6XP2pv8XffPjPQOjg4gs34Td+9TLUbRtFVsAmKVqtFjqZoFapoPSEolQUOZDnQFGUsSzmoaIR3TEgMoEeErMTL4wsc2i1C7SzAuvWrcUrXvFiGFWoJ6QmgXOi3jnK2vlROPsCs7R0sNy2tvH8U0/ZeAEbEmOZK2kCawlMYUE0BgzdmIliStBLAYiDfzFBcOAwYMC7DGXRhvc5AA/DiqSSwBjq+aYkSXH7vQ/jb6e+jkxGUaKCodENePt//B2QqeHCF5yH3ddfj91f+Rpe+YqzsWqA4H0Bhg/XQwJS36sbhmwhpiLLhKeEWMQNOFwXMOhVEDmYelaPxkAdH/7ELdh7QPCB//FBrN+4AxdccD6u3/0FqACPPtrCI4/O4BUvPRUqOQCg3qih0aij8B7tTo52uwzFElKwCUEWGxuaccisoIL0rp2BSoUxONiAqGLnznNx2hlnA2zhvKDTydBpdnwlTSgr/PVn/eRv/k8DAM25o9Wtm9aPbd681pfesSEOpbMeShIiRl4OoCqFdLALP8V/Cg2BTRSvE4eicGi3crRaHXTaBTqZQ1Y4iAqWMsH01Tfh4YMMJAPwSpg7tgBVwik7Tsc/3XAddn/1y8jLAhWrOPuMTWi3s64ziHmV4ngGaDeR7wc1GtGebuZlIdrNO/qV/Yq1OHLU4Zp/3IOMclib4rxzzsWtt3wDn/3sNNgIqo0GHtg7i5GhKs45cwPm5zpoNh0OH1nAzEwb7Y6g9BRJVViWejwJs7RXFVEUTgBTwYtfchmqAyMwlSoGhobQGBiQSjVlJlDhind98BNfud9MTEzw1V+4bk89qdtTdmy8tFo14p1nUg/iWCPjmAoQhZSzl6v1EQehbn67vC4ezBKRAYghxHBOkOUei60Ceelx9z0H8bUbH4WjYbheAwrj1ltuwj9++Rp85bovAshhKyl82cKLzj8JkH6C3jWDulx2MSfo+j9SRLITekVb6RV8I+wFQMShmjLuf/AYvnHLI6gMNHDzLd/CdV/5Iq790jXIyw7IhJwWlODgoUM454zNWJxfQrNZwnmGsSmsSYI5JookZD5+ez2mpqCRdcDEaLYLnHvB87HtlNPR7uQQAIX3UqlUuDE6KolNf2fD89/6EdUJtpOTkxpB111bd5x02mUvOnXc0JwXgQkJOvrJNnzX8y2DdYPwEMV6PMzURSO0b8diAkxwkuCBB49hKTNASlAfMyg2qDVqWFycQZKkABN8AXRyh07uYHuIR18DvQaDyEzLFqwPpFHMWwlBMxCRpRDGEhRhmoWqRaudwwnBEKNWS3DwwF5YkyC1Faj3UBYkaYJ9B+Zx5z1HcdrWQZAvAlzWK2EthwdXKl5PiMvKY6RBObJOgTWr1+OsneegkxdQZngvvl6rGefdUnuh9cZVO37mmu6osYBGE0F1Qv6/j332DYeO+D9OK0NGEMDTCHBASSFxYIAs0z6AwNHnPJF5CBqyskuIY3X96HwTThVeBc4rnADea2jAtGkk2hIUBqUTlEUZrkHDJApWBbygmiSoVJJ4sd3OJem1VyvC7BgvClHAsgFTmC3jvIfzoTRVOg+vAQVSZUCAaiUFGwMVH0tZoQpSisH+Iy1wWoHEKLZHmuqC3XEB6TjNUwSBhToRARTAgtwDF77gYsBY+BD9u5GRAVM4d89i4S9dteOnr9GpKdOtSvTaCIgmoar01Wv3//bhY7ijVmsYr+IFCiWBkEJoOTmWop+LZlSXBTXQlRhkZHwRc4SkIsirDO8V3sf5LgBUlsNwDIiAVOBdgcSGioH3PgqC4QUgW8HDB5bw8L4WyNRCuK3c9z1EPZxU1YA4xcxcgcU2wVYqsTxlABh4IdTqKYzpGxmnwVR79ZBeB3AJhQ/+WGNDaTegXdZQ0wX9KYJMfctAywQZOo6brQ7O2Hke1mzciCwvoQJfG6jZZiv7ZqcofmLTttfeort3224l4vjmFpkeHzfTN0131p72S79y3s6h61YNVquFy9XCkMTBAbZL5aPjTIL2L8kj4IckQdMCo1p7XCQGBfyRCfVaJYQ+cSQI1EfcJIZEXkBs4MoCmzdtALRE0WkD1qL0Ho1GHd/+7n78/5+6GYUjvO6KM/FTrz4L7aVOD9oLiJ1A1aNaTXHt7nvxmS/fj2otwZt+/iU4YxujyHKAFN4VWDvawKrBCo60FDYVhH5gRC0J9w8JZm/16uEYMAUhEi8LLnvsuFgK6CJTy3SR4losLLaxbv0WnHPehWh1CjUmleHhATPXbH5qPrO/ePrpP5WHAX2XuSekFY5PT/uJiQk7OTn5mbe96Rd/95ILR/8otYUrSjZMCTGymCwQKILVqgxjCEMjNYyuGkCtmkLEg1QDtmhMjJRD0LC42Mahg0eRZQVO2bYBIwP3Ya7tYKyFX+FIAzusOb+AKy8/D+M//TKk0gaI4UqHgaEavnnzfZhbLKA2xZb1FVz+itPQXDwGMCBcwT9/+2E4r3jBeSehkjq0WvN49at24u5HbsRM22D2aAeNxhpcdPGpaC52ACgGahZrNm/FTbf9BRbbHmnNRhMv0b8ZtFuLOOuUtdi6aRXyzizWbxjG9m1rkeXZMrMUNntReDy6bxadlgfYxvdCDuq84PDsUbzix16DpFZz6tUqUavZbL13y1njf94t4hKR/MD9gZOTk35qasqMj4//cSd/7aWXv+Sk16RVL76EqnrWOMKjWxcDGM4LkiTFyMgoKpUuSTYQZQXSQ0dCC5dHUrFod9pYv3YQz7/gZHx59x6AhmGs7cW3pIROs4XRQcKb3ngF0qSAz1wotiLMQhNvUWYlvO2gunYYq0cHwWUHaW0V/v5zd+DTX74H4AS37TmAd7z1pUj8LGqNGmopIT+8CGs8BIpSECJZw2i2MmzdlOJtb74Uv/f+L4HsaiS2igTBJ+SFhxRtXP6yc2E1Q+aAamUQtVoVA4NJ5J322wm9Z8zNddBeaoOUe5OknBccmZ3DWedeJIMjq+HK0rpS73WS/cqp57/pnwKN4snJTU9GKyQiUlVt/NLP/eTHX/ai0392qK7IsxlhUQ7YaIDYlIBOu42i7GD9+lWo1W3QTmIYpl7MytEOdToZ2u2AIxIRcp/ghq/fjW/d+iA6PoFQ8DmGFcP1FBdfsA2XvuxUVG0eILRYILWJQacw+OI/7sFSOYAH9u7FxRduxyXPfx5uueth/MOXbgVXRsGJRXNuHj/+0m248uWn48ZbHsbXbz6A008/FyPVNl79yu0wWIIrHJglXKd61AZGcf0/78Pnr9+DxXYRghcipFbxmst34oqXno6is4jWUgf7DxzDKadsQKPOKMuiF4VCNfhwV0EpAcgTDYXpo/OL2Hb6Wf7Ms882eelg09qfL5byO5dc8h+O/aADab8fL7SXyv3GVW9/8Zmn1SdGB/IrXbYoAmWlbo4ncK7E7OxRJInB8MgACA4hrotkWTqO0s4BQPbqY6dYBQ8+NIsHH55DKws1uM0b12LzhrVozx1BreKxbu0wvLpI9Q0bvJJW8fDBOXz79iN45EAHh47OgQ0hV0DVwhcZoAK2dYh6VBNGUQBDQwPYsWUNLr94K07emCAv2oF3CvRqkAxFozGE2XmPBx4+isNHj8FYxjnP24qt64eQd+YAYiwtlrh/71Fs3bIOa9ZU4Jzr0fjFE7zzcJ5gqzV4Arw4zM7M6mmnn6mn7TyLj80vHkyr6W9e/Mr3fCKQzKbM+PgPNk34+7VYB+plSPRvHLt47Gcue92Ov96w2v58ns0LlDhULoJjHx4eCYgHMZhMBI6lB711v0hEmRkKhglJueY4a8canHnKJnh4QASsgk5e4NjBNgZqo7C2Anjqk4YQ8rTtm9fhnvuPYOboYeSeURQEUoOq6eBVl56JkcEavnLDHZidFzSz4ItnjxzGzu1DOHnLCFw+C2MZBA0IiomURGW0Oi0M1RkvOm8d2GwCAXBFhk57LnQIgyFShpzPBhdHMegRDamXVwbZBOAE3hU4emzBb99+itmydTsdPHR0Ktfyva99zfsenpqaMmNjY9IlMD0dAkQ30Y+BTeeovu6dr71i06u2bqmP5u1MiZhChEWwNom1OA9RBROF3FFXohFdVMZDYHpVA0JeFGAqetWBEgLnQqVe1K80GRIaPVUB8iWuvOw8nPG8rXjgezOYme9gsFbDBWdvwSlbGoB4XPS8Nbj1zn2Yb+ao1SpITRWnbFsDcS2ICqxaKAAffXVIizwMGN4BZdmKNMHANmPuI0+qHuJdvymm274hCgGDTQXWWjSzjs4tNmXjpk1m1brNB48cXfit17zxv368y7+l8R9+hvcPPORgcnLSxZH9h888/Wemtp18xi+rcYXzpYWaAH27EkoFjA1Rlu9lUB7L+7/6QwgYEk1VINRS37ITeh20AoYngo/sVlKO1ItQjlEA5No4dcsgTj95VcRTBeoKtJoLEBXUqxaXvvgkMAUTumfPAbgigyj18lCh3kyn3qguin2Ghvix8FIXZaIwk3QZS7rHBYAw0lpNljqZLnQKUxscMbmarxyYb131pqs+8FD33IunIrwfSoAAMDY+LRMTE5wfuf99rXa5Y2hkzZVHF5bgWi1UICriSYhA3odbNybCn3GRaEURZUUb2PGtX31ylINIHMjTDXx7MI+PnUUhYs3zApLloQmmy+ExFgaAc0BRBO3Oc0ar5TAwHCAvJYqfqysS7CcfSqG9InGXQkkGvZY4L1BRI2mtwbNNx4ePtkHWzojRP/y1d37kfwCQH8bXPS0CJEB11ySIMLd7auL1zaLxB0PDG16Z6eKZuvgoqbZhqzbMMHMF6tUqiASuLMAgeO13yGq3Itf1ib3qXB+9oAiBiQegJlTNwZFrG0nByj3TRcQwFBCdQIGXfv97RPq7NHovIUdNrIET06sI9HsNsZJF9gQPEYUvQ0U2MSnIWFEhpGnKlsncu/cQPn3dvd8+ttD53PBg+rGb9xx4FAjTqH5U4T3l9rJltBPofVr5yu3Xvqw5c+dH4B85yaOpJrF0bOYoqpUKjOHg2+IkJTYEa0NlnCmAzp66xCNEDmbc/ExYbOZ48KGjaNQHsWHjaERoAjRGMZAhAqzRQPFDv27Zdb6KfgsZEdBuK757+wHUB4awectwr8oSxngFOCwxhEbVILWx+WV5Z81xVmJ2ZhEP3H8Ma9etwpq1w8hzASfmQKmdf/jgn3/pM/cdxe6uOo+NjZnp6WnB0zRz5in3B6qCpqfHeM/4tE4C8o3PX/Nnxt/1qwtzDzhrUnvbd+7G7LFWAIt9ZCHDo9FIsX7tEGpVA8Mhl/R4HAHG11qdEo88Mod2G2CbxmKxxgIsQ9RAxWFkIMX27aNITQlWCQC6IvJZtW/yGCgK4MEHFzC/4ABjIkYZNoKQhxMGice2k4aweUMD0KLXJPzYPIvRXMzxwN4jIo5ZYe7sdPS/HD3Y2f23N95+pOseXv96NWdNQyeX1+FOhAbP3bt325mZGd06gDcbufvDneZDvixhvnPrfVhqC2xaBRkb0goGqilhaDBFNWVYE7TE9dpZloPiATQuPdBcLNHuAB4mvKrSC4JieRa11GLd6hqsdaHcQ30Sdc9sk4a6myo6WfCFKhwr8wFsVlZ4YcArGnVgoBHIWN3KPj3+ZkarXQjUqGV75b9732ev7zYNTU9PY3oaT5vG/Ug+8PEeMzMzOj4+7v/5sx/cX6E2jBUCGKecugntzMdUnpdFlj48SWJqQStWotenHGt4zMDQcIrBQe4FJqGYa3pE3NgRAYaLvrEfgPS1sGv0wyEgjZqiWgt+j2HA3WpIN9IFxyKw/wGGbKkOD1bYC5ZsivumxsbMD9JbeUINORBpvtwmgcWTpgajIwOoJoSKFVRtiYp1SE0Jyw6Gtdef3mVvdxGdkBZEpIVMICIZgrWCxAqsEVQSRWIdrPGwpLAMEHuELnmJedzxNXA9jvLbBRI8gBJKHto15ho+qxsE9ZtV9AngKibnoYmlRpnJzvHpaY+xZ8mUivHxcT8xoWzIX0FSwIRYGnmeQcTFqrgE7qfKinGQ3eKudnsvmFaESX26VGznAgUf2R1eoQJlwFOsT3KMb0l7qUHfhB4/r456gHkg9EQj3uNA0HFeRldai+PCOiIRa5kEvONZM2akm4S+5gUf2W7Fn6F5CVbDEELZ7RGg7nABeizA2lOOmEJEphvHpqx+RaM7SYKWURWoR/9fsd5P6u7pCTTouBj7cfLUJ4nIeyFvrL6c+a8pwB/JB3anu7eK2bNGknxQMidMhr0Ewi51G2GwciKS9qbGKaTXCtZnjFEs6cryxVzWFLQ8ONHl/lOfCBB4vJjtB4speqD0cjBeseK1wK1S8qIAyRld0OOE18AxTMdC7eLpJmlC2alSaAhxTo5Ti8fu7G737PGTlbSrfcuIUz3oarnffZxF/cECb3pSlTp+TPPx9JHlX7tpjxJIREDA1qkPjNUI+P4owIkSxBAvbCcq4FRVSFGULpygEsORni9iWumbqOtbZKW2oX9sDkiAGGl2zafGZy/v6PPjvr+AoP0ph93BedT3f10u6ePT7Pr4J3X9Z99TkwuAzEnWlpuii6ET2oROx6/G5XVNTKi/eaAsQi9cr1+2R7U73uH0uNyPUVLtknYjLNYT9jJSUJd83W34VOqPjXxsoC8runShkYcaqYcBZusGNjFf7FOD+1dJy7icy+iVZVmQqEhiUVnMi1MA7N0ZJv2esAKkkOcQ1PJ5HgTlhIssR1EWYO7TQihqSjjbz0ec0/RgsB4l73hDRxz5nV3kJSpOl87P/SbJcLwAgbuck+NNDfeTblEPLwUMhfzaWAMowzmF9wLvHZgtbGJhDId05gl48aoC0RJDIxbVSqJDA1XTycqTAdDYv0Iq8TTMzCYYGoRSG2QIwyPDWDU6EHM6ijlcaMoUdSjLAgvzS5iZmYN3ukzx6DESDBpjUK2mGBhswJhA87fGIklTpCmHzmAAZV7i0KFZLDVzILZ1rVzorvZZeJ/h1OdtxKmnrQvIjgeyrEBZxCMNRJCmFRydbeGeex+BIRuVVleUkRgE8R5DI3W88OLTwZzrQN2i3S5fCOBDwFl6wgpQJyaIJif1/q9++KTZ+XtOKUrA2pRGhofRaNiAWYaydIg1GQH3FEWSVDC/0ELpiliB6HY8rey5EFE451Cr1bBu3VpUa4D4spdSiwpACsMW1qYwdh5eOstqd/SY4IUI8M6jtZSj3Va0Wy2UZYmicKHFzFBsHO1gabEAke3123cjalBs7IGCrcHBg8fw3e/sxbbtq3j/I20sLZWXffgPLxkkmmw+02Oan7IAd8WvrWy/JS1qvgCWWk1ki21UqgqyYeZY8DOxgkCEonRot0vkuYsmkiMctqwtuhedMlqtEgcOPIKlpRy1OgVgmYJwvfRi1vCaVxClgemhsXdCj1dsRVFYTH/ymzjvgjNQr1t4l4eZadHUh3EpDDaMSmqxfDDBcpZ1txqyMO/xtRvuxeEzNnNZ5FqtVE4esqtfAuDa6ekxBp45SO0pC7DroE1ZbK9bY+fbqgcfnaGyzDE0lMCTg0MMBihOS4qoJcNEWkKPYdrDLwmmh5EqDApnsLDoMLwk4HjQFcXpEyGa7HfDU3fxIxpDy4IOCjNQAjjGCYwZRq02gsFhQlnYOA3muCgFoYkGsRmmyyegZQGMCmBtBWxq8D5FUkmk0UhNOyt/CsC1J2waMRbBPuPNhqqtWe9Y2h2PojQQqoAoASMBUQogBVEKphSGKiCycZcvRyp1RRlpuQUkGDAnMMbE4ayRk9KdnR3HJIdljhNklieGXRsWBm6jLEvAerANzaJQge/1M/ShNSh6bdv9qDlsNqEw4EgYKMsCIh6GCYaYojm+cuqDYwMR0KYTToDdh8t0WEpGWYbOVFFaEXb3mjx0ee/644X5+pjB5IDGlq9Qleh1GnWfkJhvdjcA9yr53VEjKxCgwKFDnjsYMqikBhAf4bs4J4b6bWsrc5uV+WVfJ2OTjzBIGQzPzjlNUzpZyuIlsazEJ64AIeeDBKUv1Hu/TJ/6Y6+Y4kzqbj8fIYJl+rh4Y888KeCdxNEetGLY0HKdCH7U9PJNxL99PLoTDohUlKWHIQs2FNrIqA/jKXXP4CX0G3j7LWOPKQQisNS8ShiVQgQPSGIsjOKlJzASE9J4dUKlK1GWJZxzMc+yUDHHYVC0zAB1k2mJR8BpYHivMKUcO4s4th9312v5wJ3laIysEGsQFq841Uxj4TYvCiRp7LOKkw97E3s9AOmeScHR5x1XmVg2wyQM8wkWCMwh1UBYE4F/zc0fuigZD7gonUgCJBoPZ6+X3p2f5yXyvOSyLCFeI9XBAhSGvIFMGMUVfV8fpVpeG0LsQ+tzWDzCjE2FifOuDYQsQAlA4fMFHMZnx+WUOM3Xi6CU0PMg0q/eK+LPzDCWkKYJkiSFSSxsxSJJLNIk6Q12XRnF9poE4vAi9Pytd4SisCDUAdSpUybwWjv37sWt5wNQfYZgtR8pkafJ/0e+8bFfT+Ed4AXiHbK8g9KPgE2KsggjJokZhgJy0qWv84r9s4xaqH14jIi7/eFYbGVQ2wi+hoJWQbqjuDzSNPRhSBzy6uNEQ47nSXA8styVQO4InYLwvX0tGCZ4kUjT6p4IIxhopGjUAUb2hFWKvp/3cKXDvffsR5Km3YqkTyybVid7HYB/Gb/rmYHVnhorLSan133oN4cpXfxOmujJM4cX5e57HuLMA9WBIRhrkBcFROIcNQ0LWW8YjI5WUEv7c8cIeMwBHAKg9AYzhzs4cGgJxIxqNe3PpNEAY6n3SFODkVV1NCoGIA/nChRFGAzLzDCGAxrEhLxQHD6Sobkk8K5r9mIHMYWh6Y0KYfO6KtassSAUoO9jp5YWMhydXYL3NkySCg0tUq1XWcR/58JG64WXTX7V4Rk4Ae0paeCuXRMETGqbdIsVbHW5hxJoeHQIaUHIRZHlHVgbmiZVuhP/GOItSBOsGORCeEzIr3GowsCQxSazCkUBeHWBri7xiBwReGbkZY4jM3OoJHHGKBTWGDFsofCk6kjQL/hXqgb1WhXWGBhrwYZhE4Y1DMOCSsJIrEK07A156IU5x9WtSBVDg1U0GhWohKkcsf+dYVgTpXNnfe0iAN/qolcnjAldaHJer9Zzpk7dscXajcOhGuEVXsqYF1Gv7iexb87aOESVBP1JEn1EtJt6MATVGpBUCE4I4hOU3qMsPcpS4IoSeV7CSQYlhU3rMjg8qKOjq3jNmjWcpAlaS20sLbV8c2EenXZOeZmz+gKF60C9AVMVSWJRYYvEGhijAAOeQlhl4kA76qICulKIIScMfNcuMzugNQIVL/VGzbSa7hIA39qFGxhPM63wKQlwMu6i6k0XPpS/4r77K6Z6npAoU0kJlTAmjDDtdvD20BPqcrLdcQShfu4ovRNT+gVbFQf1HmXhkOUOpVcwJ6gPDurajQM6PDIqA0NDZmhokKu1KpwXZEX5PRF/aLQxcs6m7ZUGkSLLC3Q6HZSl80W7wNJSk1vNJrWbi8habSSWkVpCkiRIUgtjKHRAxoqK6Z2Opsv8dFewkTPTHfZKYR6AV0CewQN6fiQN3PGbO/ieb+2twyRhzKJYqBaxVipYOY1Bjhu3oSvyLkE32ZdoIkPoX7gSeenhPUFhkVSHdPXwGhkdXY3a4LCpD9QITLzU6qCZ6d2tvPwiEa6TxPzLj7/6vcd2X/uBUxda/vLCu5eK6AuVas+rDlZMOkiorfYYyQvJOy1pzh3jpcV5zrM2Op0CJmuhmhqkqY0jmKOmhbwhDvChZQMtu4cvB7BUu0GOOig0OaEEODU1xePj4/6bX5p604YNo6cWviNMjpkCkSk0e9ATck9o2RxmUYXrnjgdw3/nw4Tb0gcyr0kGdWB4VCqNEVRqdZNWa0aYcaTZKWWh9W0VvcGVxfVf++aBGz/2sY+tCBsv+/F3PwDgAQB/OTFxVX3T1rUXMrdfYYl/TIHza7XKcKU2yiOVIdRXlarOiS9a1G4ucNGaR6dsg32B1BgkTPAcZrpIl3jVyxJ5xa0ShdKXwsHAPz+8eqkAXz2R6oF0cqVaobJFvpsTdJlofYKsxhax/sgpJe31iXuJAoyF1Nx1Jx4OaG1gSCu1Qa03hk11YNAIGyy1svmlQr4r5L7MwBf+/Zt3ffe4zWUAIDZKYmJigrrkq/Hx8TaAr8fn70999k9PRp69uFPIJRC9PLGVM6sDQ8a5YaSD60RcrmV7nluLRyhrzwJWwYhn9XIYHmuWFZjRYxz4PnsDrKCs+kxp4FNuboEqpv/yL4dKv/CZauouLTpHJNUFVmnBQfqOXqU35KDrPUQRz3aIFXAnKL3ACWCrQ1If2qADQ2tMpT4Am6RotjptMP6JvF5jUvry61//noeXX8/ExITdufMuHRubliervXX7OYAxjI+Pr6C77979N9Wjh4+9WJhfp4pXJ4k5gzgUeqVo+daxA5wtHERqQqRpLZE1oRGmf+qZ9hs8A6jgh+pqOll7avzXv/wGfQZOw7ZPUeo6sWsXT05OLnzif/7J2wuPWxOuJeTaCiQEhD68/syb2NOA4N+8dPHGMOqq8F6VUhles5GH127mpDGCdtu7doGbUZSfB+zVP/+Gd969/BKmpqZ4z549Ojk5qZOTk+4Hg4+goTY33RU8d7XzssvGMwC7Aey+5poP/eei6LxaHL0Fhq8cGFptarUa5jSDdI7BcAmIKgkLmXjuIKM7ByTOPVJJTYm8pLwlA396QmngcnM1Pj7uP/pnH/ilIbv0EZT7nZeW8VoSOJz9EBpKws4s4mgNCdonrhR1IqSmyqvWb0d9eANy4XthzBdY6RPj4++8bZmW8c6dOykK7WnnXAbtnOJoan3/Ht9/Efn0F5n82K3/8u3V1Qqy1WvrQw0LrlMG1gLEComH31lKoMgBJph0NR46mP3eO973d7+rz9BZ9E/D8XNhat5H//T3Preq0X7tUvNRQTgTiaCGQYqEFRCnTr1451AKDBKLpFKHIEXuKwertTWfqQ2NTj+8Hze9+93v7izfJM+U0L6fMMeWnVn02b/7q/W//fufWPXAbK3zUz9x/vCZm6snsRy7vGaKjZVqsomtbBX1atP07rxVrF7sdIpHZ5LP//VfLf7xxMS0m5x80mmh/3YC7NLrt2zZMkLFoU+m3P4xKwUgHWR5pmSNWi0ptUzWAvAFciRAfeg+m1ZvJE6+2BhZu/snfuIdM48jtGfkpn/YDTo9vZO+fzftuxvh6wdawAQD/zob7mkBWLsdu1d96ObkbPnmBSiT88Tlb63y/hcSeUAsbJIebNTMnUazG9KB6j89/2VX3b558+Z2X2hjMXp88kDk306QSrt27aLJyUlMTExgOefzDW+Y9v3TysJQRgLwyf81ZmIpSU9oAXZvcPlIqHd+4JurNhRTnyN1R5O009/X16++4W3/7m0HV/rQMQOMdUP+E05oT3Edl1Pqn/F7+t8uakKZJmZPCwAAAABJRU5ErkJggg==
 ]========]
-local LOCAL_FILE='sae_exact_star_reference.png'
 
 local function pureBase64Decode(data)
     local alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
     data=tostring(data or ''):gsub('[^'..alphabet..'=]','')
     return (data:gsub('.',function(x)
         if x=='=' then return '' end
-        local p=alphabet:find(x,1,true)
-        if not p then return '' end
-        local f=p-1
-        local r=''
+        local r,f='',(alphabet:find(x,1,true) or 1)-1
         for i=6,1,-1 do
-            r=r..((f%2^i-f%2^(i-1)>0) and '1' or '0')
+            r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0')
         end
         return r
     end):gsub('%d%d%d?%d?%d?%d?%d?%d?',function(x)
@@ -314,202 +309,113 @@ local function pureBase64Decode(data)
     end))
 end
 
-local function getReferenceAsset()
-    local assetLoader=getcustomasset or getsynasset
-    if type(assetLoader)~='function' or type(writefile)~='function' then
-        warn('[SAE] Exact Star reference requires writefile + getcustomasset support.')
+local RAW_BYTES
+pcall(function()
+    if crypt and crypt.base64 and crypt.base64.decode then
+        RAW_BYTES=crypt.base64.decode(EMBEDDED_REFERENCE_B64)
+    elseif syn and syn.crypt and syn.crypt.base64 and syn.crypt.base64.decode then
+        RAW_BYTES=syn.crypt.base64.decode(EMBEDDED_REFERENCE_B64)
+    end
+end)
+if type(RAW_BYTES)~='string' or #RAW_BYTES<1000 then
+    local ok,decoded=pcall(pureBase64Decode,EMBEDDED_REFERENCE_B64)
+    if ok then RAW_BYTES=decoded end
+end
+
+local function prepareCustomAsset()
+    if type(RAW_BYTES)~='string' or #RAW_BYTES<1000 or type(writefile)~='function' then
         return nil
     end
+    local loader=getcustomasset or getsynasset
+    if not loader and syn then loader=syn.getcustomasset or syn.getsynasset end
+    if type(loader)~='function' then return nil end
 
-    local ok,b64=pcall(function()
-        return EMBEDDED_REFERENCE_B64
+    local file='sae_exact_star_reference.png'
+    local ok=pcall(function() writefile(file,RAW_BYTES) end)
+    if not ok then return nil end
+
+    local loaded,asset=pcall(function() return loader(file) end)
+    if loaded and type(asset)=='string' and asset~='' then return asset end
+end
+
+local CUSTOM_ASSET=prepareCustomAsset()
+
+local function makeDrawing()
+    if type(RAW_BYTES)~='string' or #RAW_BYTES<1000 then return nil end
+    if not Drawing or type(Drawing.new)~='function' then return nil end
+    local ok,obj=pcall(function()
+        local image=Drawing.new('Image')
+        image.Data=RAW_BYTES
+        image.Transparency=1
+        image.Visible=false
+        image.ZIndex=50
+        return image
     end)
-    if not ok or type(b64)~='string' or #b64<1000 then
-        warn('[SAE] Could not download exact Star reference.')
-        return nil
-    end
-
-    local decoder=base64_decode or base64decode
-    if not decoder and type(base64)=='table' then decoder=base64.decode end
-    if not decoder and type(crypt)=='table' and type(crypt.base64)=='table' then decoder=crypt.base64.decode end
-
-    local bytes
-    local decoded=pcall(function()
-        bytes=(type(decoder)=='function') and decoder(b64) or pureBase64Decode(b64)
-    end)
-    if not decoded or type(bytes)~='string' or #bytes<1000 then
-        warn('[SAE] Could not decode exact Star reference.')
-        return nil
-    end
-
-    local wrote=pcall(function() writefile(LOCAL_FILE,bytes) end)
-    if not wrote then
-        warn('[SAE] Could not prepare exact Star reference file.')
-        return nil
-    end
-
-    local loaded,asset=pcall(function() return assetLoader(LOCAL_FILE) end)
-    if not loaded or type(asset)~='string' or asset=='' then
-        warn('[SAE] Could not load exact Star reference as a custom asset.')
-        return nil
-    end
-    return asset
+    if ok then return obj end
 end
 
-local REFERENCE_ASSET=getReferenceAsset()
-
-local function allParts(o)
-    local t={}
-    for _,d in ipairs(o:GetDescendants()) do
-        if d:IsA('BasePart') then t[#t+1]=d end
-    end
-    return t
-end
-
-local function part(m,name,size,color,cf,transparency)
-    local p=Instance.new('Part')
-    p.Name=name
-    p.Size=size
-    p.Color=color
-    p.CFrame=cf or CFrame.new()
-    p.Transparency=transparency or 0
-    p.Material=Enum.Material.SmoothPlastic
-    p.TopSurface=Enum.SurfaceType.Smooth
-    p.BottomSurface=Enum.SurfaceType.Smooth
-    p.Anchored=true
-    p.CanCollide=false
-    p.CanTouch=false
-    p.CanQuery=false
-    p.Massless=true
-    p.Parent=m
-    return p
-end
-
-local function wedge(m,name,size,color,cf)
-    local p=Instance.new('WedgePart')
-    p.Name=name
-    p.Size=size
-    p.Color=color
-    p.CFrame=cf
-    p.Material=Enum.Material.SmoothPlastic
-    p.Anchored=true
-    p.CanCollide=false
-    p.CanTouch=false
-    p.CanQuery=false
-    p.Massless=true
-    p.Parent=m
-    return p
-end
-
-local function makeReferenceStar()
+local function makeStarModel()
     local m=Instance.new('Model')
     m.Name='Star'
 
-    -- The backing is deliberately plain. All visible face/stud artwork comes
-    -- from the user's supplied reference image rather than a recreated design.
-    local tan=Color3.fromRGB(190,166,104)
-    local depth=.72
-    local root=part(m,'Core',Vector3.new(2.65,2.55,depth),tan,CFrame.new())
+    -- Invisible world anchor only. No visible Core, wedges, studs, or handmade face.
+    local root=Instance.new('Part')
+    root.Name='ExactStarAnchor'
+    root.Size=Vector3.new(5.95,5.95*(95/112),.05)
+    root.Transparency=1
+    root.Anchored=true
+    root.CanCollide=false
+    root.CanTouch=false
+    root.CanQuery=false
+    root.Massless=true
+    root.Parent=m
+    m.PrimaryPart=root
 
-    for i=0,4 do
-        local a=math.rad(90-i*72)
-        local x,y=math.cos(a)*1.76,math.sin(a)*1.76
-        wedge(m,'SolidStarPoint',Vector3.new(2.18,2.9,depth),tan,
-            CFrame.new(x,y,.03)*CFrame.Angles(0,(i==1 or i==2) and math.rad(180) or 0,a-math.rad(90)))
-    end
-
-    -- 112x95 reference => 1.178947 aspect ratio. This keeps its exact proportions.
-    local width=5.95
-    local height=width*(95/112)
-    local face=part(m,'ExactReferenceFace',Vector3.new(width,height,.035),Color3.new(1,1,1),CFrame.new(0,0,-depth/2-.035),1)
-
-    if REFERENCE_ASSET then
-        local gui=Instance.new('SurfaceGui')
+    local gui
+    if CUSTOM_ASSET then
+        gui=Instance.new('SurfaceGui')
         gui.Name='ExactStarReference'
         gui.Face=Enum.NormalId.Front
-        gui.AlwaysOnTop=false
+        gui.AlwaysOnTop=true
         gui.LightInfluence=0
         gui.Brightness=1
         gui.SizingMode=Enum.SurfaceGuiSizingMode.FixedSize
         gui.CanvasSize=Vector2.new(112,95)
-        gui.Adornee=face
-        gui.Parent=face
+        gui.Enabled=false
+        gui.Adornee=root
+        gui.Parent=root
 
         local image=Instance.new('ImageLabel')
         image.Name='ReferenceImage'
         image.BackgroundTransparency=1
         image.Size=UDim2.fromScale(1,1)
-        image.Position=UDim2.fromScale(0,0)
-        image.Image=REFERENCE_ASSET
+        image.Image=CUSTOM_ASSET
         image.ScaleType=Enum.ScaleType.Fit
-        image.ResampleMode=Enum.ResamplerMode.Pixelated
+        image.ResampleMode=Enum.ResamplerMode.Default
         image.Parent=gui
-    else
-        -- Keep the solid body visible rather than substituting another invented face.
-        face.Transparency=1
     end
 
-    m.PrimaryPart=root
     m:SetAttribute('SAE_REFERENCE_STAR',true)
-    m:SetAttribute('SAE_EXACT_IMAGE_FACE',REFERENCE_ASSET~=nil)
-    return m
+    m:SetAttribute('SAE_EXACT_IMAGE_FACE',CUSTOM_ASSET~=nil)
+    return m,gui
 end
-
-local template=makeReferenceStar()
-template.Parent=nil
 
 local busy={}
-local liveConnections={}
+local live={}
 
-local function disconnect(tool)
-    local c=liveConnections[tool]
-    if c then pcall(function() c:Disconnect() end) end
-    liveConnections[tool]=nil
-end
-
-local function attachVisual(tool,model)
-    disconnect(tool)
-
-    local function update()
-        if not tool.Parent or tool.Parent~=P.Character or not model.Parent then return end
-        local ch=P.Character
-        if not ch then return end
-        local hand=ch:FindFirstChild('RightHand') or ch:FindFirstChild('Right Arm')
-        local hrp=ch:FindFirstChild('HumanoidRootPart')
-        if not hand or not hrp then return end
-
-        -- Match the supplied holding reference: large Star raised beside the face,
-        -- with the lower-left area overlapping the player's hand.
-        local pos=hand.Position
-            +hrp.CFrame.UpVector*1.45
-            +hrp.CFrame.RightVector*.04
-            +hrp.CFrame.LookVector*.12
-
-        local cf=CFrame.lookAt(pos,pos+hrp.CFrame.LookVector,hrp.CFrame.UpVector)
-            *CFrame.Angles(0,0,math.rad(-3))
-        model:PivotTo(cf)
-    end
-
-    local function start()
-        update()
-        disconnect(tool)
-        liveConnections[tool]=RunService.RenderStepped:Connect(update)
-    end
-
-    tool.Equipped:Connect(start)
-    tool.Unequipped:Connect(function() disconnect(tool) end)
-    tool.Destroying:Connect(function() disconnect(tool) end)
-
-    task.defer(function()
-        if tool.Parent==P.Character then start() end
-    end)
+local function cleanup(tool)
+    local state=live[tool]
+    if not state then return end
+    if state.conn then state.conn:Disconnect() end
+    if state.drawing then pcall(function() state.drawing:Remove() end) end
+    live[tool]=nil
 end
 
 local function replace(tool)
-    if not tool or not tool:IsA('Tool') or tool.Name~='Star'
-        or tool:GetAttribute('SAE_EXACT_STAR_FINAL') or busy[tool] then return end
-
+    if not tool or not tool:IsA('Tool') or tool.Name~='Star' then return end
+    if tool:GetAttribute('SAE_EXACT_STAR_FINAL') or busy[tool] then return end
     busy[tool]=true
+
     task.defer(function()
         if not tool.Parent then busy[tool]=nil return end
         local parent=tool.Parent
@@ -522,29 +428,77 @@ local function replace(tool)
         new:SetAttribute('SAE_V7_TOOL',true)
         new:SetAttribute('SAE_EXACT_STAR_FINAL',true)
 
-        local h=Instance.new('Part')
-        h.Name='Handle'
-        h.Size=Vector3.new(.35,.35,.35)
-        h.Transparency=1
-        h.Anchored=false
-        h.CanCollide=false
-        h.CanTouch=false
-        h.CanQuery=false
-        h.Massless=true
-        h.Parent=new
+        local handle=Instance.new('Part')
+        handle.Name='Handle'
+        handle.Size=Vector3.new(.35,.35,.35)
+        handle.Transparency=1
+        handle.Anchored=false
+        handle.CanCollide=false
+        handle.CanTouch=false
+        handle.CanQuery=false
+        handle.Massless=true
+        handle.Parent=new
 
-        local model=template:Clone()
+        local model,surface=makeStarModel()
         model.Parent=new
-        for _,p in ipairs(allParts(model)) do
-            p.Anchored=true
-            p.CanCollide=false
-            p.CanTouch=false
-            p.CanQuery=false
-            p.Massless=true
+        local drawing=makeDrawing()
+
+        local state={model=model,surface=surface,drawing=drawing,conn=nil}
+        live[new]=state
+
+        local function setVisible(on)
+            if state.surface then state.surface.Enabled=on and not state.drawing end
+            if state.drawing then state.drawing.Visible=on end
         end
 
-        new.Grip=CFrame.new()
-        attachVisual(new,model)
+        local function update()
+            if not new.Parent or new.Parent~=P.Character or not model.Parent then
+                setVisible(false)
+                return
+            end
+
+            local ch=P.Character
+            local hand=ch and (ch:FindFirstChild('RightHand') or ch:FindFirstChild('Right Arm'))
+            local hrp=ch and ch:FindFirstChild('HumanoidRootPart')
+            local cam=workspace.CurrentCamera
+            if not hand or not hrp or not cam then
+                setVisible(false)
+                return
+            end
+
+            -- Position from the supplied holding reference: large, beside the face,
+            -- with the lower-left of the Star overlapping the raised hand.
+            local pos=hand.Position
+                +hrp.CFrame.UpVector*1.35
+                +hrp.CFrame.RightVector*.02
+                +hrp.CFrame.LookVector*.10
+
+            local cf=CFrame.lookAt(pos,cam.CFrame.Position,Vector3.yAxis)
+                *CFrame.Angles(0,0,math.rad(-2))
+            model:PivotTo(cf)
+
+            if state.drawing then
+                local v,onScreen=cam:WorldToViewportPoint(pos)
+                if onScreen and v.Z>0 then
+                    local width=math.clamp(cam.ViewportSize.Y*.245,215,310)
+                    local height=width*(95/112)
+                    state.drawing.Size=Vector2.new(width,height)
+                    state.drawing.Position=Vector2.new(v.X-width*.5,v.Y-height*.5)
+                    state.drawing.Visible=true
+                else
+                    state.drawing.Visible=false
+                end
+            elseif state.surface then
+                state.surface.Enabled=true
+            end
+        end
+
+        state.conn=RunService.RenderStepped:Connect(update)
+        new.Equipped:Connect(function() setVisible(true); update() end)
+        new.Unequipped:Connect(function() setVisible(false) end)
+        new.AncestryChanged:Connect(function(_,newParent)
+            if not newParent then cleanup(new) end
+        end)
 
         tool:Destroy()
         new.Parent=parent
@@ -554,25 +508,25 @@ end
 
 local function watch(container)
     if not container then return end
-    container.ChildAdded:Connect(function(c)
-        if c:IsA('Tool') and c.Name=='Star' then task.wait() replace(c) end
+    container.ChildAdded:Connect(function(child)
+        if child:IsA('Tool') and child.Name=='Star' then task.wait(); replace(child) end
     end)
-    for _,c in ipairs(container:GetChildren()) do
-        if c:IsA('Tool') and c.Name=='Star' then replace(c) end
+    for _,child in ipairs(container:GetChildren()) do
+        if child:IsA('Tool') and child.Name=='Star' then replace(child) end
     end
 end
 
 watch(BP)
 watch(P.Character)
-P.CharacterAdded:Connect(function(c) task.wait(.2) watch(c) end)
-print('[SAE] Exact supplied Star reference ready in hand.')
+P.CharacterAdded:Connect(function(char) task.wait(.2); watch(char) end)
+print('[SAE] Exact supplied Star visual ready.')
+
 ]============]
 
 local FINAL_POLISH_SOURCE=[============[
 -- Final polish layer for Steal An Egg.
--- Does not replace or redraw pet visuals.
--- Adds gentle breathing while pets are equipped, 15-stud placed-pet roaming,
--- and keeps the enlarged inventory eggs from the previous final build.
+-- Keeps approved pet visuals untouched while improving grounding/walking,
+-- equipped breathing, 15-stud roaming, and egg scale.
 
 local Players=game:GetService('Players')
 local RunService=game:GetService('RunService')
@@ -583,92 +537,46 @@ if not BP then return end
 
 local PETS={
     ['Unicorn']=true,['Kitsune']=true,['Night Flame']=true,['Archangel']=true,
-    ['World Burner']=true,['Aetheron']=true,['Cthulhu']=true,['Luminous Cthulhu']=true,
-    ['Sabertooth']=true,['Skeletal Sabertooth']=true,['Octophant']=true,['Mecha Scrambler']=true
+    ['World Burner']=true,['Aetheron']=true,['Cthulhu']=true,
+    ['Luminous Cthulhu']=true,['Sabertooth']=true,['Skeletal Sabertooth']=true,
+    ['Octophant']=true,['Mecha Scrambler']=true
 }
 
-local function allParts(o)
-    local t={}
-    for _,d in ipairs(o:GetDescendants()) do
-        if d:IsA('BasePart') then t[#t+1]=d end
+local function firstModel(tool)
+    if not tool then return nil end
+    for _,child in ipairs(tool:GetChildren()) do
+        if child:IsA('Model') then return child end
     end
-    return t
+    return tool:FindFirstChildWhichIsA('Model',true)
 end
 
--- Inventory egg size pass. Keep the existing artwork and simply make it easier to see/hold.
-local eggBusy={}
 local function enlargeEggTool(tool)
-    if not tool or not tool:IsA('Tool') or eggBusy[tool] then return end
-    if tool:GetAttribute('SAE_FINAL_EGG_LARGE') then return end
-    if not tool:GetAttribute('SAE_V7_TOOL') then return end
+    if not tool or not tool:IsA('Tool') then return end
+    if tool:GetAttribute('SAE_FINAL_EGG_ENLARGED') then return end
     if not tostring(tool.Name):lower():find('egg',1,true) then return end
-
-    local model=tool:FindFirstChildWhichIsA('Model')
-    local handle=tool:FindFirstChild('Handle')
-    if not model or not handle or not handle:IsA('BasePart') then return end
-
-    eggBusy[tool]=true
     task.defer(function()
-        if not tool.Parent or not model.Parent or not handle.Parent then eggBusy[tool]=nil return end
-
-        local rel=handle.CFrame:ToObjectSpace(model:GetPivot())
-
-        -- Remove only handle-to-visual welds. Internal model welds are left untouched.
-        for _,d in ipairs(handle:GetChildren()) do
-            if d:IsA('WeldConstraint') then
-                local p=d.Part1
-                if p and p:IsDescendantOf(model) then d:Destroy() end
-            end
-        end
-
+        task.wait(.05)
+        if not tool.Parent or tool:GetAttribute('SAE_FINAL_EGG_ENLARGED') then return end
+        local model=firstModel(tool)
+        if not model then return end
         local ok,scale=pcall(function() return model:GetScale() end)
-        if ok and scale then
-            pcall(function() model:ScaleTo(scale*1.35) end)
-        end
-        model:PivotTo(handle.CFrame*rel)
-
-        -- Reattach the enlarged visual to the handle robustly.
-        for _,p in ipairs(allParts(model)) do
-            p.Anchored=false
-            p.CanCollide=false
-            p.CanTouch=false
-            p.CanQuery=false
-            p.Massless=true
-            local w=Instance.new('WeldConstraint')
-            w.Part0=handle
-            w.Part1=p
-            w.Parent=handle
-        end
-
-        tool:SetAttribute('SAE_FINAL_EGG_LARGE',true)
-        eggBusy[tool]=nil
+        if not ok or not scale then scale=1 end
+        pcall(function() model:ScaleTo(scale*1.35) end)
+        tool:SetAttribute('SAE_FINAL_EGG_ENLARGED',true)
     end)
 end
 
--- Equipped-pet breathing. This only scales the existing pet rig by a tiny amount;
--- it never swaps, recolours, rebuilds, or otherwise changes the approved visuals.
-local equippedStates={}
+local equipped={}
 local function registerPetTool(tool)
-    if not tool or not tool:IsA('Tool') or not PETS[tool.Name] then return end
-    if equippedStates[tool] then return end
-
+    if not tool or not tool:IsA('Tool') or not PETS[tool.Name] or equipped[tool] then return end
     task.defer(function()
-        task.wait(.04)
-        if not tool.Parent or equippedStates[tool] then return end
-        local model=tool:FindFirstChildWhichIsA('Model') or tool:FindFirstChildWhichIsA('Model',true)
-        if not model or not model:FindFirstChildWhichIsA('BasePart',true) then return end
-
-        local ok,baseScale=pcall(function() return model:GetScale() end)
-        if not ok or not baseScale then baseScale=1 end
-
-        equippedStates[tool]={
-            model=model,
-            baseScale=baseScale,
-            phase=math.random()*math.pi*2,
-            nextScale=0,
-            breathing=false
-        }
-        tool:SetAttribute('SAE_FINAL_EQUIPPED_BREATH',true)
+        task.wait(.06)
+        if not tool.Parent or equipped[tool] then return end
+        local model=firstModel(tool)
+        if not model then return end
+        local ok,base=pcall(function() return model:GetScale() end)
+        if not ok or not base then base=1 end
+        equipped[tool]={model=model,base=base,phase=math.random()*math.pi*2,last=base}
     end)
 end
 
@@ -691,147 +599,154 @@ end
 
 watchTools(BP)
 watchTools(P.Character)
-P.CharacterAdded:Connect(function(char)
-    task.wait(.2)
-    watchTools(char)
-end)
+P.CharacterAdded:Connect(function(char) task.wait(.2); watchTools(char) end)
 
--- Placed-pet idle motion. The approved model itself is not rebuilt or recoloured.
-local petStates={}
+local placed={}
 local MAX_RADIUS=15
-local MOVE_SPEED=1.35
 
-local function randomTarget()
+local function chooseTarget(state,now)
     local a=math.random()*math.pi*2
-    -- Bias slightly toward the outside so the pet actually uses the new roaming area.
-    local r=(.35+.65*math.sqrt(math.random()))*MAX_RADIUS
-    return Vector3.new(math.cos(a)*r,0,math.sin(a)*r)
+    local r=math.sqrt(math.random())*(MAX_RADIUS-.5)
+    state.target=Vector3.new(state.home.X+math.cos(a)*r,0,state.home.Z+math.sin(a)*r)
+    state.pauseUntil=now
 end
 
-local function chooseTarget(s,now)
-    s.target=randomTarget()
-    local distance=(s.target-s.current).Magnitude
-    s.nextTarget=now+math.max(4.5,distance/MOVE_SPEED+1.1)
+local function groundAt(model,x,z,yHint)
+    local params=RaycastParams.new()
+    params.FilterType=Enum.RaycastFilterType.Exclude
+    local exclude={model}
+    if P.Character then exclude[#exclude+1]=P.Character end
+    params.FilterDescendantsInstances=exclude
+    return workspace:Raycast(Vector3.new(x,yHint+65,z),Vector3.new(0,-180,0),params)
 end
 
-local function registerPet(model)
+local function registerPlaced(model)
     if not model or not model:IsA('Model') or not PETS[model.Name] then return end
-    if petStates[model] or model:GetAttribute('SAE_FINAL_PET_MOTION') then return end
+    if placed[model] or model:GetAttribute('SAE_FINAL_PET_MOTION') then return end
     if not model:FindFirstChildWhichIsA('BasePart',true) then return end
 
-    local ok,baseScale=pcall(function() return model:GetScale() end)
-    if not ok or not baseScale then baseScale=1 end
+    for _,part in ipairs(model:GetDescendants()) do
+        if part:IsA('BasePart') then
+            part.Anchored=true
+            part.CanCollide=false
+            part.CanTouch=false
+        end
+    end
+
+    local pivot=model:GetPivot()
+    local ok,base=pcall(function() return model:GetScale() end)
+    if not ok or not base then base=1 end
 
     local state={
-        origin=model:GetPivot(),
-        current=Vector3.zero,
-        target=Vector3.zero,
-        nextTarget=0,
+        home=pivot.Position,
+        pos=Vector3.new(pivot.Position.X,0,pivot.Position.Z),
+        target=Vector3.new(pivot.Position.X,0,pivot.Position.Z),
+        velocity=Vector3.zero,
+        look=Vector3.new(pivot.LookVector.X,0,pivot.LookVector.Z),
+        baseScale=base,
         phase=math.random()*math.pi*2,
-        baseScale=baseScale,
-        nextScale=0
+        pauseUntil=os.clock()+math.random()*1.4,
+        speed=2.25+math.random()*.55
     }
-    chooseTarget(state,os.clock())
+    if state.look.Magnitude<.05 then state.look=Vector3.new(0,0,-1) else state.look=state.look.Unit end
+    chooseTarget(state,state.pauseUntil)
     model:SetAttribute('SAE_FINAL_PET_MOTION',true)
-    petStates[model]=state
+    placed[model]=state
 end
 
 local function watchPlaced(folder)
     if not folder or not folder:IsA('Folder') or folder.Name~='SAE_V7_PLACED' then return end
     for _,child in ipairs(folder:GetChildren()) do
-        if child:IsA('Model') then registerPet(child) end
+        if child:IsA('Model') then registerPlaced(child) end
     end
     folder.ChildAdded:Connect(function(child)
-        if child:IsA('Model') then
-            task.wait(.08)
-            registerPet(child)
-        end
+        if child:IsA('Model') then task.wait(.08); registerPlaced(child) end
     end)
 end
 
-local currentPlaced=workspace:FindFirstChild('SAE_V7_PLACED')
-if currentPlaced then watchPlaced(currentPlaced) end
+local current=workspace:FindFirstChild('SAE_V7_PLACED')
+if current then watchPlaced(current) end
 workspace.ChildAdded:Connect(function(child)
-    if child.Name=='SAE_V7_PLACED' and child:IsA('Folder') then
-        task.wait()
-        watchPlaced(child)
-    end
+    if child:IsA('Folder') and child.Name=='SAE_V7_PLACED' then task.wait(); watchPlaced(child) end
 end)
 
 RunService.Heartbeat:Connect(function(dt)
     local now=os.clock()
 
-    -- Breathing is also visible while a pet is equipped/held.
-    for tool,s in pairs(equippedStates) do
-        local model=s.model
-        if not tool.Parent or not model or not model.Parent then
-            equippedStates[tool]=nil
-        elseif tool.Parent==P.Character then
-            if now>=s.nextScale then
-                s.nextScale=now+.10
-                local breath=math.sin(now*2.05+s.phase)
-                pcall(function()
-                    model:ScaleTo(s.baseScale*(1+breath*.0065))
-                end)
-                s.breathing=true
+    -- Same subtle breathing while equipped, without changing approved pet geometry.
+    for tool,state in pairs(equipped) do
+        if not tool.Parent or not state.model.Parent then
+            equipped[tool]=nil
+        else
+            local desired=state.base
+            if tool.Parent==P.Character then
+                desired=state.base*(1+.008*math.sin(now*2.15+state.phase))
             end
-        elseif s.breathing then
-            pcall(function() model:ScaleTo(s.baseScale) end)
-            s.breathing=false
+            if math.abs(desired-state.last)>.00015 then
+                pcall(function() state.model:ScaleTo(desired) end)
+                state.last=desired
+            end
         end
     end
 
-    -- Placed pets roam naturally but are hard-clamped to 15 studs from placement.
-    for model,s in pairs(petStates) do
+    for model,state in pairs(placed) do
         if not model.Parent then
-            petStates[model]=nil
+            placed[model]=nil
         else
-            if now>=s.nextTarget or (s.target-s.current).Magnitude<.08 then
-                chooseTarget(s,now)
-            end
-
-            local delta=s.target-s.current
+            local delta=state.target-state.pos
+            delta=Vector3.new(delta.X,0,delta.Z)
             local distance=delta.Magnitude
-            if distance>.001 then
-                local step=math.min(distance,MOVE_SPEED*dt)
-                s.current=s.current+delta.Unit*step
-            end
 
-            local breath=math.sin(now*2.1+s.phase)
-            if now>=s.nextScale then
-                s.nextScale=now+.12
-                pcall(function()
-                    model:ScaleTo(s.baseScale*(1+breath*.006))
-                end)
-            end
+            if now>=state.pauseUntil then
+                if distance<.25 then
+                    state.velocity=Vector3.zero
+                    state.pauseUntil=now+1+math.random()*1.35
+                    chooseTarget(state,state.pauseUntil)
+                else
+                    local dir=delta.Unit
+                    local desired=dir*state.speed
+                    state.velocity=state.velocity:Lerp(desired,1-math.exp(-5.5*dt))
+                    state.pos=state.pos+state.velocity*dt
 
-            local offset=s.current
-            if offset.Magnitude>MAX_RADIUS then
-                offset=offset.Unit*MAX_RADIUS
-                s.current=offset
+                    local fromHome=Vector3.new(state.pos.X-state.home.X,0,state.pos.Z-state.home.Z)
+                    if fromHome.Magnitude>MAX_RADIUS then
+                        fromHome=fromHome.Unit*MAX_RADIUS
+                        state.pos=Vector3.new(state.home.X+fromHome.X,0,state.home.Z+fromHome.Z)
+                    end
+                    if state.velocity.Magnitude>.08 then state.look=state.velocity.Unit end
+                end
+            else
+                state.velocity=state.velocity:Lerp(Vector3.zero,1-math.exp(-8*dt))
             end
 
             pcall(function()
-                model:PivotTo(s.origin*CFrame.new(offset.X,breath*.07,offset.Z))
+                model:ScaleTo(state.baseScale*(1+.005*math.sin(now*2+state.phase)))
             end)
+
+            local hit=groundAt(model,state.pos.X,state.pos.Z,state.home.Y)
+            if hit then
+                local look=state.look
+                if look.Magnitude<.05 then look=Vector3.new(0,0,-1) end
+                look=Vector3.new(look.X,0,look.Z).Unit
+
+                local walkAmount=math.clamp(state.velocity.Magnitude/math.max(state.speed,.01),0,1)
+                local sway=math.rad(1.25)*math.sin(now*7.5+state.phase)*walkAmount
+                local lean=math.rad(-1.4)*walkAmount
+                local basePos=Vector3.new(state.pos.X,hit.Position.Y,state.pos.Z)
+                local cf=CFrame.lookAt(basePos,basePos+look,Vector3.yAxis)*CFrame.Angles(lean,0,sway)
+                model:PivotTo(cf)
+
+                -- Re-ground after scale/tilt so feet stay on the floor instead of floating.
+                local box,size=model:GetBoundingBox()
+                local bottom=box.Position.Y-size.Y/2
+                model:PivotTo(model:GetPivot()+Vector3.new(0,hit.Position.Y-bottom+.025,0))
+            end
         end
     end
 end)
 
--- Remove the old contradictory subtitle once the inventory UI appears.
-task.spawn(function()
-    local pg=P:FindFirstChildOfClass('PlayerGui') or P:WaitForChild('PlayerGui',10)
-    if not pg then return end
-    local gui=pg:WaitForChild('SAE_ITEMS_V7',15)
-    if not gui then return end
-    for _,d in ipairs(gui:GetDescendants()) do
-        if d:IsA('TextLabel') and tostring(d.Text):find('25%% smaller') then
-            d.Text='Larger eggs • exact pets • 15-stud pet roaming'
-        end
-    end
-end)
+print('[SAE] Final polish ready: grounded natural pet walking, equipped breathing, 15-stud roaming, larger eggs.')
 
-print('[SAE] Final polish ready: equipped breathing + 15-stud pet roaming + larger eggs.')
 ]============]
 
 local CONTROL_PANEL_SOURCE=[============[
@@ -1092,7 +1007,7 @@ Launch=Instance.new("Frame"); Launch.Position=UDim2.new(0,12,.5,-170); Launch.Si
 LL=Instance.new("UIListLayout"); LL.Padding=UDim.new(0,7); LL.Parent=Launch
 bAdmin=button(Launch,"ADMIN",UDim2.new(),UDim2.fromOffset(102,29),false)
 bMorph=button(Launch,"MORPH",UDim2.new(),UDim2.fromOffset(102,29),true)
-bGift=button(Launch,"GIFT PANEL",UDim2.new(),UDim2.fromOffset(102,29),true)
+bGift=button(Launch,"GIFT PANEL",UDim2.new(),UDim2.fromOffset(102,29),true); bGift.Visible=false; bGift.Size=UDim2.fromOffset(0,0)
 bAdmin.MouseButton1Click:Connect(function() Main.Visible=not Main.Visible end)
 bMorph.MouseButton1Click:Connect(function()
     if MorphColorsPage.Visible then
@@ -3251,7 +3166,6 @@ function Builders.Home()
 local homeItems={
     {"Announce","Announcements"},
     {"Names","Names"},
-    {"Gift Panel","Gift Panel"}
 }
 for i,item in ipairs(homeItems) do
     local row=math.floor((i-1)/2)
@@ -4035,7 +3949,7 @@ local function itemImage(cat,name)
     iconCache[key]=bestImage or false
     return bestImage
 end
-local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=itemImage(cat,name)or'' t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
+local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=itemImage(cat,name)or'' t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP pcall(function() game:GetService('StarterGui'):SetCore('SendNotification',{Title='ITEM SPAWNED',Text=name..' has been added to your inventory.',Duration=3}) end) return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
 local C={bg=rgb(8,8,14),head=rgb(15,11,23),card=rgb(24,18,34),card2=rgb(37,25,50),border=rgb(84,57,110),p=rgb(142,51,236),p2=rgb(184,83,255),w=Color3.new(1,1,1),m=rgb(168,162,181),g=rgb(105,245,135),o=rgb(255,188,82),r=rgb(255,90,90)}
 local function corner(o,r)local x=Instance.new('UICorner')x.CornerRadius=UDim.new(0,r or 8)x.Parent=o end
