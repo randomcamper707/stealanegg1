@@ -3705,6 +3705,7 @@ local function showInventoryToast(name)
     local old=PG:FindFirstChild('SAE_ITEM_SPAWN_TOAST')
     if old then old:Destroy() end
 
+    local TS=game:GetService('TweenService')
     local sg=Instance.new('ScreenGui')
     sg.Name='SAE_ITEM_SPAWN_TOAST'
     sg.ResetOnSpawn=false
@@ -3712,35 +3713,137 @@ local function showInventoryToast(name)
     sg.DisplayOrder=950
     sg.Parent=PG
 
+    local shadow=Instance.new('Frame')
+    shadow.AnchorPoint=Vector2.new(.5,1)
+    shadow.Position=UDim2.new(.5,4,1,-156)
+    shadow.Size=UDim2.fromOffset(396,64)
+    shadow.BackgroundColor3=Color3.fromRGB(0,0,0)
+    shadow.BackgroundTransparency=.45
+    shadow.BorderSizePixel=0
+    shadow.Parent=sg
+    local shadowCorner=Instance.new('UICorner')
+    shadowCorner.CornerRadius=UDim.new(0,14)
+    shadowCorner.Parent=shadow
+
     local frame=Instance.new('Frame')
     frame.AnchorPoint=Vector2.new(.5,1)
-    frame.Position=UDim2.new(.5,0,1,-164) -- three notification rows higher
-    frame.Size=UDim2.fromOffset(350,44)
-    frame.BackgroundColor3=Color3.fromRGB(16,13,24)
-    frame.BackgroundTransparency=.08
+    frame.Position=UDim2.new(.5,0,1,-150)
+    frame.Size=UDim2.fromOffset(396,64)
+    frame.BackgroundColor3=Color3.fromRGB(76,238,52)
+    frame.BackgroundTransparency=0
     frame.BorderSizePixel=0
     frame.Parent=sg
-    local c=Instance.new('UICorner') c.CornerRadius=UDim.new(0,10) c.Parent=frame
-    local st=Instance.new('UIStroke') st.Color=Color3.fromRGB(151,72,235) st.Transparency=.2 st.Thickness=1 st.Parent=frame
 
-    local text=Instance.new('TextLabel')
-    text.BackgroundTransparency=1
-    text.Size=UDim2.new(1,-20,1,0)
-    text.Position=UDim2.fromOffset(10,0)
-    text.Text=name..' has been added to your inventory.'
-    text.TextColor3=Color3.fromRGB(255,255,255)
-    text.Font=Enum.Font.GothamBold
-    text.TextSize=13
-    text.TextWrapped=true
-    text.Parent=frame
+    local corner=Instance.new('UICorner')
+    corner.CornerRadius=UDim.new(0,14)
+    corner.Parent=frame
 
-    task.delay(2.35,function()
+    local outline=Instance.new('UIStroke')
+    outline.Color=Color3.fromRGB(16,16,20)
+    outline.Thickness=4
+    outline.Transparency=0
+    outline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+    outline.Parent=frame
+
+    local grad=Instance.new('UIGradient')
+    grad.Rotation=0
+    grad.Color=ColorSequence.new({
+        ColorSequenceKeypoint.new(0,Color3.fromRGB(102,245,45)),
+        ColorSequenceKeypoint.new(.55,Color3.fromRGB(38,229,105)),
+        ColorSequenceKeypoint.new(1,Color3.fromRGB(27,213,221))
+    })
+    grad.Parent=frame
+
+    local shine=Instance.new('Frame')
+    shine.Size=UDim2.new(1,-12,0,18)
+    shine.Position=UDim2.fromOffset(6,5)
+    shine.BackgroundColor3=Color3.fromRGB(255,255,255)
+    shine.BackgroundTransparency=.84
+    shine.BorderSizePixel=0
+    shine.Parent=frame
+    local shineCorner=Instance.new('UICorner')
+    shineCorner.CornerRadius=UDim.new(0,10)
+    shineCorner.Parent=shine
+
+    local badge=Instance.new('Frame')
+    badge.AnchorPoint=Vector2.new(0,.5)
+    badge.Position=UDim2.new(0,12,.5,0)
+    badge.Size=UDim2.fromOffset(42,42)
+    badge.BackgroundColor3=Color3.fromRGB(21,24,29)
+    badge.BorderSizePixel=0
+    badge.Parent=frame
+    local badgeCorner=Instance.new('UICorner')
+    badgeCorner.CornerRadius=UDim.new(1,0)
+    badgeCorner.Parent=badge
+    local badgeStroke=Instance.new('UIStroke')
+    badgeStroke.Color=Color3.fromRGB(255,255,255)
+    badgeStroke.Thickness=2
+    badgeStroke.Transparency=.05
+    badgeStroke.Parent=badge
+
+    local check=Instance.new('TextLabel')
+    check.BackgroundTransparency=1
+    check.Size=UDim2.fromScale(1,1)
+    check.Text='✓'
+    check.TextColor3=Color3.fromRGB(255,255,255)
+    check.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    check.TextStrokeTransparency=0
+    check.Font=Enum.Font.FredokaOne
+    check.TextSize=25
+    check.Parent=badge
+
+    local item=Instance.new('TextLabel')
+    item.BackgroundTransparency=1
+    item.Position=UDim2.fromOffset(66,5)
+    item.Size=UDim2.new(1,-78,0,33)
+    item.Text=name
+    item.TextColor3=Color3.fromRGB(255,255,255)
+    item.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    item.TextStrokeTransparency=0
+    item.Font=Enum.Font.FredokaOne
+    item.TextSize=21
+    item.TextXAlignment=Enum.TextXAlignment.Left
+    item.TextYAlignment=Enum.TextYAlignment.Bottom
+    item.TextTruncate=Enum.TextTruncate.AtEnd
+    item.Parent=frame
+
+    local sub=Instance.new('TextLabel')
+    sub.BackgroundTransparency=1
+    sub.Position=UDim2.fromOffset(67,36)
+    sub.Size=UDim2.new(1,-80,0,20)
+    sub.Text='ADDED TO YOUR INVENTORY!'
+    sub.TextColor3=Color3.fromRGB(255,255,255)
+    sub.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    sub.TextStrokeTransparency=.08
+    sub.Font=Enum.Font.FredokaOne
+    sub.TextSize=12
+    sub.TextXAlignment=Enum.TextXAlignment.Left
+    sub.Parent=frame
+
+    local scale=Instance.new('UIScale')
+    scale.Scale=.88
+    scale.Parent=frame
+    local shadowScale=Instance.new('UIScale')
+    shadowScale.Scale=.88
+    shadowScale.Parent=shadow
+
+    TS:Create(frame,TweenInfo.new(.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=UDim2.new(.5,0,1,-164)}):Play()
+    TS:Create(shadow,TweenInfo.new(.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=UDim2.new(.5,4,1,-160)}):Play()
+    TS:Create(scale,TweenInfo.new(.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Scale=1}):Play()
+    TS:Create(shadowScale,TweenInfo.new(.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Scale=1}):Play()
+
+    task.delay(2.45,function()
         if serial~=spawnToastSerial or not sg.Parent then return end
-        local TS=game:GetService('TweenService')
-        TS:Create(frame,TweenInfo.new(.22),{BackgroundTransparency=1}):Play()
-        TS:Create(text,TweenInfo.new(.22),{TextTransparency=1}):Play()
-        st.Transparency=1
-        task.wait(.24)
+        TS:Create(frame,TweenInfo.new(.2,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Position=UDim2.new(.5,0,1,-150),BackgroundTransparency=1}):Play()
+        TS:Create(shadow,TweenInfo.new(.2),{BackgroundTransparency=1}):Play()
+        TS:Create(item,TweenInfo.new(.16),{TextTransparency=1,TextStrokeTransparency=1}):Play()
+        TS:Create(sub,TweenInfo.new(.16),{TextTransparency=1,TextStrokeTransparency=1}):Play()
+        TS:Create(check,TweenInfo.new(.16),{TextTransparency=1,TextStrokeTransparency=1}):Play()
+        TS:Create(badge,TweenInfo.new(.16),{BackgroundTransparency=1}):Play()
+        outline.Transparency=1
+        badgeStroke.Transparency=1
+        shine.BackgroundTransparency=1
+        task.wait(.22)
         if sg.Parent then sg:Destroy() end
     end)
 end
