@@ -3903,6 +3903,983 @@ spawn.MouseButton1Click:Connect(function()
         status.TextColor3 = ok and C.g or C.r
     end)
 end)
+
+-- ===== GIFTING PANEL (preview only; no client-side item transfer) =====
+local GiftProducts={
+    Eggs={
+        {name='Unicorn Egg',model='Unicorn Egg',rate='0.04%'},
+        {name='Kitsune Egg',model='Kitsune Egg',rate='0.18%'},
+        {name='Nightflame Egg',model='Night Flame Egg',rate='0.22%'},
+        {name='ArchAngel Egg',model='Archangel Egg',rate='0.06%'},
+        {name='Mecha Scrambler Egg',model='Mecha Scrambler Egg',rate='0.11%'},
+        {name='Octophant Egg',model='Octophant Egg',rate='0.41%'},
+        {name='Skeletal Sabertooth Egg',model='Skeletal Sabertooth Egg',rate='0.08%'},
+        {name='Sabertooth Egg',model='Sabertooth Egg',rate='0.15%'},
+        {name='Luminous Cthulhu Egg',model='Luminous Cthulhu Egg',rate='0.03%'},
+        {name='Cthulhu Egg',model='Cthulhu Egg',rate='0.12%'},
+        {name='Aetheron Egg',model='Aetheron Egg',rate='0.05%'},
+        {name='World Burner Egg',model='World Burner Egg',rate='0.37%'},
+    },
+    Pets={
+        {name='Unicorn',model='Unicorn',rate='0.05%'},
+        {name='Kitsune',model='Kitsune',rate='0.16%'},
+        {name='Nightflame',model='Night Flame',rate='0.20%'},
+        {name='ArchAngel',model='Archangel',rate='0.04%'},
+        {name='World Burner',model='World Burner',rate='0.35%'},
+        {name='Aetheron',model='Aetheron',rate='0.03%'},
+        {name='Mecha Scrambler',model='Mecha Scrambler',rate='0.12%'},
+        {name='Octophant',model='Octophant',rate='0.40%'},
+        {name='Skeletal Sabertooth',model='Skeletal Sabertooth',rate='0.07%'},
+        {name='Sabertooth',model='Sabertooth',rate='0.14%'},
+        {name='Luminous Cthulhu',model='Luminous Cthulhu',rate='0.02%'},
+        {name='Cthulhu',model='Cthulhu',rate='0.10%'},
+    },
+    Others={
+        {name='Ben Treadmill',model='Ben Treadmill',rate='0.25%',imageCategory='Others'},
+        {name='Brockodile Treadmill',model='Brockodile Treadmill',rate='0.28%',imageCategory='Others'},
+        {name='3 Stars',model='Star',rate='0.45%',imageCategory='Star'},
+        {name='2 Stars',model='Star',rate='0.62%',imageCategory='Star'},
+        {name='1 Star',model='Star',rate='0.90%',imageCategory='Star'},
+    },
+}
+local giftCategory='Eggs'
+local giftQuery=''
+local giftSelected=nil
+local giftQty=1
+local giftRecipient=nil
+local giftBusy=false
+
+local giftGui=Instance.new('ScreenGui')
+giftGui.Name='SAE_GIFTING_PANEL'
+giftGui.ResetOnSpawn=false
+giftGui.DisplayOrder=735
+giftGui.Parent=PG
+
+local giftLauncher=button(giftGui,'GIFTS',UDim2.new(0,12,.5,24),UDim2.fromOffset(74,38))
+giftLauncher.BackgroundColor3=C.p2
+local giftWin=Instance.new('Frame')
+giftWin.Name='GiftingPanel'
+giftWin.AnchorPoint=Vector2.new(.5,.5)
+giftWin.Position=UDim2.fromScale(.5,.5)
+giftWin.Size=UDim2.fromOffset(600,470)
+giftWin.BackgroundColor3=C.bg
+giftWin.BorderSizePixel=0
+giftWin.Visible=false
+giftWin.Parent=giftGui
+corner(giftWin,14)
+stroke(giftWin,.12)
+local giftScale=Instance.new('UIScale')
+giftScale.Scale=.82
+giftScale.Parent=giftWin
+
+local giftHead=Instance.new('Frame')
+giftHead.Size=UDim2.new(1,0,0,60)
+giftHead.BackgroundColor3=C.head
+giftHead.BorderSizePixel=0
+giftHead.Parent=giftWin
+corner(giftHead,14)
+local giftTitle=label(giftHead,'Gifting Panel',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,25),16)
+giftTitle.Font=Enum.Font.GothamBold
+label(giftHead,'Choose an item and preview a gift',UDim2.fromOffset(16,33),UDim2.new(1,-70,0,17),10,C.m)
+local giftClose=button(giftHead,'X',UDim2.new(1,-43,0,13),UDim2.fromOffset(28,28))
+giftClose.BackgroundColor3=C.card2
+giftLauncher.MouseButton1Click:Connect(function() giftWin.Visible=not giftWin.Visible end)
+giftClose.MouseButton1Click:Connect(function() giftWin.Visible=false end)
+
+local giftTabs=Instance.new('Frame')
+giftTabs.BackgroundTransparency=1
+giftTabs.Position=UDim2.fromOffset(14,68)
+giftTabs.Size=UDim2.new(1,-28,0,34)
+giftTabs.Parent=giftWin
+local giftTabButtons={}
+local giftSearch=Instance.new('TextBox')
+giftSearch.Position=UDim2.fromOffset(14,108)
+giftSearch.Size=UDim2.new(1,-28,0,34)
+giftSearch.BackgroundColor3=C.card
+giftSearch.BorderSizePixel=0
+giftSearch.Text=''
+giftSearch.PlaceholderText='Search items'
+giftSearch.PlaceholderColor3=C.m
+giftSearch.TextColor3=C.w
+giftSearch.Font=Enum.Font.Gotham
+giftSearch.TextSize=12
+giftSearch.ClearTextOnFocus=false
+giftSearch.Parent=giftWin
+corner(giftSearch,8)
+local giftList=Instance.new('ScrollingFrame')
+giftList.Position=UDim2.fromOffset(14,150)
+giftList.Size=UDim2.new(1,-28,1,-202)
+giftList.BackgroundColor3=C.card
+giftList.BorderSizePixel=0
+giftList.ScrollBarThickness=5
+giftList.CanvasSize=UDim2.fromOffset(0,0)
+giftList.Parent=giftWin
+corner(giftList,10)
+stroke(giftList,.5)
+local giftGrid=Instance.new('UIGridLayout')
+giftGrid.CellSize=UDim2.new(.5,-8,0,82)
+giftGrid.CellPadding=UDim2.fromOffset(8,8)
+giftGrid.SortOrder=Enum.SortOrder.LayoutOrder
+giftGrid.Parent=giftList
+local giftPadding=Instance.new('UIPadding')
+giftPadding.PaddingTop=UDim.new(0,8)
+giftPadding.PaddingLeft=UDim.new(0,8)
+giftPadding.PaddingRight=UDim.new(0,8)
+giftPadding.Parent=giftList
+giftGrid:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
+    giftList.CanvasSize=UDim2.fromOffset(0,giftGrid.AbsoluteContentSize.Y+16)
+end)
+local giftStatus=label(giftWin,'Select an item to begin',UDim2.new(0,16,1,-43),UDim2.new(1,-32,0,26),10,C.m)
+giftStatus.TextWrapped=true
+giftStatus.TextYAlignment=Enum.TextYAlignment.Center
+
+local giftDetail=Instance.new('Frame')
+giftDetail.Position=UDim2.fromOffset(14,108)
+giftDetail.Size=UDim2.new(1,-28,1,-122)
+giftDetail.BackgroundColor3=C.card
+giftDetail.BorderSizePixel=0
+giftDetail.Visible=false
+giftDetail.Parent=giftWin
+corner(giftDetail,10)
+stroke(giftDetail,.5)
+local giftDetailIcon=Instance.new('ImageLabel')
+giftDetailIcon.Position=UDim2.fromOffset(16,16)
+giftDetailIcon.Size=UDim2.fromOffset(84,84)
+giftDetailIcon.BackgroundColor3=C.card2
+giftDetailIcon.BackgroundTransparency=0
+giftDetailIcon.BorderSizePixel=0
+giftDetailIcon.ScaleType=Enum.ScaleType.Fit
+giftDetailIcon.Parent=giftDetail
+corner(giftDetailIcon,10)
+local giftRecipientAvatar=Instance.new('ImageLabel')
+giftRecipientAvatar.AnchorPoint=Vector2.new(1,0)
+giftRecipientAvatar.Position=UDim2.new(1,-16,0,16)
+giftRecipientAvatar.Size=UDim2.fromOffset(44,44)
+giftRecipientAvatar.BackgroundColor3=C.card2
+giftRecipientAvatar.BorderSizePixel=0
+giftRecipientAvatar.Visible=false
+giftRecipientAvatar.Parent=giftDetail
+corner(giftRecipientAvatar,22)
+local giftDetailName=label(giftDetail,'',UDim2.fromOffset(112,20),UDim2.new(1,-130,0,24),14)
+giftDetailName.Font=Enum.Font.GothamBold
+local giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(112,48),UDim2.new(1,-130,0,20),11,C.m)
+local giftRecipientInput=Instance.new('TextBox')
+giftRecipientInput.Position=UDim2.fromOffset(16,118)
+giftRecipientInput.Size=UDim2.new(1,-32,0,38)
+giftRecipientInput.BackgroundColor3=C.card2
+giftRecipientInput.BorderSizePixel=0
+giftRecipientInput.Text=''
+giftRecipientInput.PlaceholderText='Roblox username'
+giftRecipientInput.PlaceholderColor3=C.m
+giftRecipientInput.TextColor3=C.w
+giftRecipientInput.Font=Enum.Font.Gotham
+giftRecipientInput.TextSize=12
+giftRecipientInput.ClearTextOnFocus=false
+giftRecipientInput.Parent=giftDetail
+corner(giftRecipientInput,8)
+local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(16,164),UDim2.new(1,-32,0,18),10,C.m)
+local giftQtyButtons={}
+for i,n in ipairs({1,2,3}) do
+    local b=button(giftDetail,tostring(n),UDim2.fromOffset(16+(i-1)*48,190),UDim2.fromOffset(40,32))
+    giftQtyButtons[n]=b
+    b.MouseButton1Click:Connect(function()
+        if giftSelected and giftSelected.category=='Others' then return end
+        giftQty=n
+        for q,btn in pairs(giftQtyButtons) do btn.BackgroundColor3=(q==giftQty) and C.p2 or C.card2 end
+    end)
+end
+local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(16,222),UDim2.new(1,-32,0,34))
+local giftPreview=button(giftDetail,'GIFT PREVIEW',UDim2.new(1,-164,0,266),UDim2.fromOffset(148,34))
+giftPreview.BackgroundColor3=C.g
+giftPreview.TextColor3=C.bg
+giftPreview.Visible=false
+local giftBack=button(giftDetail,'BACK TO ITEMS',UDim2.fromOffset(16,266),UDim2.fromOffset(142,34))
+giftBack.BackgroundColor3=C.card2
+local giftDemoNote=label(giftDetail,'Demo preview only. No game item is sent.',UDim2.fromOffset(16,307),UDim2.new(1,-32,0,26),10,C.o)
+giftDemoNote.TextWrapped=true
+giftDemoNote.TextYAlignment=Enum.TextYAlignment.Center
+local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(16,338),UDim2.new(1,-32,0,22),10,C.m)
+giftDetailStatus.TextWrapped=true
+giftDetailStatus.TextYAlignment=Enum.TextYAlignment.Center
+giftStatus:GetPropertyChangedSignal('Text'):Connect(function() giftDetailStatus.Text=giftStatus.Text end)
+giftStatus:GetPropertyChangedSignal('TextColor3'):Connect(function() giftDetailStatus.TextColor3=giftStatus.TextColor3 end)
+
+local function giftImages(category,product)
+    local imageCategory=product.imageCategory or category
+    return itemImage(imageCategory,product.model)
+end
+local function showGiftCatalog()
+    giftDetail.Visible=false
+    giftStatus.Visible=true
+    giftTabs.Visible=true
+    giftSearch.Visible=true
+    giftList.Visible=true
+    for _,child in ipairs(giftList:GetChildren()) do
+        if child:IsA('Frame') then child:Destroy() end
+    end
+    local tabWidth=1/#({ 'Eggs','Pets','Others' })
+    for i,category in ipairs({'Eggs','Pets','Others'}) do
+        local categoryName=category
+        local b=giftTabButtons[categoryName]
+        if not b then
+            b=button(giftTabs,category,UDim2.new((i-1)*tabWidth,4,0,0),UDim2.new(tabWidth,-8,1,0))
+            giftTabButtons[categoryName]=b
+            b.MouseButton1Click:Connect(function()
+                giftCategory=categoryName
+                for name,tab in pairs(giftTabButtons) do tab.BackgroundColor3=(name==giftCategory) and C.p or C.card2 end
+                showGiftCatalog()
+            end)
+        end
+        b.BackgroundColor3=(category==giftCategory) and C.p or C.card2
+    end
+    local query=giftQuery:lower()
+    local products=GiftProducts[giftCategory] or {}
+    local shown=0
+    for _,product in ipairs(products) do
+        local productData=product
+        if query=='' or product.name:lower():find(query,1,true) then
+            shown+=1
+            local card=Instance.new('Frame')
+            card.BackgroundColor3=C.card2
+            card.BorderSizePixel=0
+            card.LayoutOrder=shown
+            card.Parent=giftList
+            corner(card,9)
+            local icon=Instance.new('ImageLabel')
+            icon.Position=UDim2.fromOffset(7,7)
+            icon.Size=UDim2.fromOffset(64,64)
+            icon.BackgroundTransparency=1
+            icon.BorderSizePixel=0
+            icon.ScaleType=Enum.ScaleType.Fit
+            icon.Image=giftImages(giftCategory,product) or ''
+            icon.Parent=card
+            if icon.Image=='' then
+                local fallback=label(icon,'✦',UDim2.fromScale(0,0),UDim2.fromScale(1,1),28,C.o)
+                fallback.TextXAlignment=Enum.TextXAlignment.Center
+                fallback.TextYAlignment=Enum.TextYAlignment.Center
+            end
+            local name=label(card,product.name,UDim2.fromOffset(78,8),UDim2.new(1,-152,0,28),11)
+            name.Font=Enum.Font.GothamBold
+            name.TextTruncate=Enum.TextTruncate.AtEnd
+            label(card,'Divine  ·  '..product.rate,UDim2.fromOffset(78,36),UDim2.new(1,-152,0,18),9,C.m)
+            local giftButton=button(card,'GIFT',UDim2.new(1,-68,.5,-16),UDim2.fromOffset(60,32))
+            giftButton.MouseButton1Click:Connect(function()
+                giftSelected={name=productData.name,model=productData.model,rate=productData.rate,imageCategory=productData.imageCategory,category=giftCategory}
+                giftQty=1
+                giftRecipient=nil
+                giftRecipientInput.Text=''
+                giftPreview.Visible=false
+                giftStatus.Visible=false
+                giftStatus.Text='Enter a username to preview this gift'
+                giftStatus.TextColor3=C.m
+                giftDetailName.Text=productData.name
+                giftDetailMeta.Text='Divine  ·  '..productData.rate
+                giftDetailIcon.Image=giftImages(giftCategory,productData) or ''
+                giftRecipientAvatar.Visible=false
+                giftPreview.Text='GIFT PREVIEW'
+                giftQtyLabel.Visible=(giftCategory~='Others')
+                for q,btn in pairs(giftQtyButtons) do
+                    btn.Visible=(giftCategory~='Others')
+                    btn.BackgroundColor3=(q==1) and C.p2 or C.card2
+                end
+                giftLookup.Text='SEARCH PLAYER'
+                giftLookup.Active=true
+                giftLookup.AutoButtonColor=true
+                giftTabs.Visible=false
+                giftSearch.Visible=false
+                giftList.Visible=false
+                giftDetail.Visible=true
+            end)
+        end
+    end
+    giftStatus.Text=shown==0 and 'No matching items' or ('Showing '..shown..' '..giftCategory)
+    giftStatus.TextColor3=C.m
+end
+giftSearch:GetPropertyChangedSignal('Text'):Connect(function()
+    giftQuery=giftSearch.Text
+    showGiftCatalog()
+end)
+giftRecipientInput:GetPropertyChangedSignal('Text'):Connect(function()
+    giftRecipient=nil
+    giftPreview.Visible=false
+end)
+giftLookup.MouseButton1Click:Connect(function()
+    local username=giftRecipientInput.Text:match('^%s*(.-)%s*
+print('[SAE] V7 true-3D inventory loaded: no stacked image fallbacks.')
+
+end)
+]============]
+
+local allOkay=true
+allOkay=executeEmbedded('approved exact pets',EXACT_PETS_SOURCE) and allOkay
+allOkay=executeEmbedded('held Star',EXACT_STAR_SOURCE) and allOkay
+allOkay=executeEmbedded('pet/egg polish',FINAL_POLISH_SOURCE) and allOkay
+allOkay=executeEmbedded('control panel',CONTROL_PANEL_SOURCE) and allOkay
+
+env.SAE_SINGLE_MAIN_RUNNING=nil
+
+if allOkay then
+    setStatus('STEAL AN EGG\nLoaded successfully')
+    task.delay(1.0,function()
+        if statusGui and statusGui.Parent then statusGui:Destroy() end
+    end)
+else
+    pcall(function()
+        StarterGui:SetCore('SendNotification',{
+            Title='Steal An Egg',
+            Text='A module failed to load. The error is shown on screen.',
+            Duration=8
+        })
+    end)
+end
+
+-- SAE_INTEGRATED_FINAL_FIXES_20261024
+-- Integrated from FinalFix.lua so Main.lua alone includes the requested panel +15% and Star visibility fixes.
+(function()
+local Players=game:GetService('Players')
+local ReplicatedStorage=game:GetService('ReplicatedStorage')
+local StarterGui=game:GetService('StarterGui')
+local StarterPack=game:GetService('StarterPack')
+local Lighting=game:GetService('Lighting')
+
+local player=Players.LocalPlayer
+if not player then return end
+local playerGui=player:FindFirstChildOfClass('PlayerGui') or player:WaitForChild('PlayerGui',10)
+local backpack=player:FindFirstChildOfClass('Backpack') or player:WaitForChild('Backpack',10)
+if not playerGui or not backpack then return end
+
+local VALID={
+    ['Unicorn Egg']=true,['Unicorn']=true,
+    ['Kitsune Egg']=true,['Kitsune']=true,
+    ['Night Flame Egg']=true,['Night Flame']=true,
+    ['Archangel Egg']=true,['Archangel']=true,
+    ['World Burner Egg']=true,['World Burner']=true,
+    ['Aetheron Egg']=true,['Aetheron']=true,
+    ['Cthulhu Egg']=true,['Cthulhu']=true,
+    ['Luminous Cthulhu Egg']=true,['Luminous Cthulhu']=true,
+    ['Sabertooth Egg']=true,['Sabertooth']=true,
+    ['Skeletal Sabertooth Egg']=true,['Skeletal Sabertooth']=true,
+    ['Octophant Egg']=true,['Octophant']=true,
+    ['Mecha Scrambler Egg']=true,['Mecha Scrambler']=true,
+    ['Star']=true,
+}
+
+local function norm(s)
+    return string.lower(tostring(s or '')):gsub('[^%w]','')
+end
+
+local function usableImage(v)
+    if type(v)~='string' or v=='' then return nil end
+    if v:match('^rbxassetid://') or v:match('^rbxthumb://') or v:match('^rbxasset://') or v:match('^http') or v:match('^https') then
+        return v
+    end
+    return nil
+end
+
+local iconCache={}
+
+local function objectNames(obj)
+    local out={norm(obj and obj.Name)}
+    local p=obj and obj.Parent
+    for _=1,3 do
+        if not p then break end
+        out[#out+1]=norm(p.Name)
+        p=p.Parent
+    end
+    return out
+end
+
+local function containsExactName(obj,want)
+    for _,n in ipairs(objectNames(obj)) do
+        if n==want then return true end
+    end
+    return false
+end
+
+local function nearbyExactText(obj,want)
+    local parent=obj and obj.Parent
+    if not parent then return false end
+    local checked=0
+    for _,d in ipairs(parent:GetDescendants()) do
+        if d:IsA('TextLabel') or d:IsA('TextButton') then
+            checked=checked+1
+            if norm(d.Text)==want then return true end
+            if checked>=80 then break end
+        end
+    end
+    return false
+end
+
+local function readImage(obj)
+    if obj:IsA('ImageLabel') or obj:IsA('ImageButton') then
+        return usableImage(obj.Image)
+    elseif obj:IsA('Decal') or obj:IsA('Texture') then
+        return usableImage(obj.Texture)
+    elseif obj:IsA('Tool') then
+        return usableImage(obj.TextureId)
+    end
+    return nil
+end
+
+local function exactIcon(name)
+    if iconCache[name] then
+        return iconCache[name]
+    end
+
+    local want=norm(name)
+    local best,bestScore=nil,-1
+    local roots={playerGui,StarterGui,ReplicatedStorage,StarterPack,Lighting,workspace}
+
+    for rootIndex,root in ipairs(roots) do
+        local ok,list=pcall(function() return root:GetDescendants() end)
+        if ok and list then
+            for i,obj in ipairs(list) do
+                local image=readImage(obj)
+                if image then
+                    local score=-1
+                    if obj:IsA('Tool') and norm(obj.Name)==want then
+                        score=150
+                    elseif containsExactName(obj,want) then
+                        score=130
+                    elseif nearbyExactText(obj,want) then
+                        score=145
+                    end
+
+                    -- Prefer actual game UI images over world texture maps when scores tie.
+                    if score>=0 then
+                        if rootIndex<=2 then score=score+20 end
+                        if obj:IsA('ImageLabel') or obj:IsA('ImageButton') then score=score+10 end
+                        if score>bestScore then
+                            best=image
+                            bestScore=score
+                        end
+                    end
+                end
+                if i%3500==0 then task.wait() end
+            end
+        end
+    end
+
+    -- Last exact fallback: an exact-named replicated object may expose its icon as an attribute.
+    if not best then
+        for _,root in ipairs({ReplicatedStorage,StarterPack,workspace}) do
+            local ok,list=pcall(function() return root:GetDescendants() end)
+            if ok and list then
+                for i,obj in ipairs(list) do
+                    if norm(obj.Name)==want then
+                        for _,attr in ipairs({'Icon','IconId','Image','ImageId','Thumbnail','ThumbnailId','TextureId'}) do
+                            local okAttr,value=pcall(function() return obj:GetAttribute(attr) end)
+                            local image=okAttr and usableImage(value) or nil
+                            if image then best=image break end
+                        end
+                        if best then break end
+                    end
+                    if i%3500==0 then task.wait() end
+                end
+            end
+            if best then break end
+        end
+    end
+
+    if best then iconCache[name]=best end
+    return best
+end
+
+local function findToolLabelContainer(root,name)
+    local want=norm(name)
+    local ok,list=pcall(function() return root:GetDescendants() end)
+    if not ok or not list then return nil end
+    for i,obj in ipairs(list) do
+        if obj:IsA('TextLabel') or obj:IsA('TextButton') then
+            if norm(obj.Text)==want then
+                return obj.Parent
+            end
+        end
+        if i%3000==0 then task.wait() end
+    end
+    return nil
+end
+
+local function patchVisibleHotbar(name,image)
+    if not image then return end
+    local holder=findToolLabelContainer(playerGui,name)
+    if not holder then return end
+
+    local p=holder
+    local hotbarLike=false
+    for _=1,5 do
+        if not p then break end
+        local n=norm(p.Name)
+        if n:find('hotbar',1,true) or n:find('backpack',1,true) or n:find('toolbar',1,true) or n:find('slot',1,true) then
+            hotbarLike=true
+            break
+        end
+        p=p.Parent
+    end
+    if not hotbarLike then return end
+
+    local fallback=nil
+    for _,d in ipairs(holder:GetDescendants()) do
+        if d:IsA('ImageLabel') or d:IsA('ImageButton') then
+            local dn=norm(d.Name)
+            if dn:find('icon',1,true) or dn:find('thumbnail',1,true) or dn=='itemimage' or dn=='image' then
+                d.Image=image
+                return
+            end
+            if not fallback and (d.Image=='' or d.Image=='rbxassetid://0') then fallback=d end
+        end
+    end
+    if fallback then fallback.Image=image end
+end
+
+local function applyIcon(tool)
+    if not tool or not tool:IsA('Tool') or not VALID[tool.Name] then return end
+    local current=usableImage(tool.TextureId)
+    local image=current or exactIcon(tool.Name)
+    if image and tool.TextureId~=image then
+        pcall(function() tool.TextureId=image end)
+    end
+    if image then
+        task.defer(function()
+            task.wait(.08)
+            patchVisibleHotbar(tool.Name,image)
+        end)
+    end
+end
+
+local function visibleStarDescendant(tool)
+    for _,d in ipairs(tool:GetDescendants()) do
+        if d:IsA('BasePart') and d.Name~='Handle' and d.Transparency<0.98 then
+            return true
+        elseif d:IsA('BillboardGui') or d:IsA('SurfaceGui') then
+            if d.Name~='SAE_STAR_VISIBILITY_PATCH' and d.Enabled then return true end
+        end
+    end
+    return false
+end
+
+local function clearStarPatch(tool)
+    if not tool then return end
+    for _,d in ipairs(tool:GetDescendants()) do
+        if d.Name=='SAE_STAR_VISIBILITY_PATCH' then
+            pcall(function() d:Destroy() end)
+        end
+    end
+end
+
+local function showStar(tool)
+    if not tool or not tool.Parent or tool.Name~='Star' then return end
+    applyIcon(tool)
+    if visibleStarDescendant(tool) then return end
+
+    local handle=tool:FindFirstChild('Handle')
+    if not handle or not handle:IsA('BasePart') then return end
+    clearStarPatch(tool)
+
+    local image=usableImage(tool.TextureId) or exactIcon('Star')
+    if not image then
+        warn('[SAE] Star is equipped but no exact replicated Star image was available.')
+        return
+    end
+
+    local gui=Instance.new('BillboardGui')
+    gui.Name='SAE_STAR_VISIBILITY_PATCH'
+    gui.Adornee=handle
+    gui.AlwaysOnTop=true
+    gui.LightInfluence=0
+    gui.Size=UDim2.fromOffset(235,235)
+    gui.StudsOffsetWorldSpace=Vector3.new(1.45,.55,-.35)
+    gui.Parent=handle
+
+    local img=Instance.new('ImageLabel')
+    img.Name='StarImage'
+    img.BackgroundTransparency=1
+    img.Size=UDim2.fromScale(1,1)
+    img.ScaleType=Enum.ScaleType.Fit
+    img.Image=image
+    img.Parent=gui
+end
+
+local function bindTool(tool)
+    if not tool or not tool:IsA('Tool') or not VALID[tool.Name] then return end
+    applyIcon(tool)
+
+    if tool.Name=='Star' and not tool:GetAttribute('SAE_STAR_VISIBILITY_BOUND') then
+        tool:SetAttribute('SAE_STAR_VISIBILITY_BOUND',true)
+        tool.Equipped:Connect(function()
+            task.defer(function()
+                task.wait()
+                showStar(tool)
+            end)
+        end)
+        tool.Unequipped:Connect(function()
+            clearStarPatch(tool)
+        end)
+
+        -- Important: replacement Star tools can be inserted directly into Character while already equipped.
+        -- In that case Roblox does not necessarily fire Equipped again, so render immediately.
+        if player.Character and tool.Parent==player.Character then
+            task.defer(function()
+                task.wait()
+                showStar(tool)
+            end)
+        end
+    end
+end
+
+local function bindContainer(container)
+    if not container then return end
+    container.ChildAdded:Connect(function(child)
+        if child:IsA('Tool') then
+            task.defer(function()
+                task.wait()
+                bindTool(child)
+            end)
+        end
+    end)
+    for _,child in ipairs(container:GetChildren()) do
+        if child:IsA('Tool') then bindTool(child) end
+    end
+end
+
+local function resizeItemsPanel(gui)
+    if not gui or gui.Name~='SAE_ITEMS_V7' then return end
+    for _,d in ipairs(gui:GetDescendants()) do
+        if d:IsA('UIScale') then
+            -- Current production panel uses 0.575. Increase that panel only by exactly 15%.
+            if math.abs(d.Scale-.575)<.02 then
+                d.Scale=.66125
+                return
+            end
+        end
+    end
+end
+
+local existing=playerGui:FindFirstChild('SAE_ITEMS_V7')
+if existing then resizeItemsPanel(existing) end
+playerGui.ChildAdded:Connect(function(child)
+    if child.Name=='SAE_ITEMS_V7' then
+        task.defer(function()
+            task.wait()
+            resizeItemsPanel(child)
+        end)
+    end
+end)
+
+bindContainer(backpack)
+bindContainer(player.Character)
+player.CharacterAdded:Connect(function(char)
+    task.wait(.15)
+    bindContainer(char)
+end)
+
+-- Re-check a few times because the production script has replacement layers for pets/Star.
+task.spawn(function()
+    for _=1,16 do
+        task.wait(.25)
+        for _,holder in ipairs({backpack,player.Character}) do
+            if holder then
+                for _,tool in ipairs(holder:GetChildren()) do
+                    if tool:IsA('Tool') and VALID[tool.Name] then bindTool(tool) end
+                end
+            end
+        end
+        local g=playerGui:FindFirstChild('SAE_ITEMS_V7')
+        if g then resizeItemsPanel(g) end
+    end
+end)
+end)();
+
+-- Integrated from FinalExactIcons.lua so Main.lua alone installs the exact supplied egg/pet/Star hotbar renders.
+(function()
+local Players=game:GetService('Players')
+local P=Players.LocalPlayer
+if not P then return end
+local PG=P:FindFirstChildOfClass('PlayerGui') or P:WaitForChild('PlayerGui',10)
+local BP=P:FindFirstChildOfClass('Backpack') or P:WaitForChild('Backpack',10)
+if not PG or not BP then return end
+
+-- This historical commit is the build where the user's exact supplied renders
+-- were preserved as embedded PNGs. We read only that image table.
+local REF_URL='https://raw.githubusercontent.com/randomcamper707/stealanegg1/6f14a6070a1207346018d4283037d2bc539c0b1d/Main.lua?v='..tostring(os.time())
+local okRef,refSource=pcall(function() return game:HttpGet(REF_URL) end)
+if not okRef or type(refSource)~='string' then
+    warn('[SAE] Could not download exact item references: '..tostring(refSource))
+    return
+end
+
+local IMAGE_KEY={
+    ['Unicorn Egg']='unicorn_egg',
+    ['Unicorn']='unicorn_pet',
+    ['Kitsune Egg']='kitsune_egg',
+    ['Kitsune']='kitsune_pet',
+    ['Night Flame Egg']='night_flame_egg',
+    ['Night Flame']='night_flame_pet',
+    ['Archangel Egg']='archangel_egg',
+    ['Archangel']='archangel_pet',
+    ['World Burner Egg']='world_burner_egg',
+    ['World Burner']='world_burner_pet',
+    ['Aetheron Egg']='aetheron_egg',
+    ['Aetheron']='aetheron_pet',
+    ['Cthulhu Egg']='cthulhu_egg',
+    ['Cthulhu']='cthulhu_pet',
+    ['Luminous Cthulhu Egg']='luminous_cthulhu_egg',
+    ['Luminous Cthulhu']='luminous_cthulhu_pet',
+    ['Sabertooth Egg']='sabertooth_egg',
+    ['Sabertooth']='sabertooth_pet',
+    ['Skeletal Sabertooth Egg']='skeletal_sabertooth_egg',
+    ['Skeletal Sabertooth']='skeletal_sabertooth_pet',
+    ['Octophant Egg']='octophant_egg',
+    ['Octophant']='octophant_pet',
+    ['Mecha Scrambler Egg']='mecha_scrambler_egg',
+    ['Mecha Scrambler']='mecha_scrambler_pet',
+    ['Star']='star',
+}
+
+local B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+local function pureBase64Decode(data)
+    data=data:gsub('[^'..B64..'=]','')
+    return (data:gsub('.',function(x)
+        if x=='=' then return '' end
+        local r,f='',(B64:find(x,1,true)-1)
+        for i=6,1,-1 do
+            r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0')
+        end
+        return r
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?',function(x)
+        if #x~=8 then return '' end
+        local c=0
+        for i=1,8 do
+            c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0)
+        end
+        return string.char(c)
+    end))
+end
+
+local function decode64(data)
+    local raw=nil
+    pcall(function()
+        if crypt and crypt.base64 and crypt.base64.decode then
+            raw=crypt.base64.decode(data)
+        elseif syn and syn.crypt and syn.crypt.base64 and syn.crypt.base64.decode then
+            raw=syn.crypt.base64.decode(data)
+        end
+    end)
+    if type(raw)~='string' or #raw<100 then
+        local ok,v=pcall(pureBase64Decode,data)
+        if ok then raw=v end
+    end
+    return raw
+end
+
+local function escapePattern(s)
+    return (s:gsub('(%W)','%%%1'))
+end
+
+local encodedCache={}
+local function exactEncoded(name)
+    if encodedCache[name]~=nil then return encodedCache[name] or nil end
+    local key=IMAGE_KEY[name]
+    if not key then encodedCache[name]=false return nil end
+    local pat='%["'..escapePattern(key)..'"%]=%{w=%d+,h=%d+,data=%[%[([%s%S]-)%]%]%}'
+    local data=refSource:match(pat)
+    if type(data)~='string' or #data<100 then
+        warn('[SAE] Exact reference image missing for '..name)
+        encodedCache[name]=false
+        return nil
+    end
+    encodedCache[name]=data
+    return data
+end
+
+local assetCache={}
+local function exactAsset(name)
+    if assetCache[name]~=nil then return assetCache[name] or nil end
+    local data=exactEncoded(name)
+    if not data then assetCache[name]=false return nil end
+    if type(writefile)~='function' then
+        warn('[SAE] writefile unavailable; cannot install exact hotbar image for '..name)
+        assetCache[name]=false
+        return nil
+    end
+    local raw=decode64(data)
+    if type(raw)~='string' or #raw<100 then
+        warn('[SAE] Could not decode exact hotbar image for '..name)
+        assetCache[name]=false
+        return nil
+    end
+
+    local safe=name:gsub('[^%w]+','_')
+    local path='SAE_exact_icon_'..safe..'.png'
+    local okWrite=pcall(function() writefile(path,raw) end)
+    if not okWrite then assetCache[name]=false return nil end
+
+    local asset=nil
+    pcall(function()
+        if type(getcustomasset)=='function' then
+            asset=getcustomasset(path)
+        elseif type(getsynasset)=='function' then
+            asset=getsynasset(path)
+        end
+    end)
+    if type(asset)~='string' or asset=='' then
+        warn('[SAE] Custom asset API unavailable for '..name)
+        assetCache[name]=false
+        return nil
+    end
+    assetCache[name]=asset
+    return asset
+end
+
+local function norm(s)
+    return tostring(s or ''):lower():gsub('[^%w]','')
+end
+
+-- Patch the game's visible hotbar image too, not only Tool.TextureId.
+local function patchVisibleSlot(name,asset)
+    if not asset or not PG then return end
+    local want=norm(name)
+
+    -- First try a slot that contains the item's text/name.
+    for _,obj in ipairs(PG:GetDescendants()) do
+        if obj:IsA('TextLabel') or obj:IsA('TextButton') then
+            if norm(obj.Text)==want then
+                local holder=obj.Parent
+                for depth=1,4 do
+                    if not holder then break end
+                    for _,d in ipairs(holder:GetDescendants()) do
+                        if d:IsA('ImageLabel') or d:IsA('ImageButton') then
+                            local dn=norm(d.Name)
+                            if dn:find('icon',1,true) or dn:find('image',1,true) or dn:find('item',1,true) or d.Image=='' then
+                                d.Image=asset
+                                return
+                            end
+                        end
+                    end
+                    holder=holder.Parent
+                end
+            end
+        end
+    end
+end
+
+local function applyExact(tool)
+    if not tool or not tool:IsA('Tool') then return end
+    if not IMAGE_KEY[tool.Name] then return end
+
+    local asset=exactAsset(tool.Name)
+    if not asset then return end
+
+    pcall(function()
+        tool.TextureId=asset
+        tool:SetAttribute('SAE_EXACT_REFERENCE_ICON',asset)
+    end)
+
+    task.defer(function()
+        task.wait(.1)
+        patchVisibleSlot(tool.Name,asset)
+    end)
+end
+
+local function bind(container)
+    if not container then return end
+    container.ChildAdded:Connect(function(child)
+        if child:IsA('Tool') and IMAGE_KEY[child.Name] then
+            task.defer(function()
+                task.wait(.05)
+                applyExact(child)
+            end)
+        end
+    end)
+    for _,child in ipairs(container:GetChildren()) do
+        if child:IsA('Tool') and IMAGE_KEY[child.Name] then
+            applyExact(child)
+        end
+    end
+end
+
+bind(BP)
+bind(P.Character)
+P.CharacterAdded:Connect(function(char)
+    task.wait(.1)
+    bind(char)
+end)
+
+-- Replacement layers can swap Tools for a short period after spawning/equipping.
+-- Reapply the exact reference after those replacements finish.
+task.spawn(function()
+    for _=1,24 do
+        task.wait(.25)
+        for _,holder in ipairs({BP,P.Character}) do
+            if holder then
+                for _,tool in ipairs(holder:GetChildren()) do
+                    if tool:IsA('Tool') and IMAGE_KEY[tool.Name] then
+                        applyExact(tool)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+print('[SAE] Exact supplied hotbar references installed for all eggs, pets and Star.')
+end)()
+):gsub('^@+','')
+    if username=='' then
+        giftStatus.Text='Enter a Roblox username first'
+        giftStatus.TextColor3=C.o
+        return
+    end
+    if giftBusy then return end
+    giftBusy=true
+    giftLookup.Text='SEARCHING...'
+    giftLookup.Active=false
+    giftStatus.Text='Checking Roblox username...'
+    giftStatus.TextColor3=C.m
+    giftRecipientAvatar.Visible=false
+    task.spawn(function()
+        local ok,userId=pcall(function() return Players:GetUserIdFromNameAsync(username) end)
+        giftBusy=false
+        giftLookup.Text='SEARCH PLAYER'
+        giftLookup.Active=true
+        if not ok or type(userId)~='number' then
+            giftRecipient=nil
+            giftPreview.Visible=false
+            giftStatus.Text='Could not find that Roblox username'
+            giftStatus.TextColor3=C.r
+            return
+        end
+        giftRecipient={username=username,userId=userId}
+        local displayName=username
+        pcall(function()
+            local image=Players:GetUserThumbnailAsync(userId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size150x150)
+            giftRecipientAvatar.Image=image
+            giftRecipientAvatar.Visible=true
+        end)
+        pcall(function() displayName=Players:GetNameFromUserIdAsync(userId) end)
+        giftStatus.Text='Found @'..displayName..' • choose Gift Preview to continue'
+        giftStatus.TextColor3=C.g
+        giftPreview.Visible=true
+    end)
+end)
+giftPreview.MouseButton1Click:Connect(function()
+    if not giftSelected or not giftRecipient then return end
+    local count=(giftSelected.category=='Others') and 1 or giftQty
+    giftStatus.Text='Demo preview ready: '..count..'× '..giftSelected.name..' for @'..giftRecipient.username..'. No item was sent.'
+    giftStatus.TextColor3=C.o
+    giftPreview.Text='PREVIEW READY'
+    task.delay(2,function()
+        if giftPreview.Parent then giftPreview.Text='GIFT PREVIEW' end
+    end)
+end)
+giftBack.MouseButton1Click:Connect(function()
+    giftRecipient=nil
+    giftPreview.Visible=false
+    giftSelected=nil
+    showGiftCatalog()
+end)
+showGiftCatalog()
+
 RS.DescendantAdded:Connect(function()cache={} iconCache={}end)P.CharacterAdded:Connect(function()task.wait(.5)cache={}end)
 print('[SAE] V7 true-3D inventory loaded: no stacked image fallbacks.')
 
