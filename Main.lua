@@ -1098,7 +1098,7 @@ function window(name,title,sub,w,h,pos)
 end
 
 -- Create every important panel immediately before any game scan.
-Main=window("MainPanel","DEVELOPER CONTROL PANEL","Main control panel",344,172,UDim2.new(.22,0,.52,0))
+Main=window("MainPanel","DEVELOPER CONTROL PANEL","Main control panel",344,118,UDim2.new(.22,0,.52,0))
 Main.BackgroundTransparency=.12
 Morph=window("MorphPanel","Avatar Morpher","Change your avatar's look",350,360,UDim2.new(.74,0,.28,0))
 Morph.BackgroundTransparency=Main.BackgroundTransparency
@@ -2885,7 +2885,7 @@ local function showAdminPage(name,push)
     Nav.Visible=(name~="Home")
     -- Size each branch to its controls instead of leaving a tall empty window.
     local heights={
-        Home=172,
+        Home=118,
         Announcements=336,
         Names=286, ["Avatar Name"]=330, ["Announcements Profile"]=384
     }
@@ -4627,15 +4627,19 @@ giftBoxPart(UDim2.fromOffset(38,29),UDim2.fromOffset(15,18),Color3.fromRGB(39,22
 giftBoxPart(UDim2.fromOffset(37,15),UDim2.fromOffset(19,16),Color3.fromRGB(49,238,8),8,0,true)
 giftBoxPart(UDim2.fromOffset(13,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,-18,true)
 giftBoxPart(UDim2.fromOffset(50,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,18,true)
+-- Scale the composite as one unit; rotating or nudging its outlined parts
+-- by fractions of a pixel made the old bob appear to stutter.
+local giftBoxScale=Instance.new('UIScale')
+giftBoxScale.Scale=1
+giftBoxScale.Parent=giftSentIcon
 local giftBoxMotion=game:GetService('TweenService'):Create(
-    giftSentIcon,
-    TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),
-    {Position=UDim2.new(.5,0,0,8),Rotation=1.5}
+    giftBoxScale,
+    TweenInfo.new(2.2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),
+    {Scale=1.025}
 )
 local function resetGiftBoxMotion()
     giftBoxMotion:Cancel()
-    giftSentIcon.Position=UDim2.new(.5,0,0,12)
-    giftSentIcon.Rotation=0
+    giftBoxScale.Scale=1
 end
 local giftSentTitle=label(giftSent,'GIFT SENT',UDim2.fromOffset(20,116),UDim2.new(1,-40,0,38),32)
 giftSentTitle.Font=Enum.Font.GothamBlack
