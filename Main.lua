@@ -3955,16 +3955,19 @@ if previousGiftGui then previousGiftGui:Destroy() end
 local giftGui=Instance.new('ScreenGui')
 giftGui.Name='SAE_GIFTING_PANEL'
 giftGui.ResetOnSpawn=false
+giftGui.IgnoreGuiInset=true
 giftGui.DisplayOrder=735
 giftGui.Parent=PG
 
-local giftLauncher=button(giftGui,'GIFTS',UDim2.new(0,12,.5,24),UDim2.fromOffset(74,38))
+local giftLauncher=button(giftGui,'GIFTS',UDim2.new(0,12,.5,24),UDim2.fromOffset(88,44))
+giftLauncher.TextSize=14
 giftLauncher.BackgroundColor3=C.p2
+local giftPanelSize=Vector2.new(420,350)
 local giftWin=Instance.new('Frame')
 giftWin.Name='GiftingPanel'
 giftWin.AnchorPoint=Vector2.new(.5,.5)
 giftWin.Position=UDim2.fromScale(.5,.5)
-giftWin.Size=UDim2.fromOffset(600,470)
+giftWin.Size=UDim2.fromOffset(giftPanelSize.X,giftPanelSize.Y)
 giftWin.BackgroundColor3=C.bg
 giftWin.BorderSizePixel=0
 giftWin.Visible=false
@@ -3972,32 +3975,113 @@ giftWin.Parent=giftGui
 corner(giftWin,14)
 stroke(giftWin,.12)
 local giftScale=Instance.new('UIScale')
-giftScale.Scale=.82
+giftScale.Scale=1
 giftScale.Parent=giftWin
 
 local giftHead=Instance.new('Frame')
-giftHead.Size=UDim2.new(1,0,0,60)
+giftHead.Size=UDim2.new(1,0,0,50)
 giftHead.BackgroundColor3=C.head
 giftHead.BorderSizePixel=0
+giftHead.Active=true
 giftHead.Parent=giftWin
 corner(giftHead,14)
-local giftTitle=label(giftHead,'Gifting Panel',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,25),16)
+local giftTitle=label(giftHead,'Gifting Panel',UDim2.fromOffset(14,5),UDim2.new(1,-70,0,25),20)
 giftTitle.Font=Enum.Font.GothamBold
-label(giftHead,'Choose an item and preview a gift',UDim2.fromOffset(16,33),UDim2.new(1,-70,0,17),10,C.m)
-local giftClose=button(giftHead,'X',UDim2.new(1,-43,0,13),UDim2.fromOffset(28,28))
+label(giftHead,'Choose an item and preview a gift',UDim2.fromOffset(14,30),UDim2.new(1,-70,0,17),12,C.m)
+local giftDragHandle=Instance.new('TextButton')
+giftDragHandle.Name='DragHeader'
+giftDragHandle.BackgroundTransparency=1
+giftDragHandle.Text=''
+giftDragHandle.AutoButtonColor=false
+giftDragHandle.Selectable=false
+giftDragHandle.Size=UDim2.new(1,-56,1,0)
+giftDragHandle.ZIndex=2
+giftDragHandle.Parent=giftHead
+local giftClose=button(giftHead,'X',UDim2.new(1,-44,0,9),UDim2.fromOffset(32,32))
+giftClose.TextSize=16
+giftClose.ZIndex=3
 giftClose.BackgroundColor3=C.card2
 giftLauncher.MouseButton1Click:Connect(function() giftWin.Visible=not giftWin.Visible end)
 giftClose.MouseButton1Click:Connect(function() giftWin.Visible=false end)
 
+-- Drag only from the header so item scrolling and buttons retain their input.
+local giftPanelCenter=nil
+local giftDragInput=nil
+local giftDragStart=nil
+local giftDragOrigin=nil
+local giftDragConnections={}
+local giftViewportConnection=nil
+local function giftViewport()
+    local camera=workspace.CurrentCamera
+    return camera and camera.ViewportSize or Vector2.new(1280,720)
+end
+local function giftClampAxis(value,extent,half)
+    return math.clamp(value,half+8,math.max(half+8,extent-half-8))
+end
+local function moveGiftPanel(center)
+    local viewport=giftViewport()
+    local half=giftPanelSize*giftScale.Scale*.5
+    giftPanelCenter=Vector2.new(
+        giftClampAxis(center.X,viewport.X,half.X),
+        giftClampAxis(center.Y,viewport.Y,half.Y)
+    )
+    giftWin.Position=UDim2.fromOffset(giftPanelCenter.X,giftPanelCenter.Y)
+end
+local function fitGiftPanel()
+    local viewport=giftViewport()
+    giftScale.Scale=math.max(.2,math.min(1,(viewport.X-24)/giftPanelSize.X,(viewport.Y-24)/giftPanelSize.Y))
+    moveGiftPanel(giftPanelCenter or viewport*.5)
+end
+local function giftTrack(connection)
+    giftDragConnections[#giftDragConnections+1]=connection
+end
+giftTrack(giftDragHandle.InputBegan:Connect(function(input)
+    if giftDragInput then return end
+    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+        giftDragInput=input
+        giftDragStart=Vector2.new(input.Position.X,input.Position.Y)
+        giftDragOrigin=giftPanelCenter
+    end
+end))
+giftTrack(UIS.InputChanged:Connect(function(input)
+    if not giftDragInput or not giftWin.Visible then return end
+    local isTouch=giftDragInput.UserInputType==Enum.UserInputType.Touch
+    if (isTouch and input==giftDragInput) or (not isTouch and input.UserInputType==Enum.UserInputType.MouseMovement) then
+        local pointer=Vector2.new(input.Position.X,input.Position.Y)
+        moveGiftPanel(giftDragOrigin+pointer-giftDragStart)
+    end
+end))
+giftTrack(UIS.InputEnded:Connect(function(input)
+    if input==giftDragInput or (giftDragInput and giftDragInput.UserInputType==Enum.UserInputType.MouseButton1 and input.UserInputType==Enum.UserInputType.MouseButton1) then
+        giftDragInput=nil
+    end
+end))
+giftTrack(giftWin:GetPropertyChangedSignal('Visible'):Connect(function()
+    if not giftWin.Visible then giftDragInput=nil end
+end))
+local function bindGiftViewport()
+    if giftViewportConnection then giftViewportConnection:Disconnect() end
+    local camera=workspace.CurrentCamera
+    if camera then giftViewportConnection=camera:GetPropertyChangedSignal('ViewportSize'):Connect(fitGiftPanel) end
+    fitGiftPanel()
+end
+giftTrack(workspace:GetPropertyChangedSignal('CurrentCamera'):Connect(bindGiftViewport))
+giftGui.Destroying:Connect(function()
+    giftDragInput=nil
+    if giftViewportConnection then giftViewportConnection:Disconnect() end
+    for _,connection in ipairs(giftDragConnections) do connection:Disconnect() end
+end)
+bindGiftViewport()
+
 local giftTabs=Instance.new('Frame')
 giftTabs.BackgroundTransparency=1
-giftTabs.Position=UDim2.fromOffset(14,68)
-giftTabs.Size=UDim2.new(1,-28,0,34)
+giftTabs.Position=UDim2.fromOffset(12,56)
+giftTabs.Size=UDim2.new(1,-24,0,32)
 giftTabs.Parent=giftWin
 local giftTabButtons={}
 local giftSearch=Instance.new('TextBox')
-giftSearch.Position=UDim2.fromOffset(14,108)
-giftSearch.Size=UDim2.new(1,-28,0,34)
+giftSearch.Position=UDim2.fromOffset(12,94)
+giftSearch.Size=UDim2.new(1,-24,0,34)
 giftSearch.BackgroundColor3=C.card
 giftSearch.BorderSizePixel=0
 giftSearch.Text=''
@@ -4005,23 +4089,23 @@ giftSearch.PlaceholderText='Search items'
 giftSearch.PlaceholderColor3=C.m
 giftSearch.TextColor3=C.w
 giftSearch.Font=Enum.Font.Gotham
-giftSearch.TextSize=12
+giftSearch.TextSize=15
 giftSearch.ClearTextOnFocus=false
 giftSearch.Parent=giftWin
 corner(giftSearch,8)
 local giftList=Instance.new('ScrollingFrame')
-giftList.Position=UDim2.fromOffset(14,150)
-giftList.Size=UDim2.new(1,-28,1,-202)
+giftList.Position=UDim2.fromOffset(12,136)
+giftList.Size=UDim2.new(1,-24,1,-166)
 giftList.BackgroundColor3=C.card
 giftList.BorderSizePixel=0
-giftList.ScrollBarThickness=5
+giftList.ScrollBarThickness=6
 giftList.CanvasSize=UDim2.fromOffset(0,0)
 giftList.Parent=giftWin
 corner(giftList,10)
 stroke(giftList,.5)
 local giftGrid=Instance.new('UIGridLayout')
-giftGrid.CellSize=UDim2.new(.5,-8,0,82)
-giftGrid.CellPadding=UDim2.fromOffset(8,8)
+giftGrid.CellSize=UDim2.new(1,-24,0,120)
+giftGrid.CellPadding=UDim2.fromOffset(0,8)
 giftGrid.SortOrder=Enum.SortOrder.LayoutOrder
 giftGrid.Parent=giftList
 local giftPadding=Instance.new('UIPadding')
@@ -4032,13 +4116,15 @@ giftPadding.Parent=giftList
 giftGrid:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
     giftList.CanvasSize=UDim2.fromOffset(0,giftGrid.AbsoluteContentSize.Y+16)
 end)
-local giftStatus=label(giftWin,'Select an item to begin',UDim2.new(0,16,1,-43),UDim2.new(1,-32,0,26),10,C.m)
+local giftStatus=label(giftWin,'Select an item to begin',UDim2.new(0,14,1,-25),UDim2.new(1,-28,0,20),12,C.m)
 giftStatus.TextWrapped=true
 giftStatus.TextYAlignment=Enum.TextYAlignment.Center
 
-local giftDetail=Instance.new('Frame')
-giftDetail.Position=UDim2.fromOffset(14,108)
-giftDetail.Size=UDim2.new(1,-28,1,-122)
+local giftDetail=Instance.new('ScrollingFrame')
+giftDetail.Position=UDim2.fromOffset(12,58)
+giftDetail.Size=UDim2.new(1,-24,1,-70)
+giftDetail.CanvasSize=UDim2.fromOffset(0,512)
+giftDetail.ScrollBarThickness=6
 giftDetail.BackgroundColor3=C.card
 giftDetail.BorderSizePixel=0
 giftDetail.Visible=false
@@ -4047,33 +4133,34 @@ corner(giftDetail,10)
 stroke(giftDetail,.5)
 local giftDetailIcon=Instance.new('ImageLabel')
 giftDetailIcon.Position=UDim2.fromOffset(16,16)
-giftDetailIcon.Size=UDim2.fromOffset(84,84)
+giftDetailIcon.Size=UDim2.fromOffset(112,112)
 giftDetailIcon.BackgroundColor3=C.card2
 giftDetailIcon.BackgroundTransparency=0
 giftDetailIcon.BorderSizePixel=0
 giftDetailIcon.ScaleType=Enum.ScaleType.Fit
 giftDetailIcon.Parent=giftDetail
 corner(giftDetailIcon,10)
-local giftDetailPlaceholder=label(giftDetailIcon,'Loading image...',UDim2.fromScale(0,0),UDim2.fromScale(1,1),9,C.m)
+local giftDetailPlaceholder=label(giftDetailIcon,'Loading image...',UDim2.fromScale(0,0),UDim2.fromScale(1,1),12,C.m)
 giftDetailPlaceholder.Name='GiftImagePlaceholder'
 giftDetailPlaceholder.TextWrapped=true
 giftDetailPlaceholder.TextXAlignment=Enum.TextXAlignment.Center
 giftDetailPlaceholder.TextYAlignment=Enum.TextYAlignment.Center
 local giftRecipientAvatar=Instance.new('ImageLabel')
 giftRecipientAvatar.AnchorPoint=Vector2.new(1,0)
-giftRecipientAvatar.Position=UDim2.new(1,-16,0,16)
-giftRecipientAvatar.Size=UDim2.fromOffset(44,44)
+giftRecipientAvatar.Position=UDim2.new(1,-16,0,100)
+giftRecipientAvatar.Size=UDim2.fromOffset(48,48)
 giftRecipientAvatar.BackgroundColor3=C.card2
 giftRecipientAvatar.BorderSizePixel=0
 giftRecipientAvatar.Visible=false
 giftRecipientAvatar.Parent=giftDetail
-corner(giftRecipientAvatar,22)
-local giftDetailName=label(giftDetail,'',UDim2.fromOffset(112,20),UDim2.new(1,-130,0,24),14)
+corner(giftRecipientAvatar,24)
+local giftDetailName=label(giftDetail,'',UDim2.fromOffset(144,16),UDim2.new(1,-160,0,56),18)
 giftDetailName.Font=Enum.Font.GothamBold
-local giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(112,48),UDim2.new(1,-130,0,20),11,C.m)
+giftDetailName.TextWrapped=true
+local giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(144,78),UDim2.new(1,-160,0,20),14,C.m)
 local giftRecipientInput=Instance.new('TextBox')
-giftRecipientInput.Position=UDim2.fromOffset(16,118)
-giftRecipientInput.Size=UDim2.new(1,-32,0,38)
+giftRecipientInput.Position=UDim2.fromOffset(16,154)
+giftRecipientInput.Size=UDim2.new(1,-32,0,44)
 giftRecipientInput.BackgroundColor3=C.card2
 giftRecipientInput.BorderSizePixel=0
 giftRecipientInput.Text=''
@@ -4081,14 +4168,15 @@ giftRecipientInput.PlaceholderText='Roblox username'
 giftRecipientInput.PlaceholderColor3=C.m
 giftRecipientInput.TextColor3=C.w
 giftRecipientInput.Font=Enum.Font.Gotham
-giftRecipientInput.TextSize=12
+giftRecipientInput.TextSize=16
 giftRecipientInput.ClearTextOnFocus=false
 giftRecipientInput.Parent=giftDetail
 corner(giftRecipientInput,8)
-local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(16,164),UDim2.new(1,-32,0,18),10,C.m)
+local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(16,211),UDim2.fromOffset(100,44),14,C.m)
 local giftQtyButtons={}
 for i,n in ipairs({1,2,3}) do
-    local b=button(giftDetail,tostring(n),UDim2.fromOffset(16+(i-1)*48,190),UDim2.fromOffset(40,32))
+    local b=button(giftDetail,tostring(n),UDim2.fromOffset(130+(i-1)*66,211),UDim2.fromOffset(56,44))
+    b.TextSize=16
     giftQtyButtons[n]=b
     b.MouseButton1Click:Connect(function()
         if giftSelected and giftSelected.category=='Others' then return end
@@ -4096,17 +4184,20 @@ for i,n in ipairs({1,2,3}) do
         for q,btn in pairs(giftQtyButtons) do btn.BackgroundColor3=(q==giftQty) and C.p2 or C.card2 end
     end)
 end
-local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(16,222),UDim2.new(1,-32,0,34))
-local giftPreview=button(giftDetail,'GIFT PREVIEW',UDim2.new(1,-164,0,266),UDim2.fromOffset(148,34))
+local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(16,267),UDim2.new(1,-32,0,44))
+giftLookup.TextSize=16
+local giftPreview=button(giftDetail,'GIFT PREVIEW',UDim2.new(.5,8,0,323),UDim2.new(.5,-24,0,44))
+giftPreview.TextSize=15
 giftPreview.BackgroundColor3=C.g
 giftPreview.TextColor3=C.bg
 giftPreview.Visible=false
-local giftBack=button(giftDetail,'BACK TO ITEMS',UDim2.fromOffset(16,266),UDim2.fromOffset(142,34))
+local giftBack=button(giftDetail,'BACK TO ITEMS',UDim2.fromOffset(16,323),UDim2.new(.5,-24,0,44))
+giftBack.TextSize=15
 giftBack.BackgroundColor3=C.card2
-local giftDemoNote=label(giftDetail,'Demo preview only. No game item is sent.',UDim2.fromOffset(16,307),UDim2.new(1,-32,0,26),10,C.o)
+local giftDemoNote=label(giftDetail,'Demo preview only. No game item is sent.',UDim2.fromOffset(16,379),UDim2.new(1,-32,0,36),12,C.o)
 giftDemoNote.TextWrapped=true
 giftDemoNote.TextYAlignment=Enum.TextYAlignment.Center
-local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(16,338),UDim2.new(1,-32,0,22),10,C.m)
+local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(16,427),UDim2.new(1,-32,0,72),14,C.m)
 giftDetailStatus.TextWrapped=true
 giftDetailStatus.TextYAlignment=Enum.TextYAlignment.Center
 giftStatus:GetPropertyChangedSignal('Text'):Connect(function() giftDetailStatus.Text=giftStatus.Text end)
@@ -4264,6 +4355,7 @@ local function showGiftCatalog()
         if not b then
             b=button(giftTabs,category,UDim2.new((i-1)*tabWidth,4,0,0),UDim2.new(tabWidth,-8,1,0))
             giftTabButtons[categoryName]=b
+            b.TextSize=14
             b.MouseButton1Click:Connect(function()
                 giftCategory=categoryName
                 for name,tab in pairs(giftTabButtons) do tab.BackgroundColor3=(name==giftCategory) and C.p or C.card2 end
@@ -4286,26 +4378,27 @@ local function showGiftCatalog()
             card.Parent=giftList
             corner(card,9)
             local icon=Instance.new('ImageLabel')
-            icon.Position=UDim2.fromOffset(7,7)
-            icon.Size=UDim2.fromOffset(64,64)
+            icon.Position=UDim2.fromOffset(10,12)
+            icon.Size=UDim2.fromOffset(96,96)
             icon.BackgroundTransparency=1
             icon.BorderSizePixel=0
             icon.ScaleType=Enum.ScaleType.Fit
             icon.Image=''
             icon.Parent=card
             if icon.Image=='' then
-                local fallback=label(icon,'Loading image...',UDim2.fromScale(0,0),UDim2.fromScale(1,1),9,C.m)
+                local fallback=label(icon,'Loading image...',UDim2.fromScale(0,0),UDim2.fromScale(1,1),12,C.m)
                 fallback.Name='GiftImagePlaceholder'
                 fallback.TextWrapped=true
                 fallback.TextXAlignment=Enum.TextXAlignment.Center
                 fallback.TextYAlignment=Enum.TextYAlignment.Center
             end
             queueGiftImage(icon,giftCategory,productData)
-            local name=label(card,product.name,UDim2.fromOffset(78,8),UDim2.new(1,-152,0,28),11)
+            local name=label(card,product.name,UDim2.fromOffset(118,6),UDim2.new(1,-130,0,40),16)
             name.Font=Enum.Font.GothamBold
-            name.TextTruncate=Enum.TextTruncate.AtEnd
-            label(card,'Divine  ·  '..product.rate,UDim2.fromOffset(78,36),UDim2.new(1,-152,0,18),9,C.m)
-            local giftButton=button(card,'GIFT',UDim2.new(1,-68,.5,-16),UDim2.fromOffset(60,32))
+            name.TextWrapped=true
+            label(card,'Divine  ·  '..product.rate,UDim2.fromOffset(118,48),UDim2.new(1,-130,0,18),12,C.m)
+            local giftButton=button(card,'GIFT',UDim2.fromOffset(118,72),UDim2.fromOffset(140,40))
+            giftButton.TextSize=16
             giftButton.MouseButton1Click:Connect(function()
                 giftSelected={imageKey=productData.imageKey,name=productData.name,model=productData.model,rate=productData.rate,imageCategory=productData.imageCategory,category=giftCategory}
                 giftQty=1
@@ -4332,6 +4425,7 @@ local function showGiftCatalog()
                 giftTabs.Visible=false
                 giftSearch.Visible=false
                 giftList.Visible=false
+                giftDetail.CanvasPosition=Vector2.new(0,0)
                 giftDetail.Visible=true
             end)
         end
