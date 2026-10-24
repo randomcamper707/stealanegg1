@@ -4,8 +4,7 @@
 
 local env=(getgenv and getgenv()) or _G
 if env.SAE_SINGLE_MAIN_RUNNING then
-    warn('[SAE] Main.lua is already running in this session.')
-    return
+    env.SAE_SINGLE_MAIN_RUNNING=nil
 end
 env.SAE_SINGLE_MAIN_RUNNING=true
 
