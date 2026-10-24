@@ -1,0 +1,50 @@
+name: Fix Main rerun startup
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-main-rerun.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove silent session startup block
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('Main.lua')
+          s=p.read_text()
+          old="""local env=(getgenv and getgenv()) or _G
+if env.SAE_SINGLE_MAIN_RUNNING then
+    warn('[SAE] Main.lua is already running in this session.')
+    return
+end
+env.SAE_SINGLE_MAIN_RUNNING=true
+"""
+          new="""local env=(getgenv and getgenv()) or _G
+-- Always allow the current Main.lua to refresh in the same Roblox session.
+-- Older test loaders may leave this flag set, which previously made Main.lua
+-- return before any panel or loading UI could appear.
+if env.SAE_SINGLE_MAIN_RUNNING then
+    env.SAE_SINGLE_MAIN_RUNNING=nil
+end
+env.SAE_SINGLE_MAIN_RUNNING=true
+"""
+          assert s.count(old)==1, f'expected startup guard once, found {s.count(old)}'
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          assert "return\nend\nenv.SAE_SINGLE_MAIN_RUNNING=true" not in s[:1200]
+          assert 'SAE_INTEGRATED_FINAL_FIXES_20261024' in s
+          assert "['Unicorn Egg']='unicorn_egg'" in s
+          PY
+          git diff --check
+      - name: Commit fixed Main.lua
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Main.lua
+          git rm -f .github/workflows/fix-main-rerun.yml
+          git commit -m 'Fix Main.lua silent rerun startup'
+          git push
