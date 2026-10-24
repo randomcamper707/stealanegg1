@@ -491,7 +491,7 @@ local function startOverlay(tool)
     destroyOverlay(tool)
 
     local gui,img,drawing
-    local imageSource=CUSTOM_ASSET
+    local imageSource=(tool.TextureId and tool.TextureId~='') and tool.TextureId or CUSTOM_ASSET
     if (not imageSource or imageSource=='') and tool.TextureId and tool.TextureId~='' then
         imageSource=tool.TextureId
     end
