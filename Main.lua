@@ -3960,6 +3960,38 @@ local function button(parent,text,position,size)
     giftButtonPaint(object,'green')
     return object
 end
+-- Ignore transparent margins when fitting the original catalog images.
+local GiftArtworkBounds={
+    ['1-star']={0,0,360,318},
+    ['2-stars']={0,0,360,210},
+    ['3-stars']={0,0,360,300},
+    ['aetheron-pet']={3,5,280,244},
+    ['aetheron']={6,14,194,184},
+    ['archangel-pet']={0,5,277,266},
+    ['archangel']={4,4,200,147},
+    ['ben-treadmill']={0,0,270,360},
+    ['brockodile-treadmill']={0,4,302,356},
+    ['cthulhu-pet']={5,5,267,280},
+    ['cthulhu']={17,4,184,194},
+    ['kitsune-pet']={8,8,232,238},
+    ['kitsune']={12,2,188,196},
+    ['luminous-cthulhu-pet']={5,2,271,280},
+    ['luminous-cthulhu']={13,4,182,195},
+    ['mecha-scrambler-pet']={5,5,252,275},
+    ['mecha-scrambler']={20,10,189,187},
+    ['nightflame-pet']={5,1,257,276},
+    ['nightflame']={6,8,194,188},
+    ['octophant-pet']={4,4,254,276},
+    ['octophant']={14,5,226,227},
+    ['sabertooth-pet']={5,5,275,183},
+    ['sabertooth']={22,4,188,187},
+    ['skeletal-sabertooth-pet']={0,5,280,177},
+    ['skeletal-sabertooth']={10,7,197,193},
+    ['unicorn-pet']={3,3,160,277},
+    ['unicorn']={56,10,197,229},
+    ['world-burner-pet']={4,4,276,192},
+    ['world-burner']={2,52,236,176},
+}
 local GiftArtColors={
     ['unicorn']={Color3.fromRGB(247,139,197),Color3.fromRGB(168,62,119)},
     ['kitsune']={Color3.fromRGB(174,123,245),Color3.fromRGB(99,62,149)},
@@ -4044,7 +4076,9 @@ giftGui.IgnoreGuiInset=true
 giftGui.DisplayOrder=735
 giftGui.Parent=PG
 
-local giftLauncher=button(giftGui,'GIFTS',UDim2.new(0,12,.5,24),UDim2.fromOffset(88,44))
+-- Share the Items launcher's screen layer so inset offsets cannot overlap them.
+local giftLauncher=button(gui,'GIFTS',UDim2.new(0,12,.5,30),UDim2.fromOffset(88,44))
+giftGui.Destroying:Connect(function() giftLauncher:Destroy() end)
 giftLauncher.TextSize=14
 giftButtonPaint(giftLauncher,'green')
 local giftCatalogSize=Vector2.new(690,380)
@@ -4153,6 +4187,12 @@ end
 local function giftTrack(connection)
     giftDragConnections[#giftDragConnections+1]=connection
 end
+giftTrack(UIS.InputBegan:Connect(function(input,processed)
+    if processed or UIS:GetFocusedTextBox() then return end
+    if input.KeyCode==Enum.KeyCode.Q then
+        giftWin.Visible=not giftWin.Visible
+    end
+end))
 giftTrack(giftDragHandle.InputBegan:Connect(function(input)
     if giftDragInput then return end
     if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
@@ -4214,7 +4254,7 @@ corner(giftSearch,8)
 stroke(giftSearch)
 local giftList=Instance.new('ScrollingFrame')
 giftList.Position=UDim2.fromOffset(12,96)
-giftList.Size=UDim2.new(1,-24,1,-126)
+giftList.Size=UDim2.new(1,-24,1,-108)
 giftList.BackgroundColor3=C.card
 giftList.BorderSizePixel=0
 giftList.ScrollBarThickness=5
@@ -4224,7 +4264,7 @@ giftList.Parent=giftWin
 corner(giftList,10)
 stroke(giftList,.5)
 local giftGrid=Instance.new('UIGridLayout')
-giftGrid.CellSize=UDim2.new(1/3,-12,0,116)
+giftGrid.CellSize=UDim2.new(1/3,-12,0,125)
 giftGrid.FillDirection=Enum.FillDirection.Horizontal
 giftGrid.FillDirectionMaxCells=3
 giftGrid.CellPadding=UDim2.fromOffset(8,6)
@@ -4260,7 +4300,7 @@ local function giftStepFrame(name)
 end
 local giftDetail=giftStepFrame('UsernamePage')
 -- Reference proportions, with a fixed image/name row and one full-width action.
-giftDetail.Size=UDim2.fromOffset(666,304)
+giftDetail.Size=UDim2.fromOffset(480,304)
 corner(giftDetail,18)
 local giftDetailClose=button(giftDetail,'×',UDim2.new(1,-44,0,10),UDim2.fromOffset(32,32))
 corner(giftDetailClose,16)
@@ -4324,7 +4364,7 @@ giftDetailIcon:GetPropertyChangedSignal('Image'):Connect(function()
     for i=2,3 do giftStackIcons[i].Image=giftDetailIcon.Image end
 end)
 updateGiftQuantityImages()
-giftDetailName=label(giftDetail,'',UDim2.fromOffset(192,26),UDim2.fromOffset(410,58),30)
+giftDetailName=label(giftDetail,'',UDim2.fromOffset(188,30),UDim2.fromOffset(240,78),26)
 giftDetailName.Font=Enum.Font.GothamBold
 giftDetailName.TextWrapped=true
 giftDetailName.TextXAlignment=Enum.TextXAlignment.Left
@@ -4332,7 +4372,7 @@ giftDetailName.TextYAlignment=Enum.TextYAlignment.Center
 giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(192,112),UDim2.fromOffset(280,16),11,C.m)
 giftDetailMeta.Visible=false
 giftDetailMeta.TextXAlignment=Enum.TextXAlignment.Center
-local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(24,137),UDim2.fromOffset(618,26),22)
+local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(24,137),UDim2.fromOffset(430,26),22)
 giftUsernameLabel.TextXAlignment=Enum.TextXAlignment.Left
 local giftRecipientInput=Instance.new('TextBox')
 giftRecipientInput.Position=UDim2.fromOffset(64,207)
@@ -4380,7 +4420,7 @@ corner(giftLookup,15)
 local giftLookupOutline=giftLookup:FindFirstChildOfClass('UIStroke')
 giftLookupOutline.Color=Color3.fromRGB(17,74,8)
 giftLookupOutline.Thickness=3
-local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(24,215),UDim2.fromOffset(618,16),11,C.r)
+local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(24,213),UDim2.fromOffset(430,16),11,C.r)
 giftDetailStatus.TextWrapped=true
 giftDetailStatus.TextXAlignment=Enum.TextXAlignment.Center
 local giftBack=Instance.new('TextButton')
@@ -4581,7 +4621,7 @@ local function setGiftPage(page)
     giftTabs.Visible=page=='catalog'
     giftSearch.Visible=page=='catalog'
     giftList.Visible=page=='catalog'
-    giftStatus.Visible=page=='catalog'
+    giftStatus.Visible=false
     giftClose.Visible=page~='form'
     -- Every page uses the original 690 × 380 outer panel.
     setGiftPanelSize(giftCatalogSize)
@@ -4879,7 +4919,7 @@ local function showGiftCatalog()
             local art=Instance.new('Frame')
             art.Name='ItemArtwork'
             art.Position=UDim2.fromOffset(2,2)
-            art.Size=UDim2.fromOffset(94,72)
+            art.Size=UDim2.fromOffset(98,81)
             art.BorderSizePixel=0
             art.Parent=card
             corner(art,7)
@@ -4888,7 +4928,12 @@ local function showGiftCatalog()
             local icon=Instance.new('ImageLabel')
             icon.AnchorPoint=Vector2.new(.5,.5)
             icon.Position=UDim2.fromScale(.5,.5)
-            icon.Size=UDim2.fromOffset(94,72)
+            icon.Size=UDim2.fromOffset(98,81)
+            local imageBounds=GiftArtworkBounds[product.imageKey]
+            if imageBounds then
+                icon.ImageRectOffset=Vector2.new(imageBounds[1],imageBounds[2])
+                icon.ImageRectSize=Vector2.new(imageBounds[3]-imageBounds[1],imageBounds[4]-imageBounds[2])
+            end
             icon.BackgroundTransparency=1
             icon.BorderSizePixel=0
             icon.ScaleType=Enum.ScaleType.Fit
@@ -4908,7 +4953,7 @@ local function showGiftCatalog()
             rarity.TextXAlignment=Enum.TextXAlignment.Center
             corner(rarity,7)
             label(card,product.rate,UDim2.fromOffset(102,59),UDim2.new(1,-108,0,15),11)
-            local giftButton=button(card,'Gift',UDim2.fromOffset(6,77),UDim2.new(1,-12,0,35))
+            local giftButton=button(card,'Gift',UDim2.fromOffset(6,86),UDim2.new(1,-12,0,35))
             giftButton.TextSize=20
             addGiftButtonSymbol(giftButton)
             giftButton.MouseButton1Click:Connect(function()
