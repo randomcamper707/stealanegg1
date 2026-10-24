@@ -4287,7 +4287,7 @@ task.spawn(function()
         if g then resizeItemsPanel(g) end
     end
 end)
-end)()
+end)();
 
 -- Integrated from FinalExactIcons.lua so Main.lua alone installs the exact supplied egg/pet/Star hotbar renders.
 (function()
