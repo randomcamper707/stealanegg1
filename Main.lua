@@ -4126,7 +4126,7 @@ for row=0,1 do
         rim.Thickness=1
     end
 end
-local giftTitle=label(giftHead,'Gifting Panel',UDim2.fromOffset(14,14),UDim2.fromOffset(170,22),17)
+local giftTitle=label(giftHead,'🎁 Gifting Panel',UDim2.fromOffset(14,14),UDim2.fromOffset(220,22),17)
 local giftLogo=Instance.new('ImageLabel')
 giftLogo.Name='StealAnEggLogo'
 giftLogo.AnchorPoint=Vector2.new(.5,.5)
@@ -4546,8 +4546,6 @@ giftFoundBack.TextSize=20
 giftGradient(giftFoundBack,Color3.fromRGB(255,112,81),Color3.fromRGB(234,53,22))
 giftFoundBack.TextColor3=Color3.new(1,1,1)
 giftFoundBack:FindFirstChildOfClass('UIStroke').Color=Color3.fromRGB(156,37,14)
-local giftDemoNote=label(giftFound,'Demo preview only. No game item is sent.',UDim2.fromOffset(20,296),UDim2.new(1,-40,0,8),8,C.o)
-giftDemoNote.TextXAlignment=Enum.TextXAlignment.Center
 
 -- A gradient on a TextButton also tints its own glyphs. Draw white captions
 -- in a separate layer above the gradient and shimmer so they stay opaque.
@@ -4627,19 +4625,15 @@ giftBoxPart(UDim2.fromOffset(38,29),UDim2.fromOffset(15,18),Color3.fromRGB(39,22
 giftBoxPart(UDim2.fromOffset(37,15),UDim2.fromOffset(19,16),Color3.fromRGB(49,238,8),8,0,true)
 giftBoxPart(UDim2.fromOffset(13,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,-18,true)
 giftBoxPart(UDim2.fromOffset(50,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,18,true)
--- Scale the composite as one unit; rotating or nudging its outlined parts
--- by fractions of a pixel made the old bob appear to stutter.
-local giftBoxScale=Instance.new('UIScale')
-giftBoxScale.Scale=1
-giftBoxScale.Parent=giftSentIcon
+-- A small vertical hop, with no scaling or rotation of the gift artwork.
 local giftBoxMotion=game:GetService('TweenService'):Create(
-    giftBoxScale,
-    TweenInfo.new(2.2,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),
-    {Scale=1.025}
+    giftSentIcon,
+    TweenInfo.new(.7,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true,.15),
+    {Position=UDim2.new(.5,0,0,6)}
 )
 local function resetGiftBoxMotion()
     giftBoxMotion:Cancel()
-    giftBoxScale.Scale=1
+    giftSentIcon.Position=UDim2.new(.5,0,0,12)
 end
 local giftSentTitle=label(giftSent,'GIFT SENT',UDim2.fromOffset(20,116),UDim2.new(1,-40,0,38),32)
 giftSentTitle.Font=Enum.Font.GothamBlack
@@ -4652,8 +4646,6 @@ giftSentSummary.TextYAlignment=Enum.TextYAlignment.Center
 local giftSentDone=button(giftSent,'DONE',UDim2.fromOffset(198,230),UDim2.fromOffset(270,44))
 giftSentDone.TextSize=25
 giftOpaqueWhiteCaption(giftSentDone)
-local giftSentNote=label(giftSent,'Demo confirmation. No item was transferred.',UDim2.fromOffset(20,282),UDim2.new(1,-40,0,16),10,C.o)
-giftSentNote.TextXAlignment=Enum.TextXAlignment.Center
 
 local giftRainLayer=Instance.new('Frame')
 giftRainLayer.Name='GiftItemRain'
@@ -4924,7 +4916,7 @@ local function refreshGiftFoundQuantity()
     for count,card in ipairs(giftFoundQuantityCards) do
         card.button.Visible=not single or count==1
         card.button.Position=UDim2.fromOffset(single and 372 or 236+(count-1)*136,104)
-        card.caption.Text=count..' '..giftSelected.name
+        card.caption.Text=single and giftSelected.name or (count..' '..giftSelected.name)
         local selected=count==(single and 1 or giftQty)
         giftGradient(card.button,selected and Color3.fromRGB(244,255,222) or Color3.fromRGB(255,255,255),selected and Color3.fromRGB(218,255,177) or Color3.fromRGB(241,245,249))
         card.outline.Color=selected and Color3.fromRGB(26,134,13) or Color3.fromRGB(208,215,220)
@@ -5051,8 +5043,31 @@ local function showGiftCatalog()
             card.BorderSizePixel=0
             card.LayoutOrder=shown
             card.Parent=giftList
+            -- The grid owns a fixed slot; only its inner surface lifts on hover.
+            local slot=card
+            slot.BackgroundTransparency=1
+            card=Instance.new('Frame')
+            card.Name='ItemCard'
+            card.Size=UDim2.fromScale(1,1)
+            card.BackgroundColor3=C.card2
+            card.BorderSizePixel=0
+            card.Parent=slot
             corner(card,9)
-            stroke(card)
+            local outline=stroke(card)
+            local liftTween=nil
+            local function hover(inside)
+                if liftTween then liftTween:Cancel() end
+                liftTween=giftTweenService:Create(card,TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+                    Position=UDim2.fromOffset(0,inside and -3 or 0)
+                })
+                outline.Color=inside and C.g or C.border
+                liftTween:Play()
+            end
+            slot.MouseEnter:Connect(function() hover(true) end)
+            slot.MouseLeave:Connect(function() hover(false) end)
+            slot.Destroying:Connect(function()
+                if liftTween then liftTween:Cancel() end
+            end)
             local art=Instance.new('Frame')
             art.Name='ItemArtwork'
             art.Position=UDim2.fromOffset(2,2)
@@ -5176,9 +5191,8 @@ giftLookup.MouseButton1Click:Connect(function()
         giftFoundUsername.Text='@'..canonicalName
         refreshGiftFoundQuantity()
         local count=giftSelected.category=='Others' and 1 or giftQty
-        giftFoundSummary.Text=count..'× '..giftSelected.name
+        giftFoundSummary.Text=giftSelected.category=='Others' and giftSelected.name or (count..'× '..giftSelected.name)
         giftPreview.Text="Yes, it\'s me!"
-        giftDemoNote.Text='Demo preview only. No game item is sent.'
         setGiftPage('found')
     end)
 end)
@@ -5199,7 +5213,8 @@ giftPreview.MouseButton1Click:Connect(function()
     local function escaped(text)
         return text:gsub('&','&amp;'):gsub('<','&lt;'):gsub('>','&gt;')
     end
-    giftSentSummary.Text=count..'× <font color="#9228ed">'..escaped(giftSelected.name)..'</font> has been gifted to\n'..escaped(giftRecipient.username)..'.'
+    local quantityPrefix=giftSelected.category=='Others' and '' or (count..'× ')
+    giftSentSummary.Text=quantityPrefix..'<font color="#9228ed">'..escaped(giftSelected.name)..'</font> has been gifted to\n'..escaped(giftRecipient.username)..'.'
     setGiftPage('sent')
     startGiftRain(giftSelected)
 end)
