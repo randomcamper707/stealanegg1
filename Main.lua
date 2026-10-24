@@ -4581,30 +4581,82 @@ for _,target in ipairs({giftLookup,giftPreview,giftFoundBack,giftClose,giftDetai
 end
 
 local giftSent=giftStepFrame('GiftSentPage')
-local giftSentCheck=Instance.new('Frame')
-giftSentCheck.AnchorPoint=Vector2.new(.5,0)
-giftSentCheck.Position=UDim2.new(.5,0,0,22)
-giftSentCheck.Size=UDim2.fromOffset(64,64)
-giftSentCheck.BackgroundColor3=C.p2
-giftSentCheck.BorderSizePixel=0
-giftSentCheck.Parent=giftSent
-corner(giftSentCheck,32)
-stroke(giftSentCheck)
-local giftCheck=label(giftSentCheck,'✓',UDim2.fromScale(0,0),UDim2.fromScale(1,1),40,C.w)
-giftCheck.Font=Enum.Font.GothamBold
-giftCheck.TextXAlignment=Enum.TextXAlignment.Center
-giftCheck.TextYAlignment=Enum.TextYAlignment.Center
-local giftSentTitle=label(giftSent,'Gift sent',UDim2.fromOffset(20,100),UDim2.new(1,-40,0,30),24,C.g)
-giftSentTitle.Font=Enum.Font.GothamBold
+giftSent.Size=UDim2.fromOffset(666,304)
+local giftSentIcon=Instance.new('Frame')
+giftSentIcon.Name='GiftBox'
+giftSentIcon.AnchorPoint=Vector2.new(.5,0)
+giftSentIcon.Position=UDim2.new(.5,0,0,12)
+giftSentIcon.Size=UDim2.fromOffset(94,94)
+giftSentIcon.BackgroundTransparency=1
+giftSentIcon.Parent=giftSent
+-- Layered translucent circles provide the soft green glow from the reference.
+for i=5,1,-1 do
+    local glow=Instance.new('Frame')
+    glow.AnchorPoint=Vector2.new(.5,.5)
+    glow.Position=UDim2.fromScale(.5,.5)
+    glow.Size=UDim2.fromOffset(96+i*10,96+i*10)
+    glow.BackgroundColor3=Color3.fromRGB(91,255,27)
+    glow.BackgroundTransparency=.96
+    glow.BorderSizePixel=0
+    glow.Parent=giftSentIcon
+    corner(glow,100)
+end
+local function giftBoxPart(position,size,color,radius,rotation,outlined)
+    local part=Instance.new('Frame')
+    part.Position=position
+    part.Size=size
+    part.BackgroundColor3=color
+    part.BorderSizePixel=0
+    part.Rotation=rotation or 0
+    part.Parent=giftSentIcon
+    corner(part,radius)
+    if outlined then
+        local rim=stroke(part)
+        rim.Color=Color3.fromRGB(11,64,13)
+        rim.Thickness=3
+    end
+    return part
+end
+giftBoxPart(UDim2.fromOffset(8,44),UDim2.fromOffset(78,48),Color3.new(1,1,1),7,0,true)
+giftBoxPart(UDim2.fromOffset(39,45),UDim2.fromOffset(15,46),Color3.fromRGB(55,235,5),0)
+giftBoxPart(UDim2.fromOffset(44,45),UDim2.fromOffset(8,46),Color3.fromRGB(9,91,10),0)
+giftBoxPart(UDim2.fromOffset(7,29),UDim2.fromOffset(80,18),Color3.new(1,1,1),5,-6,true)
+giftBoxPart(UDim2.fromOffset(38,29),UDim2.fromOffset(15,18),Color3.fromRGB(39,221,1),0,-6)
+giftBoxPart(UDim2.fromOffset(37,15),UDim2.fromOffset(19,16),Color3.fromRGB(49,238,8),8,0,true)
+giftBoxPart(UDim2.fromOffset(13,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,-18,true)
+giftBoxPart(UDim2.fromOffset(50,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,18,true)
+local giftSentTitle=label(giftSent,'GIFT SENT',UDim2.fromOffset(20,116),UDim2.new(1,-40,0,38),32)
+giftSentTitle.Font=Enum.Font.GothamBlack
 giftSentTitle.TextXAlignment=Enum.TextXAlignment.Center
-local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,142),UDim2.new(1,-60,0,44),14)
+local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,160),UDim2.new(1,-60,0,54),21)
+giftSentSummary.RichText=true
 giftSentSummary.TextWrapped=true
 giftSentSummary.TextXAlignment=Enum.TextXAlignment.Center
 giftSentSummary.TextYAlignment=Enum.TextYAlignment.Center
-local giftSentNote=label(giftSent,'Demo confirmation. No item was transferred.',UDim2.fromOffset(20,196),UDim2.new(1,-40,0,20),11,C.o)
+local giftSentDone=button(giftSent,'DONE',UDim2.fromOffset(198,230),UDim2.fromOffset(270,44))
+giftSentDone.TextSize=25
+giftOpaqueWhiteCaption(giftSentDone)
+local giftSentNote=label(giftSent,'Demo confirmation. No item was transferred.',UDim2.fromOffset(20,282),UDim2.new(1,-40,0,16),10,C.o)
 giftSentNote.TextXAlignment=Enum.TextXAlignment.Center
-local giftSentDone=button(giftSent,'DONE',UDim2.fromOffset(186,226),UDim2.fromOffset(148,30))
-giftSentDone.TextSize=13
+
+local giftRainLayer=Instance.new('Frame')
+giftRainLayer.Name='GiftItemRain'
+giftRainLayer.Size=UDim2.fromScale(1,1)
+giftRainLayer.BackgroundTransparency=1
+giftRainLayer.ClipsDescendants=true
+giftRainLayer.Active=false
+giftRainLayer.ZIndex=20
+giftRainLayer.Visible=false
+giftRainLayer.Parent=giftGui
+local giftRainSerial=0
+local giftRainTweens={}
+local function stopGiftRain()
+    giftRainSerial+=1
+    for tween in pairs(giftRainTweens) do tween:Cancel() end
+    table.clear(giftRainTweens)
+    giftRainLayer:ClearAllChildren()
+    giftRainLayer.Visible=false
+end
 
 local function cancelGiftSearch()
     giftSearchSerial+=1
@@ -4613,6 +4665,7 @@ local function cancelGiftSearch()
     giftLookup.Active=true
 end
 local function setGiftPage(page)
+    stopGiftRain()
     giftPage=page
     giftDetail.Visible=page=='form'
     giftSearching.Visible=page=='search'
@@ -4631,12 +4684,14 @@ local function setGiftPage(page)
 end
 giftWin:GetPropertyChangedSignal('Visible'):Connect(function()
     if not giftWin.Visible then
+        stopGiftRain()
         cancelGiftSearch()
         giftSpinnerTween:Cancel()
         if giftPage=='search' then setGiftPage('form') end
     end
 end)
 giftGui.Destroying:Connect(function()
+    stopGiftRain()
     giftSearchSerial+=1
     giftBusy=false
     giftSpinnerTween:Cancel()
@@ -4781,6 +4836,64 @@ local function queueGiftImage(target,category,product)
     end)
 end
 queueGiftImage(giftLogo,'UI',{imageKey='shop-wordmark'})
+local function startGiftRain(product)
+    stopGiftRain()
+    local serial=giftRainSerial
+    local function active()
+        return giftRainSerial==serial and giftGui.Parent and giftWin.Visible and giftPage=='sent'
+    end
+    task.spawn(function()
+        local ok,asset=pcall(giftImages,product.category,product)
+        if not active() or not ok or not asset then return end
+        giftRainLayer.Visible=true
+        local random=Random.new()
+        local tweenService=game:GetService('TweenService')
+        for index=1,36 do
+            if not active() then return end
+            local size=random:NextInteger(32,58)
+            local horizontal=random:NextNumber(.02,.98)
+            local duration=random:NextNumber(1.8,2.5)
+            local image=Instance.new('ImageLabel')
+            image.Name='FallingGiftItem'
+            image.AnchorPoint=Vector2.new(.5,.5)
+            image.Position=UDim2.new(horizontal,0,0,-size)
+            image.Size=UDim2.fromOffset(size,size)
+            image.BackgroundTransparency=1
+            image.Active=false
+            image.Image=asset
+            image.ScaleType=Enum.ScaleType.Fit
+            image.Rotation=random:NextInteger(-35,35)
+            image.ZIndex=21
+            image.Parent=giftRainLayer
+            local bounds=GiftArtworkBounds[product.imageKey]
+            if bounds then
+                image.ImageRectOffset=Vector2.new(bounds[1],bounds[2])
+                image.ImageRectSize=Vector2.new(bounds[3]-bounds[1],bounds[4]-bounds[2])
+            end
+            local fall=tweenService:Create(image,TweenInfo.new(duration,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{
+                Position=UDim2.new(math.clamp(horizontal+random:NextNumber(-.12,.12),-.1,1.1),0,1,size),
+                Rotation=image.Rotation+random:NextInteger(-150,150)
+            })
+            giftRainTweens[fall]=true
+            fall:Play()
+            task.delay(duration-.35,function()
+                if not active() or not image.Parent then return end
+                local fade=tweenService:Create(image,TweenInfo.new(.35),{ImageTransparency=1})
+                giftRainTweens[fade]=true
+                fade:Play()
+                task.delay(.4,function() giftRainTweens[fade]=nil end)
+            end)
+            task.delay(duration+.05,function()
+                giftRainTweens[fall]=nil
+                image:Destroy()
+            end)
+            task.wait(.065)
+        end
+        task.delay(2.6,function()
+            if active() then stopGiftRain() end
+        end)
+    end)
+end
 local function refreshGiftFoundQuantity()
     if not giftSelected then return end
     local single=giftSelected.category=='Others'
@@ -4848,7 +4961,7 @@ local function addGiftShimmer(target)
     if not target:IsA('GuiButton') or target:GetAttribute('SAE_GiftShimmer') then return end
     -- Only primary actions shimmer; tabs, close icons, and quantity choices stay still.
     local text=target.Text:lower()
-    if text~='gift' and text~='search player' and text~="yes, it's me!" and text~='no, go back' then return end
+    if text~='gift' and text~='search player' and text~="yes, it's me!" and text~='no, go back' and text~='done' then return end
     target:SetAttribute('SAE_GiftShimmer',true)
     giftShimmerIndex+=1
     local shine=Instance.new('Frame')
@@ -5059,8 +5172,12 @@ end)
 giftPreview.MouseButton1Click:Connect(function()
     if not giftSelected or not giftRecipient then return end
     local count=giftSelected.category=='Others' and 1 or giftQty
-    giftSentSummary.Text=count..'× '..giftSelected.name..'\nTo @'..giftRecipient.username
+    local function escaped(text)
+        return text:gsub('&','&amp;'):gsub('<','&lt;'):gsub('>','&gt;')
+    end
+    giftSentSummary.Text=count..'× <font color="#9228ed">'..escaped(giftSelected.name)..'</font> has been gifted to\n'..escaped(giftRecipient.username)..'.'
     setGiftPage('sent')
+    startGiftRain(giftSelected)
 end)
 giftSentDone.MouseButton1Click:Connect(function()
     cancelGiftSearch()
