@@ -4589,14 +4589,15 @@ giftSentIcon.Position=UDim2.new(.5,0,0,12)
 giftSentIcon.Size=UDim2.fromOffset(94,94)
 giftSentIcon.BackgroundTransparency=1
 giftSentIcon.Parent=giftSent
--- Layered translucent circles provide the soft green glow from the reference.
-for i=5,1,-1 do
+-- Closely layered green circles form a visible, soft aura behind the box.
+for i=16,1,-1 do
     local glow=Instance.new('Frame')
     glow.AnchorPoint=Vector2.new(.5,.5)
     glow.Position=UDim2.fromScale(.5,.5)
-    glow.Size=UDim2.fromOffset(96+i*10,96+i*10)
+    glow.Size=UDim2.fromOffset(90+i*5,90+i*5)
     glow.BackgroundColor3=Color3.fromRGB(91,255,27)
-    glow.BackgroundTransparency=.96
+    glow.BackgroundTransparency=.945
+    glow.ZIndex=1
     glow.BorderSizePixel=0
     glow.Parent=giftSentIcon
     corner(glow,100)
@@ -4609,6 +4610,7 @@ local function giftBoxPart(position,size,color,radius,rotation,outlined)
     part.BorderSizePixel=0
     part.Rotation=rotation or 0
     part.Parent=giftSentIcon
+    part.ZIndex=2
     corner(part,radius)
     if outlined then
         local rim=stroke(part)
@@ -4625,6 +4627,16 @@ giftBoxPart(UDim2.fromOffset(38,29),UDim2.fromOffset(15,18),Color3.fromRGB(39,22
 giftBoxPart(UDim2.fromOffset(37,15),UDim2.fromOffset(19,16),Color3.fromRGB(49,238,8),8,0,true)
 giftBoxPart(UDim2.fromOffset(13,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,-18,true)
 giftBoxPart(UDim2.fromOffset(50,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,18,true)
+local giftBoxMotion=game:GetService('TweenService'):Create(
+    giftSentIcon,
+    TweenInfo.new(1.8,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),
+    {Position=UDim2.new(.5,0,0,8),Rotation=1.5}
+)
+local function resetGiftBoxMotion()
+    giftBoxMotion:Cancel()
+    giftSentIcon.Position=UDim2.new(.5,0,0,12)
+    giftSentIcon.Rotation=0
+end
 local giftSentTitle=label(giftSent,'GIFT SENT',UDim2.fromOffset(20,116),UDim2.new(1,-40,0,38),32)
 giftSentTitle.Font=Enum.Font.GothamBlack
 giftSentTitle.TextXAlignment=Enum.TextXAlignment.Center
@@ -4647,7 +4659,8 @@ giftRainLayer.ClipsDescendants=true
 giftRainLayer.Active=false
 giftRainLayer.ZIndex=20
 giftRainLayer.Visible=false
-giftRainLayer.Parent=giftGui
+-- Clip the shower to the fixed panel, including while it is dragged.
+giftRainLayer.Parent=giftWin
 local giftRainSerial=0
 local giftRainTweens={}
 local function stopGiftRain()
@@ -4666,6 +4679,7 @@ local function cancelGiftSearch()
 end
 local function setGiftPage(page)
     stopGiftRain()
+    resetGiftBoxMotion()
     giftPage=page
     giftDetail.Visible=page=='form'
     giftSearching.Visible=page=='search'
@@ -4681,16 +4695,22 @@ local function setGiftPage(page)
     giftSpinnerTween:Cancel()
     giftSpinner.Rotation=0
     if page=='search' then giftSpinnerTween:Play() end
+    if page=='sent' then giftBoxMotion:Play() end
 end
 giftWin:GetPropertyChangedSignal('Visible'):Connect(function()
     if not giftWin.Visible then
+        resetGiftBoxMotion()
         stopGiftRain()
         cancelGiftSearch()
         giftSpinnerTween:Cancel()
         if giftPage=='search' then setGiftPage('form') end
+    elseif giftPage=='sent' then
+        resetGiftBoxMotion()
+        giftBoxMotion:Play()
     end
 end)
 giftGui.Destroying:Connect(function()
+    resetGiftBoxMotion()
     stopGiftRain()
     giftSearchSerial+=1
     giftBusy=false
@@ -4848,9 +4868,9 @@ local function startGiftRain(product)
         giftRainLayer.Visible=true
         local random=Random.new()
         local tweenService=game:GetService('TweenService')
-        for index=1,36 do
+        for index=1,28 do
             if not active() then return end
-            local size=random:NextInteger(32,58)
+            local size=random:NextInteger(28,46)
             local horizontal=random:NextNumber(.02,.98)
             local duration=random:NextNumber(1.8,2.5)
             local image=Instance.new('ImageLabel')
