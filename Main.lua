@@ -3689,7 +3689,7 @@ local function itemImage(cat,name)
     if iconCache[key]~=nil then return iconCache[key]or nil end
     local want={}for _,alias in ipairs(Aliases[name]or{name})do want[norm(alias)]=true end
     local bestImage,bestScore=nil,-1
-    for _,root in ipairs({RS,workspace})do
+    for _,root in ipairs({RS,workspace,PG,game:GetService('StarterGui'),game:GetService('StarterPack'),game:GetService('Lighting')})do
         local list=root:GetDescendants()
         for i,obj in ipairs(list)do
             if obj:IsA('Tool')and not obj:GetAttribute('SAE_V7_TOOL')and not( P.Character and obj:IsDescendantOf(P.Character))and not obj:IsDescendantOf(Placed)then
@@ -3864,7 +3864,7 @@ local gui=Instance.new('ScreenGui')gui.Name='SAE_ITEMS_V7'gui.ResetOnSpawn=false
 local StarterGui=game:GetService('StarterGui')
 pcall(function()StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack,false)end)
 local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38))
-local win=Instance.new('Frame')win.AnchorPoint=Vector2.new(.5,.5)win.Size=UDim2.fromOffset(410,350)win.Position=UDim2.fromScale(.5,.5)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)local winScale=Instance.new('UIScale')winScale.Scale=.5 winScale.Parent=win
+local win=Instance.new('Frame')win.AnchorPoint=Vector2.new(.5,.5)win.Size=UDim2.fromOffset(410,350)win.Position=UDim2.fromScale(.5,.5)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)local winScale=Instance.new('UIScale')winScale.Scale=.575 winScale.Parent=win
 local head=Instance.new('Frame')head.Size=UDim2.new(1,0,0,62)head.BackgroundColor3=C.head head.BorderSizePixel=0 head.Parent=win corner(head,13)
 local title=label(head,'DIVINE ITEM SPAWNER · REFERENCE EGGS',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,24),15)title.Font=Enum.Font.GothamBold
 label(head,'25% smaller • refined Unicorn, Night Flame, Sabertooth',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
