@@ -4048,7 +4048,6 @@ local giftLauncher=button(giftGui,'GIFTS',UDim2.new(0,12,.5,24),UDim2.fromOffset
 giftLauncher.TextSize=14
 giftButtonPaint(giftLauncher,'green')
 local giftCatalogSize=Vector2.new(690,380)
-local giftRecipientSize=Vector2.new(560,340)
 local giftPanelSize=giftCatalogSize
 local giftWin=Instance.new('Frame')
 giftWin.Name='GiftingPanel'
@@ -4114,7 +4113,7 @@ giftDragHandle.Parent=giftHead
 local giftClose=button(giftHead,'X',UDim2.new(1,-44,0,9),UDim2.fromOffset(32,32))
 giftClose.TextSize=16
 giftClose.ZIndex=3
-giftButtonPaint(giftClose,'secondary')
+giftButtonPaint(giftClose,'cyan')
 giftLauncher.MouseButton1Click:Connect(function() giftWin.Visible=not giftWin.Visible end)
 giftClose.MouseButton1Click:Connect(function() giftWin.Visible=false end)
 
@@ -4261,7 +4260,7 @@ local function giftStepFrame(name)
 end
 local giftDetail=giftStepFrame('UsernamePage')
 -- Reference proportions, with a fixed image/name row and one full-width action.
-giftDetail.Size=UDim2.fromOffset(520,384)
+giftDetail.Size=UDim2.fromOffset(666,304)
 corner(giftDetail,18)
 local giftDetailClose=button(giftDetail,'×',UDim2.new(1,-44,0,10),UDim2.fromOffset(32,32))
 corner(giftDetailClose,16)
@@ -4271,8 +4270,8 @@ giftDetailClose.TextSize=27
 giftDetailClose.ZIndex=4
 local giftImageBorder=Instance.new('Frame')
 giftImageBorder.Name='ItemImageBorder'
-giftImageBorder.Position=UDim2.fromOffset(24,24)
-giftImageBorder.Size=UDim2.fromOffset(148,132)
+giftImageBorder.Position=UDim2.fromOffset(24,14)
+giftImageBorder.Size=UDim2.fromOffset(148,112)
 giftImageBorder.BackgroundColor3=C.card
 giftImageBorder.BorderSizePixel=0
 giftImageBorder.Parent=giftDetail
@@ -4306,9 +4305,9 @@ local giftDetailMeta
 local function updateGiftQuantityImages()
     local count=(giftSelected and giftSelected.category=='Others') and 1 or giftQty
     local layouts={
-        {{14,6,120,120}},
-        {{0,8,84,116},{64,8,84,116}},
-        {{0,12,74,110},{37,6,74,110},{74,12,74,110}}
+        {{24,6,100,100}},
+        {{0,6,84,100},{64,6,84,100}},
+        {{0,9,74,96},{37,3,74,96},{74,9,74,96}}
     }
     local layout=layouts[count]
     for i,icon in ipairs(giftStackIcons) do
@@ -4325,7 +4324,7 @@ giftDetailIcon:GetPropertyChangedSignal('Image'):Connect(function()
     for i=2,3 do giftStackIcons[i].Image=giftDetailIcon.Image end
 end)
 updateGiftQuantityImages()
-giftDetailName=label(giftDetail,'',UDim2.fromOffset(192,46),UDim2.fromOffset(280,70),30)
+giftDetailName=label(giftDetail,'',UDim2.fromOffset(192,26),UDim2.fromOffset(410,58),30)
 giftDetailName.Font=Enum.Font.GothamBold
 giftDetailName.TextWrapped=true
 giftDetailName.TextXAlignment=Enum.TextXAlignment.Left
@@ -4333,12 +4332,12 @@ giftDetailName.TextYAlignment=Enum.TextYAlignment.Center
 giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(192,112),UDim2.fromOffset(280,16),11,C.m)
 giftDetailMeta.Visible=false
 giftDetailMeta.TextXAlignment=Enum.TextXAlignment.Center
-local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(192,130),UDim2.fromOffset(70,24),12,C.m)
+local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(192,96),UDim2.fromOffset(70,24),12,C.m)
 giftQtyLabel.TextXAlignment=Enum.TextXAlignment.Center
 local giftQtyButtons={}
 for i,n in ipairs({1,2,3}) do
     local quantity=n
-    local b=button(giftDetail,tostring(n),UDim2.fromOffset(270+(i-1)*36,130),UDim2.fromOffset(30,24))
+    local b=button(giftDetail,tostring(n),UDim2.fromOffset(270+(i-1)*36,96),UDim2.fromOffset(30,24))
     b.TextSize=13
     giftQtyButtons[n]=b
     b.MouseButton1Click:Connect(function()
@@ -4348,7 +4347,7 @@ for i,n in ipairs({1,2,3}) do
         for q,btn in pairs(giftQtyButtons) do giftButtonPaint(btn,q==giftQty and 'green' or 'secondary',q==giftQty) end
     end)
 end
-local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(24,173),UDim2.fromOffset(472,26),22)
+local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(24,137),UDim2.fromOffset(618,26),22)
 giftUsernameLabel.TextXAlignment=Enum.TextXAlignment.Left
 local giftRecipientInput=Instance.new('TextBox')
 giftRecipientInput.Position=UDim2.fromOffset(64,207)
@@ -4366,8 +4365,8 @@ giftRecipientInput.ClearTextOnFocus=false
 giftRecipientInput.Parent=giftDetail
 local giftInputSurface=Instance.new('Frame')
 giftInputSurface.Name='UsernameInputSurface'
-giftInputSurface.Position=UDim2.fromOffset(24,204)
-giftInputSurface.Size=UDim2.fromOffset(472,48)
+giftInputSurface.Position=UDim2.fromOffset(24,171)
+giftInputSurface.Size=UDim2.fromOffset(618,42)
 giftInputSurface.BorderSizePixel=0
 giftInputSurface.Parent=giftDetail
 corner(giftInputSurface,14)
@@ -4384,8 +4383,8 @@ giftInputSurface.Active=true
 giftInputSurface.InputBegan:Connect(function(input)
     if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then giftRecipientInput:CaptureFocus() end
 end)
-local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(24,272),UDim2.fromOffset(472,52))
-giftLookup.TextSize=27
+local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(24,234),UDim2.fromOffset(618,40))
+giftLookup.TextSize=24
 giftLookup.TextColor3=Color3.new(1,1,1)
 giftLookup.TextStrokeColor3=C.border
 giftLookup.TextStrokeTransparency=0
@@ -4393,14 +4392,14 @@ corner(giftLookup,15)
 local giftLookupOutline=giftLookup:FindFirstChildOfClass('UIStroke')
 giftLookupOutline.Color=Color3.fromRGB(17,74,8)
 giftLookupOutline.Thickness=3
-local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(24,254),UDim2.fromOffset(472,16),11,C.r)
+local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(24,215),UDim2.fromOffset(618,16),11,C.r)
 giftDetailStatus.TextWrapped=true
 giftDetailStatus.TextXAlignment=Enum.TextXAlignment.Center
 local giftBack=Instance.new('TextButton')
 giftBack.Name='CancelLink'
 giftBack:SetAttribute('SAE_GiftShimmer',true)
-giftBack.Position=UDim2.fromOffset(186,340)
-giftBack.Size=UDim2.fromOffset(148,26)
+giftBack.Position=UDim2.fromOffset(259,278)
+giftBack.Size=UDim2.fromOffset(148,22)
 giftBack.BackgroundTransparency=1
 giftBack.Text='Cancel'
 giftBack.TextSize=18
@@ -4442,28 +4441,28 @@ giftSearchCancel.TextSize=12
 giftButtonPaint(giftSearchCancel,'secondary')
 
 local giftFound=giftStepFrame('PlayerFoundPage')
-giftFound.Size=UDim2.fromOffset(520,384)
+giftFound.Size=UDim2.fromOffset(666,304)
 local giftFoundTitle=label(giftFound,'IS THIS YOU?',UDim2.fromOffset(16,10),UDim2.new(1,-32,0,28),24)
 giftFoundTitle.TextXAlignment=Enum.TextXAlignment.Center
 local giftRecipientAvatar=Instance.new('ImageLabel')
 giftRecipientAvatar.AnchorPoint=Vector2.new(.5,0)
-giftRecipientAvatar.Position=UDim2.new(.5,0,0,43)
-giftRecipientAvatar.Size=UDim2.fromOffset(94,94)
+giftRecipientAvatar.Position=UDim2.new(.5,0,0,38)
+giftRecipientAvatar.Size=UDim2.fromOffset(64,64)
 giftRecipientAvatar.BackgroundColor3=Color3.fromRGB(234,239,243)
 giftRecipientAvatar.ScaleType=Enum.ScaleType.Fit
 giftRecipientAvatar.Parent=giftFound
-corner(giftRecipientAvatar,47)
+corner(giftRecipientAvatar,32)
 local giftAvatarRim=stroke(giftRecipientAvatar)
 giftAvatarRim.Color=Color3.new(1,1,1)
 giftAvatarRim.Thickness=4
-local giftFoundDisplayName=label(giftFound,'',UDim2.fromOffset(20,140),UDim2.new(1,-40,0,29),25)
+local giftFoundDisplayName=label(giftFound,'',UDim2.fromOffset(20,104),UDim2.new(1,-40,0,25),23)
 giftFoundDisplayName.TextXAlignment=Enum.TextXAlignment.Center
 giftFoundDisplayName.TextTruncate=Enum.TextTruncate.AtEnd
-local giftFoundUsername=label(giftFound,'',UDim2.fromOffset(20,169),UDim2.new(1,-40,0,20),15,C.m)
+local giftFoundUsername=label(giftFound,'',UDim2.fromOffset(20,130),UDim2.new(1,-40,0,18),15,C.m)
 giftFoundUsername.TextXAlignment=Enum.TextXAlignment.Center
 local giftFoundProfile=Instance.new('TextBox')
 giftFoundProfile.Name='RobloxProfileURL'
-giftFoundProfile.Position=UDim2.fromOffset(24,190)
+giftFoundProfile.Position=UDim2.fromOffset(24,148)
 giftFoundProfile.Size=UDim2.new(1,-48,0,18)
 giftFoundProfile.BackgroundTransparency=1
 giftFoundProfile.Text=''
@@ -4480,8 +4479,8 @@ for count=1,3 do
     local quantity=count
     local choice=Instance.new('TextButton')
     choice.Name='QuantityChoice'..count
-    choice.Position=UDim2.fromOffset(25+(count-1)*158,218)
-    choice.Size=UDim2.fromOffset(154,92)
+    choice.Position=UDim2.fromOffset(50+(count-1)*192,170)
+    choice.Size=UDim2.fromOffset(182,88)
     choice.BorderSizePixel=0
     choice.Text=''
     choice.Parent=giftFound
@@ -4521,18 +4520,49 @@ for count=1,3 do
         giftFoundSummary.Text=giftQty..'× '..giftSelected.name
     end)
 end
-local giftPreview=button(giftFound,"Yes, it's me!",UDim2.fromOffset(39,326),UDim2.fromOffset(214,42))
+local giftPreview=button(giftFound,"Yes, it's me!",UDim2.fromOffset(64,264),UDim2.fromOffset(258,30))
 giftPreview.TextSize=20
 giftPreview.TextColor3=Color3.new(1,1,1)
 giftPreview.TextStrokeColor3=Color3.fromRGB(54,123,29)
 giftPreview.TextStrokeTransparency=.6
-local giftFoundBack=button(giftFound,'No, go back',UDim2.fromOffset(267,326),UDim2.fromOffset(214,42))
+local giftFoundBack=button(giftFound,'No, go back',UDim2.fromOffset(344,264),UDim2.fromOffset(258,30))
 giftFoundBack.TextSize=20
 giftGradient(giftFoundBack,Color3.fromRGB(255,112,81),Color3.fromRGB(234,53,22))
 giftFoundBack.TextColor3=Color3.new(1,1,1)
 giftFoundBack:FindFirstChildOfClass('UIStroke').Color=Color3.fromRGB(156,37,14)
-local giftDemoNote=label(giftFound,'Demo preview only. No game item is sent.',UDim2.fromOffset(20,371),UDim2.new(1,-40,0,12),9,C.o)
+local giftDemoNote=label(giftFound,'Demo preview only. No game item is sent.',UDim2.fromOffset(20,296),UDim2.new(1,-40,0,8),8,C.o)
 giftDemoNote.TextXAlignment=Enum.TextXAlignment.Center
+
+-- A gradient on a TextButton also tints its own glyphs. Draw white captions
+-- in a separate layer above the gradient and shimmer so they stay opaque.
+local function giftOpaqueWhiteCaption(target)
+    target.TextColor3=Color3.new(1,1,1)
+    target.TextTransparency=1
+    local caption=Instance.new('TextLabel')
+    caption.Name='OpaqueWhiteCaption'
+    caption.BackgroundTransparency=1
+    caption.Size=UDim2.fromScale(1,1)
+    caption.TextColor3=Color3.new(1,1,1)
+    caption.TextTransparency=0
+    caption.TextStrokeColor3=C.border
+    caption.TextStrokeTransparency=.35
+    caption.ZIndex=target.ZIndex+3
+    caption.Parent=target
+    local function sync()
+        caption.Text=target.Text
+        caption.Font=target.Font
+        caption.TextSize=target.TextSize
+        caption.ZIndex=target.ZIndex+3
+    end
+    sync()
+    target:GetPropertyChangedSignal('Text'):Connect(sync)
+    target:GetPropertyChangedSignal('TextSize'):Connect(sync)
+    target:GetPropertyChangedSignal('Font'):Connect(sync)
+    target:GetPropertyChangedSignal('ZIndex'):Connect(sync)
+end
+for _,target in ipairs({giftLookup,giftPreview,giftFoundBack,giftClose,giftDetailClose}) do
+    giftOpaqueWhiteCaption(target)
+end
 
 local giftSent=giftStepFrame('GiftSentPage')
 local giftSentCheck=Instance.new('Frame')
@@ -4577,7 +4607,8 @@ local function setGiftPage(page)
     giftList.Visible=page=='catalog'
     giftStatus.Visible=page=='catalog'
     giftClose.Visible=page~='form'
-    setGiftPanelSize(page=='catalog' and giftCatalogSize or ((page=='form' or page=='found') and Vector2.new(560,460) or giftRecipientSize))
+    -- Every page uses the original 690 × 380 outer panel.
+    setGiftPanelSize(giftCatalogSize)
     giftSpinnerTween:Cancel()
     giftSpinner.Rotation=0
     if page=='search' then giftSpinnerTween:Play() end
@@ -4739,7 +4770,7 @@ local function refreshGiftFoundQuantity()
     local single=giftSelected.category=='Others'
     for count,card in ipairs(giftFoundQuantityCards) do
         card.button.Visible=not single or count==1
-        card.button.Position=UDim2.fromOffset(single and 183 or 25+(count-1)*158,218)
+        card.button.Position=UDim2.fromOffset(single and 242 or 50+(count-1)*192,170)
         card.caption.Text=count..' '..giftSelected.name
         local selected=count==(single and 1 or giftQty)
         giftGradient(card.button,selected and Color3.fromRGB(244,255,222) or Color3.fromRGB(255,255,255),selected and Color3.fromRGB(218,255,177) or Color3.fromRGB(241,245,249))
