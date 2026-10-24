@@ -1,0 +1,21 @@
+name: Diagnose Main syntax
+on:
+  push:
+    paths:
+      - '.github/workflows/diagnose-main-syntax.yml'
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.1
+      - name: Parse Main.lua
+        run: |
+          echo 'Checking Main.lua syntax...'
+          luac5.1 -p Main.lua
+          echo 'SYNTAX_OK'
