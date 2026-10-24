@@ -3962,7 +3962,8 @@ giftGui.Parent=PG
 local giftLauncher=button(giftGui,'GIFTS',UDim2.new(0,12,.5,24),UDim2.fromOffset(88,44))
 giftLauncher.TextSize=14
 giftLauncher.BackgroundColor3=C.p2
-local giftPanelSize=Vector2.new(420,350)
+-- Match the SERVER CONSOLE window dimensions.
+local giftPanelSize=Vector2.new(690,380)
 local giftWin=Instance.new('Frame')
 giftWin.Name='GiftingPanel'
 giftWin.AnchorPoint=Vector2.new(.5,.5)
@@ -4029,7 +4030,7 @@ local function moveGiftPanel(center)
 end
 local function fitGiftPanel()
     local viewport=giftViewport()
-    giftScale.Scale=math.max(.2,math.min(1,(viewport.X-24)/giftPanelSize.X,(viewport.Y-24)/giftPanelSize.Y))
+    giftScale.Scale=1 -- Keep the same 690 x 380 size as the server console.
     moveGiftPanel(giftPanelCenter or viewport*.5)
 end
 local function giftTrack(connection)
@@ -4076,12 +4077,12 @@ bindGiftViewport()
 local giftTabs=Instance.new('Frame')
 giftTabs.BackgroundTransparency=1
 giftTabs.Position=UDim2.fromOffset(12,56)
-giftTabs.Size=UDim2.new(1,-24,0,32)
+giftTabs.Size=UDim2.new(.58,-18,0,32)
 giftTabs.Parent=giftWin
 local giftTabButtons={}
 local giftSearch=Instance.new('TextBox')
-giftSearch.Position=UDim2.fromOffset(12,94)
-giftSearch.Size=UDim2.new(1,-24,0,34)
+giftSearch.Position=UDim2.new(.58,2,0,56)
+giftSearch.Size=UDim2.new(.42,-14,0,32)
 giftSearch.BackgroundColor3=C.card
 giftSearch.BorderSizePixel=0
 giftSearch.Text=''
@@ -4094,8 +4095,8 @@ giftSearch.ClearTextOnFocus=false
 giftSearch.Parent=giftWin
 corner(giftSearch,8)
 local giftList=Instance.new('ScrollingFrame')
-giftList.Position=UDim2.fromOffset(12,136)
-giftList.Size=UDim2.new(1,-24,1,-166)
+giftList.Position=UDim2.fromOffset(12,96)
+giftList.Size=UDim2.new(1,-24,1,-126)
 giftList.BackgroundColor3=C.card
 giftList.BorderSizePixel=0
 giftList.ScrollBarThickness=6
@@ -4104,8 +4105,10 @@ giftList.Parent=giftWin
 corner(giftList,10)
 stroke(giftList,.5)
 local giftGrid=Instance.new('UIGridLayout')
-giftGrid.CellSize=UDim2.new(1,-24,0,120)
-giftGrid.CellPadding=UDim2.fromOffset(0,8)
+giftGrid.CellSize=UDim2.new(.25,-12,0,236)
+giftGrid.FillDirection=Enum.FillDirection.Horizontal
+giftGrid.FillDirectionMaxCells=4
+giftGrid.CellPadding=UDim2.fromOffset(8,8)
 giftGrid.SortOrder=Enum.SortOrder.LayoutOrder
 giftGrid.Parent=giftList
 local giftPadding=Instance.new('UIPadding')
@@ -4378,8 +4381,9 @@ local function showGiftCatalog()
             card.Parent=giftList
             corner(card,9)
             local icon=Instance.new('ImageLabel')
-            icon.Position=UDim2.fromOffset(10,12)
-            icon.Size=UDim2.fromOffset(96,96)
+            icon.AnchorPoint=Vector2.new(.5,0)
+            icon.Position=UDim2.new(.5,0,0,8)
+            icon.Size=UDim2.fromOffset(100,100)
             icon.BackgroundTransparency=1
             icon.BorderSizePixel=0
             icon.ScaleType=Enum.ScaleType.Fit
@@ -4393,11 +4397,14 @@ local function showGiftCatalog()
                 fallback.TextYAlignment=Enum.TextYAlignment.Center
             end
             queueGiftImage(icon,giftCategory,productData)
-            local name=label(card,product.name,UDim2.fromOffset(118,6),UDim2.new(1,-130,0,40),16)
+            local name=label(card,product.name,UDim2.fromOffset(8,112),UDim2.new(1,-16,0,44),16)
             name.Font=Enum.Font.GothamBold
             name.TextWrapped=true
-            label(card,'Divine  ·  '..product.rate,UDim2.fromOffset(118,48),UDim2.new(1,-130,0,18),12,C.m)
-            local giftButton=button(card,'GIFT',UDim2.fromOffset(118,72),UDim2.fromOffset(140,40))
+            name.TextXAlignment=Enum.TextXAlignment.Center
+            name.TextYAlignment=Enum.TextYAlignment.Center
+            local meta=label(card,'Divine  ·  '..product.rate,UDim2.fromOffset(8,158),UDim2.new(1,-16,0,18),12,C.m)
+            meta.TextXAlignment=Enum.TextXAlignment.Center
+            local giftButton=button(card,'GIFT',UDim2.fromOffset(8,184),UDim2.new(1,-16,0,40))
             giftButton.TextSize=16
             giftButton.MouseButton1Click:Connect(function()
                 giftSelected={imageKey=productData.imageKey,name=productData.name,model=productData.model,rate=productData.rate,imageCategory=productData.imageCategory,category=giftCategory}
