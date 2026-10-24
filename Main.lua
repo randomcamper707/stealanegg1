@@ -4260,11 +4260,29 @@ local function giftStepFrame(name)
     return frame
 end
 local giftDetail=giftStepFrame('UsernamePage')
+-- Reference proportions, with a fixed image/name row and one full-width action.
+giftDetail.Size=UDim2.fromOffset(520,384)
+corner(giftDetail,18)
+local giftDetailClose=button(giftDetail,'×',UDim2.new(1,-44,0,10),UDim2.fromOffset(32,32))
+corner(giftDetailClose,16)
+giftButtonPaint(giftDetailClose,'cyan')
+giftDetailClose.TextColor3=Color3.new(1,1,1)
+giftDetailClose.TextSize=27
+giftDetailClose.ZIndex=4
+local giftImageBorder=Instance.new('Frame')
+giftImageBorder.Name='ItemImageBorder'
+giftImageBorder.Position=UDim2.fromOffset(24,24)
+giftImageBorder.Size=UDim2.fromOffset(148,132)
+giftImageBorder.BackgroundColor3=C.card
+giftImageBorder.BorderSizePixel=0
+giftImageBorder.Parent=giftDetail
+corner(giftImageBorder,14)
+stroke(giftImageBorder)
 local giftDetailImages=Instance.new('Frame')
-giftDetailImages.Position=UDim2.fromOffset(70,0)
-giftDetailImages.Size=UDim2.fromOffset(180,88)
+giftDetailImages.Position=UDim2.fromOffset(0,0)
+giftDetailImages.Size=UDim2.fromScale(1,1)
 giftDetailImages.BackgroundTransparency=1
-giftDetailImages.Parent=giftDetail
+giftDetailImages.Parent=giftImageBorder
 local giftStackIcons={}
 for i=1,3 do
     local icon=Instance.new('ImageLabel')
@@ -4288,17 +4306,10 @@ local giftDetailMeta
 local function updateGiftQuantityImages()
     local count=(giftSelected and giftSelected.category=='Others') and 1 or giftQty
     local layouts={
-        {{0,0,88,88}},
-        {{0,2,72,84},{68,2,72,84}},
-        {{0,4,64,80},{58,0,64,80},{116,4,64,80}}
+        {{14,6,120,120}},
+        {{0,8,84,116},{64,8,84,116}},
+        {{0,12,74,110},{37,6,74,110},{74,12,74,110}}
     }
-    local widths={88,140,180}
-    local imageWidth=widths[count]
-    local left=(520-imageWidth-16-200)/2
-    giftDetailImages.Position=UDim2.fromOffset(left,0)
-    giftDetailImages.Size=UDim2.fromOffset(imageWidth,88)
-    if giftDetailName then giftDetailName.Position=UDim2.fromOffset(left+imageWidth+16,18) end
-    if giftDetailMeta then giftDetailMeta.Position=UDim2.fromOffset(left+imageWidth+16,64) end
     local layout=layouts[count]
     for i,icon in ipairs(giftStackIcons) do
         icon.Visible=i<=count
@@ -4314,19 +4325,20 @@ giftDetailIcon:GetPropertyChangedSignal('Image'):Connect(function()
     for i=2,3 do giftStackIcons[i].Image=giftDetailIcon.Image end
 end)
 updateGiftQuantityImages()
-giftDetailName=label(giftDetail,'',UDim2.fromOffset(212,18),UDim2.fromOffset(200,42),15)
+giftDetailName=label(giftDetail,'',UDim2.fromOffset(192,46),UDim2.fromOffset(280,70),30)
 giftDetailName.Font=Enum.Font.GothamBold
 giftDetailName.TextWrapped=true
-giftDetailName.TextXAlignment=Enum.TextXAlignment.Center
+giftDetailName.TextXAlignment=Enum.TextXAlignment.Left
 giftDetailName.TextYAlignment=Enum.TextYAlignment.Center
-giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(212,64),UDim2.fromOffset(200,18),11,C.m)
+giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(192,112),UDim2.fromOffset(280,16),11,C.m)
+giftDetailMeta.Visible=false
 giftDetailMeta.TextXAlignment=Enum.TextXAlignment.Center
-local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(165,94),UDim2.fromOffset(70,26),12,C.m)
+local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(192,130),UDim2.fromOffset(70,24),12,C.m)
 giftQtyLabel.TextXAlignment=Enum.TextXAlignment.Center
 local giftQtyButtons={}
 for i,n in ipairs({1,2,3}) do
     local quantity=n
-    local b=button(giftDetail,tostring(n),UDim2.fromOffset(247+(i-1)*38,94),UDim2.fromOffset(32,26))
+    local b=button(giftDetail,tostring(n),UDim2.fromOffset(270+(i-1)*36,130),UDim2.fromOffset(30,24))
     b.TextSize=13
     giftQtyButtons[n]=b
     b.MouseButton1Click:Connect(function()
@@ -4336,31 +4348,68 @@ for i,n in ipairs({1,2,3}) do
         for q,btn in pairs(giftQtyButtons) do giftButtonPaint(btn,q==giftQty and 'green' or 'secondary',q==giftQty) end
     end)
 end
-local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(110,130),UDim2.fromOffset(300,18),13)
-giftUsernameLabel.TextXAlignment=Enum.TextXAlignment.Center
+local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(24,173),UDim2.fromOffset(472,26),22)
+giftUsernameLabel.TextXAlignment=Enum.TextXAlignment.Left
 local giftRecipientInput=Instance.new('TextBox')
-giftRecipientInput.Position=UDim2.fromOffset(110,154)
-giftRecipientInput.Size=UDim2.fromOffset(192,32)
-giftRecipientInput.BackgroundColor3=C.card2
+giftRecipientInput.Position=UDim2.fromOffset(64,207)
+giftRecipientInput.Size=UDim2.fromOffset(418,42)
+giftRecipientInput.BackgroundTransparency=1
 giftRecipientInput.BorderSizePixel=0
 giftRecipientInput.Text=''
 giftRecipientInput.PlaceholderText='Roblox username'
-giftRecipientInput.PlaceholderColor3=C.m
+giftRecipientInput.PlaceholderColor3=Color3.fromRGB(129,152,183)
 giftRecipientInput.TextColor3=C.w
-giftRecipientInput.Font=Enum.Font.Gotham
-giftRecipientInput.TextSize=14
+giftRecipientInput.Font=Enum.Font.GothamBold
+giftRecipientInput.TextSize=20
+giftRecipientInput.TextXAlignment=Enum.TextXAlignment.Left
 giftRecipientInput.ClearTextOnFocus=false
 giftRecipientInput.Parent=giftDetail
-corner(giftRecipientInput,8)
-stroke(giftRecipientInput)
-local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(310,154),UDim2.fromOffset(100,32))
-giftLookup.TextSize=11
-local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(110,194),UDim2.fromOffset(300,20),11,C.r)
+local giftInputSurface=Instance.new('Frame')
+giftInputSurface.Name='UsernameInputSurface'
+giftInputSurface.Position=UDim2.fromOffset(24,204)
+giftInputSurface.Size=UDim2.fromOffset(472,48)
+giftInputSurface.BorderSizePixel=0
+giftInputSurface.Parent=giftDetail
+corner(giftInputSurface,14)
+giftGradient(giftInputSurface,Color3.fromRGB(235,243,253),Color3.fromRGB(222,233,248))
+local giftInputOutline=stroke(giftInputSurface)
+giftInputOutline.Color=Color3.fromRGB(177,198,224)
+local giftAtSign=label(giftInputSurface,'@',UDim2.fromOffset(13,0),UDim2.fromOffset(28,48),25)
+giftAtSign.TextYAlignment=Enum.TextYAlignment.Center
+-- Parent the editor above its surface so the entire field remains clickable.
+giftRecipientInput.Parent=giftInputSurface
+giftRecipientInput.Position=UDim2.fromOffset(40,3)
+giftRecipientInput.Size=UDim2.new(1,-52,1,-6)
+giftInputSurface.Active=true
+giftInputSurface.InputBegan:Connect(function(input)
+    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then giftRecipientInput:CaptureFocus() end
+end)
+local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(24,272),UDim2.fromOffset(472,52))
+giftLookup.TextSize=27
+giftLookup.TextColor3=Color3.new(1,1,1)
+giftLookup.TextStrokeColor3=C.border
+giftLookup.TextStrokeTransparency=0
+corner(giftLookup,15)
+local giftLookupOutline=giftLookup:FindFirstChildOfClass('UIStroke')
+giftLookupOutline.Color=Color3.fromRGB(17,74,8)
+giftLookupOutline.Thickness=3
+local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(24,254),UDim2.fromOffset(472,16),11,C.r)
 giftDetailStatus.TextWrapped=true
 giftDetailStatus.TextXAlignment=Enum.TextXAlignment.Center
-local giftBack=button(giftDetail,'BACK TO ITEMS',UDim2.fromOffset(186,226),UDim2.fromOffset(148,30))
-giftBack.TextSize=12
-giftButtonPaint(giftBack,'secondary')
+local giftBack=Instance.new('TextButton')
+giftBack.Name='CancelLink'
+giftBack:SetAttribute('SAE_GiftShimmer',true)
+giftBack.Position=UDim2.fromOffset(186,340)
+giftBack.Size=UDim2.fromOffset(148,26)
+giftBack.BackgroundTransparency=1
+giftBack.Text='Cancel'
+giftBack.TextSize=18
+giftBack.TextColor3=Color3.fromRGB(99,126,150)
+giftBack.Font=Enum.Font.GothamBold
+giftBack.Parent=giftDetail
+giftDetailClose.MouseButton1Click:Connect(function()
+    giftWin.Visible=false
+end)
 
 local giftSearching=giftStepFrame('SearchingPage')
 local giftSpinner=Instance.new('Frame')
@@ -4458,7 +4507,8 @@ local function setGiftPage(page)
     giftSearch.Visible=page=='catalog'
     giftList.Visible=page=='catalog'
     giftStatus.Visible=page=='catalog'
-    setGiftPanelSize(page=='catalog' and giftCatalogSize or giftRecipientSize)
+    giftClose.Visible=page~='form'
+    setGiftPanelSize(page=='catalog' and giftCatalogSize or (page=='form' and Vector2.new(560,460) or giftRecipientSize))
     giftSpinnerTween:Cancel()
     giftSpinner.Rotation=0
     if page=='search' then giftSpinnerTween:Play() end
