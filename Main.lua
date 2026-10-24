@@ -491,7 +491,11 @@ local function startOverlay(tool)
     destroyOverlay(tool)
 
     local gui,img,drawing
-    if CUSTOM_ASSET then
+    local imageSource=CUSTOM_ASSET
+    if (not imageSource or imageSource=='') and tool.TextureId and tool.TextureId~='' then
+        imageSource=tool.TextureId
+    end
+    if imageSource then
         gui=Instance.new('ScreenGui')
         gui.Name='SAE_HELD_STAR'
         gui.ResetOnSpawn=false
@@ -504,7 +508,7 @@ local function startOverlay(tool)
         img.Name='Star'
         img.BackgroundTransparency=1
         img.AnchorPoint=Vector2.new(.34,.79)
-        img.Image=CUSTOM_ASSET
+        img.Image=imageSource
         img.ScaleType=Enum.ScaleType.Fit
         img.ResampleMode=Enum.ResamplerMode.Default
         img.ClipsDescendants=false
@@ -576,8 +580,9 @@ local function replace(tool)
     if not tool or not tool:IsA('Tool') or tool.Name~='Star' or tool:GetAttribute('SAE_EXACT_STAR_OVERLAY') or busy[tool] then return end
 
     -- Never replace a visible existing Star with an invisible tool if this executor cannot render the supplied reference.
-    if not NATIVE_TEMPLATE and not CUSTOM_ASSET and not DRAWING_SUPPORTED then
-        warn('[SAE] Exact Star renderer unavailable; keeping existing Star tool instead of making it invisible.')
+    local hasToolImage=tool.TextureId and tool.TextureId~=''
+    if not NATIVE_TEMPLATE and not CUSTOM_ASSET and not DRAWING_SUPPORTED and not hasToolImage then
+        warn('[SAE] Star renderer unavailable; keeping existing Star tool instead of making it invisible.')
         return
     end
 
@@ -3832,7 +3837,7 @@ local function showInventoryToast(name)
     TS:Create(scale,TweenInfo.new(.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Scale=1}):Play()
     TS:Create(shadowScale,TweenInfo.new(.22,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Scale=1}):Play()
 
-    task.delay(2.45,function()
+    task.delay(4.45,function()
         if serial~=spawnToastSerial or not sg.Parent then return end
         TS:Create(frame,TweenInfo.new(.2,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Position=UDim2.new(.5,0,1,-150),BackgroundTransparency=1}):Play()
         TS:Create(shadow,TweenInfo.new(.2),{BackgroundTransparency=1}):Play()
@@ -3859,7 +3864,7 @@ local gui=Instance.new('ScreenGui')gui.Name='SAE_ITEMS_V7'gui.ResetOnSpawn=false
 local StarterGui=game:GetService('StarterGui')
 pcall(function()StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack,false)end)
 local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38))
-local win=Instance.new('Frame')win.Size=UDim2.fromOffset(410,350)win.Position=UDim2.new(.5,-205,.5,-175)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)
+local win=Instance.new('Frame')win.AnchorPoint=Vector2.new(.5,.5)win.Size=UDim2.fromOffset(410,350)win.Position=UDim2.fromScale(.5,.5)win.BackgroundColor3=C.bg win.BorderSizePixel=0 win.Visible=false win.Parent=gui corner(win,13)stroke(win,.1)local winScale=Instance.new('UIScale')winScale.Scale=.5 winScale.Parent=win
 local head=Instance.new('Frame')head.Size=UDim2.new(1,0,0,62)head.BackgroundColor3=C.head head.BorderSizePixel=0 head.Parent=win corner(head,13)
 local title=label(head,'DIVINE ITEM SPAWNER · REFERENCE EGGS',UDim2.fromOffset(16,8),UDim2.new(1,-70,0,24),15)title.Font=Enum.Font.GothamBold
 label(head,'25% smaller • refined Unicorn, Night Flame, Sabertooth',UDim2.fromOffset(16,31),UDim2.new(1,-70,0,18),10,C.m)
