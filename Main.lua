@@ -2257,14 +2257,24 @@ local function applyTag()
     layout.SortOrder=Enum.SortOrder.LayoutOrder
     layout.Padding=UDim.new(0,3)
     layout.Parent=nameRow
-    local nameWidth=math.min(205,TextService:GetTextSize(Display,18,Enum.Font.GothamBold,Vector2.new(1000,22)).X+2)
-    local b=label(nameRow,Display,UDim2.new(),UDim2.fromOffset(nameWidth,22),18)
+    -- Let the rendered font determine the name width so the badge hugs its edge.
+    local b=label(nameRow,Display,UDim2.new(),UDim2.fromOffset(0,22),18)
     b.LayoutOrder=1
     b.Font=Enum.Font.GothamBold
+    b.AutomaticSize=Enum.AutomaticSize.X
+    b.TextXAlignment=Enum.TextXAlignment.Right
+    b.TextYAlignment=Enum.TextYAlignment.Center
+    b.TextWrapped=false
     b.TextTruncate=Enum.TextTruncate.AtEnd
     b.TextStrokeTransparency=.1
+    local nameLimit=Instance.new("UISizeConstraint")
+    nameLimit.MaxSize=Vector2.new(205,22)
+    nameLimit.Parent=b
     local badge=verified(nameRow,18)
     badge.LayoutOrder=2
+    badge.Size=UDim2.fromOffset(20,22)
+    local mark=badge:FindFirstChildOfClass("TextLabel")
+    if mark then mark.Position=UDim2.fromOffset(0,0) end
 
     local c=label(g,"@"..Username:gsub("^@",""),UDim2.fromOffset(0,52),UDim2.new(1,0,0,18),14)
     c.TextXAlignment=Enum.TextXAlignment.Center
