@@ -3312,6 +3312,7 @@ task.spawn(function()
 -- SAE V7: sculpted solid egg models; references guide features, colors and materials.
 local E=(getgenv and getgenv()) or _G
 E.SAE_V7=true
+E.SAE_ITEM_ICON_RESOLVER=nil
 
 local Players=game:GetService('Players')
 local RS=game:GetService('ReplicatedStorage')
@@ -3391,6 +3392,7 @@ local function buildSculptedEgg(name)
     local root=part(m,'Core',Vector3.new(.025,.025,.025),rgb(255,255,255),CFrame.new(),MAT,1)
     m.PrimaryPart=root
     local bodyMin,bodyMax=math.huge,-math.huge
+    local buildSlice=os.clock()
     for i,item in ipairs(design.parts) do
         -- kind, semantic name, size, palette index, position, orientation,
         -- material, transparency, reflectance. No textures or image surfaces.
@@ -3423,7 +3425,10 @@ local function buildSculptedEgg(name)
             bodyMin=math.min(bodyMin,pos[2]-size[2]/2)
             bodyMax=math.max(bodyMax,pos[2]+size[2]/2)
         end
-        if i%40==0 then task.wait() end
+        if i%40==0 and os.clock()-buildSlice>.006 then
+            task.wait()
+            buildSlice=os.clock()
+        end
     end
     -- Wings, horns and halos must not make the main egg look undersized.
     -- Retain the prior body-based display sizing, then reduce every egg
@@ -3653,7 +3658,25 @@ local function hit(o,want)if want[norm(o.Name)]then return 1000 end local n=norm
 local function source(cat,name)local key=cat..'|'..name if cache[key]and cache[key].Parent then return cache[key]end local want={}for _,a in ipairs(Aliases[name]or{name})do want[norm(a)]=true end local best,bs=nil,-1 local function scan(o,bonus)if not(o:IsA('Model')or o:IsA('Tool'))then return end if P.Character and o:IsDescendantOf(P.Character)then return end if o:IsDescendantOf(Placed)then return end if cat=='Pets'and badPet(o)then return end local h=hit(o,want)if h<=0 then return end local count=0 for _,d in ipairs(o:GetDescendants())do if d:IsA('BasePart')then count+=1 end end if count<1 then return end local sc=h+bonus+math.min(count,100)if sc>bs then best,bs=o,sc end end for _,r in ipairs({{RS,220},{workspace,80}})do local list=r[1]:GetDescendants()for i,o in ipairs(list)do scan(o,r[2])if i%1500==0 then task.wait()end end end if type(getnilinstances)=='function'then local ok,list=pcall(getnilinstances)if ok then for i,o in ipairs(list)do if typeof(o)=='Instance'then scan(o,120)end if i%1500==0 then task.wait()end end end end cache[key]=best return best end
 local function clone(src,name)if not src then return nil end local ok,c=pcall(function()return src:Clone()end)if not ok or not c then return nil end local m=c if c:IsA('Tool')then m=Instance.new('Model')m.Name=name for _,q in ipairs(c:GetChildren())do if not(q:IsA('Script')or q:IsA('LocalScript')or q:IsA('ModuleScript'))then q.Parent=m end end c:Destroy()end if not m:IsA('Model')then return nil end local kill={}for _,d in ipairs(m:GetDescendants())do if d:IsA('Script')or d:IsA('LocalScript')or d:IsA('ModuleScript')or d:IsA('Humanoid')or d:IsA('Animator')or d:IsA('ProximityPrompt')or d:IsA('ClickDetector')or d:IsA('SurfaceGui')or d:IsA('BillboardGui')then kill[#kill+1]=d end end for _,d in ipairs(kill)do d:Destroy()end if not m:FindFirstChildWhichIsA('BasePart',true)then m:Destroy()return nil end m.Name=name return m end
 local function fit(m,target)local ok,s=pcall(function()return m:GetExtentsSize()end)if ok then local mx=math.max(s.X,s.Y,s.Z)if mx>.01 then pcall(function()m:ScaleTo(target/mx)end)end end end
-local function model(cat,name)if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end if cat=='Pets' and (name=='Night Flame' or name=='Luminous Cthulhu') then local f=Built[name] if f then local m=f() fit(m,16) return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
+local function buildModel(cat,name)if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end if cat=='Pets' and (name=='Night Flame' or name=='Luminous Cthulhu') then local f=Built[name] if f then local m=f() fit(m,16) return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
+-- Keep the prepared geometry between spawns; each Tool receives its own clone.
+local preparedModels={}
+local preparingModels={}
+local function model(cat,name)
+    local key=cat..'|'..name
+    while preparingModels[key] do task.wait() end
+    local entry=preparedModels[key]
+    if not entry then
+        preparingModels[key]=true
+        local ok,template,exact=pcall(buildModel,cat,name)
+        preparingModels[key]=nil
+        if not ok then error(template) end
+        if not template then return nil,false end
+        entry={template=template,exact=exact}
+        preparedModels[key]=entry
+    end
+    return entry.template:Clone(),entry.exact
+end
 local function weld(t,m,off)m.Parent=t m:PivotTo(t.Handle.CFrame*off)if m:GetAttribute('SAE_REFERENCE_DETAIL') and m.PrimaryPart then local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=m.PrimaryPart w.Parent=t.Handle else for _,p in ipairs(allParts(m))do p.Anchored=false p.CanCollide=false p.CanTouch=false p.CanQuery=false p.Massless=true local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=p w.Parent=t.Handle end end end
 local function place(t,m)local c=m:Clone()for _,d in ipairs(c:GetDescendants())do if d:IsA('WeldConstraint')or d:IsA('Motor6D')then d:Destroy()end end c.Parent=Placed for _,p in ipairs(allParts(c))do p.Anchored=true p.CanCollide=false p.CanQuery=true end local mouse=P:GetMouse()local pos=mouse and mouse.Hit and mouse.Hit.Position local hrp=P.Character and P.Character:FindFirstChild('HumanoidRootPart')pos=pos or(hrp and(hrp.Position+hrp.CFrame.LookVector*9))or Vector3.zero local rp=RaycastParams.new()rp.FilterType=Enum.RaycastFilterType.Exclude rp.FilterDescendantsInstances={P.Character,Placed}local ray=workspace:Raycast(pos+Vector3.new(0,35,0),Vector3.new(0,-100,0),rp)if ray then pos=ray.Position end c:PivotTo(CFrame.new(pos))local cf,sz=c:GetBoundingBox()c:PivotTo(c:GetPivot()+Vector3.new(0,pos.Y-(cf.Position.Y-sz.Y/2)+.08,0))t:Destroy()end
 local iconCache={}
@@ -3685,22 +3708,21 @@ local function readItemImage(obj)
 end
 local function itemImage(cat,name)
     local key=cat..'|'..name
-    if iconCache[key]~=nil then return iconCache[key]or nil end
-    local want={}for _,alias in ipairs(Aliases[name]or{name})do want[norm(alias)]=true end
-    local bestImage,bestScore=nil,-1
-    for _,root in ipairs({RS,workspace,PG,game:GetService('StarterGui'),game:GetService('StarterPack'),game:GetService('Lighting')})do
-        local list=root:GetDescendants()
-        for i,obj in ipairs(list)do
-            if obj:IsA('Tool')and not obj:GetAttribute('SAE_V7_TOOL')and not( P.Character and obj:IsDescendantOf(P.Character))and not obj:IsDescendantOf(Placed)then
-                local score=hit(obj,want)
-                if score>0 then local image=imageContent(obj.TextureId)if image and score>bestScore then bestImage,bestScore=image,score end end
-            end
-            if i%3000==0 then task.wait()end
-        end
-    end
-    if not bestImage then bestImage=readItemImage(source(cat,name))end
-    iconCache[key]=bestImage or false
-    return bestImage
+    if iconCache[key] then return iconCache[key] end
+    local resolver=E.SAE_ITEM_ICON_RESOLVER
+    if type(resolver)~='function' then return nil end
+    local image=resolver(name)
+    if image then iconCache[key]=image end
+    return image
+end
+local function prepareSelectedItem(cat,name)
+    task.spawn(function()
+        pcall(function()
+            itemImage(cat,name)
+            local preview=model(cat,name)
+            if preview then preview:Destroy() end
+        end)
+    end)
 end
 local spawnToastSerial=0
 local function showInventoryToast(name)
@@ -3852,7 +3874,7 @@ local function showInventoryToast(name)
     end)
 end
 
-local function spawnTool(cat,name)local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=itemImage(cat,name)or'' t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP showInventoryToast(name) return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
+local function spawnTool(cat,name)local image=itemImage(cat,name) if not image then return false,'Exact item image is not ready'end local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=image t:SetAttribute('SAE_EXACT_REFERENCE_ICON',image) t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP showInventoryToast(name) return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
 local C={bg=rgb(8,8,14),head=rgb(15,11,23),card=rgb(24,18,34),card2=rgb(37,25,50),border=rgb(84,57,110),p=rgb(142,51,236),p2=rgb(184,83,255),w=Color3.new(1,1,1),m=rgb(168,162,181),g=rgb(105,245,135),o=rgb(255,188,82),r=rgb(255,90,90)}
 local function corner(o,r)local x=Instance.new('UICorner')x.CornerRadius=UDim.new(0,r or 8)x.Parent=o end
@@ -3860,6 +3882,10 @@ local function stroke(o,a)local x=Instance.new('UIStroke')x.Color=C.border x.Tra
 local function label(p,t,pos,size,z,col)local x=Instance.new('TextLabel')x.BackgroundTransparency=1 x.Position=pos x.Size=size x.Text=t x.TextColor3=col or C.w x.Font=Enum.Font.GothamMedium x.TextSize=z or 11 x.TextXAlignment=Enum.TextXAlignment.Left x.Parent=p return x end
 local function button(p,t,pos,size)local x=Instance.new('TextButton')x.Position=pos x.Size=size x.BackgroundColor3=C.p x.BorderSizePixel=0 x.Text=t x.TextColor3=C.w x.Font=Enum.Font.GothamBold x.TextSize=11 x.Parent=p corner(x,8)return x end
 local gui=Instance.new('ScreenGui')gui.Name='SAE_ITEMS_V7'gui.ResetOnSpawn=false gui.DisplayOrder=730 gui.Parent=PG
+gui.Destroying:Connect(function()
+    for _,entry in pairs(preparedModels) do entry.template:Destroy() end
+    table.clear(preparedModels)
+end)
 local StarterGui=game:GetService('StarterGui')
 pcall(function()StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack,false)end)
 local launcher=button(gui,'ITEMS',UDim2.new(0,12,.5,-20),UDim2.fromOffset(74,38))
@@ -3881,7 +3907,7 @@ grid:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()content.C
 local status=label(win,'Select an item',UDim2.new(0,16,1,-61),UDim2.new(1,-200,0,18),10,C.m)
 local cat,sel='Eggs',nil local tabButtons={}
 local function paint()for n,b in pairs(tabButtons)do b.BackgroundColor3=(n==cat)and C.p or C.card2 end end
-local function render()for _,c in ipairs(content:GetChildren())do if c:IsA('TextButton')then c:Destroy()end end local list=cat=='Eggs'and Eggs or cat=='Pets'and Pets or{'Star'}for i,name in ipairs(list)do local b=button(content,name,UDim2.new(),UDim2.new())b.LayoutOrder=i b.BackgroundColor3=(sel==name and C.p2 or C.card2)b.MouseButton1Click:Connect(function()sel=name status.Text='Selected: '..name status.TextColor3=C.w render()end)end end
+local function render()for _,c in ipairs(content:GetChildren())do if c:IsA('TextButton')then c:Destroy()end end local list=cat=='Eggs'and Eggs or cat=='Pets'and Pets or{'Star'}for i,name in ipairs(list)do local b=button(content,name,UDim2.new(),UDim2.new())b.LayoutOrder=i b.BackgroundColor3=(sel==name and C.p2 or C.card2)b.MouseButton1Click:Connect(function()sel=name prepareSelectedItem(cat,name) status.Text='Selected: '..name status.TextColor3=C.w render()end)end end
 for i,n in ipairs({'Eggs','Pets','Star'})do local b=button(tabs,n:upper(),UDim2.new((i-1)/3,4,0,0),UDim2.new(1/3,-8,1,0))tabButtons[n]=b b.MouseButton1Click:Connect(function()cat=n sel=nil paint()render()status.Text='Select an item' status.TextColor3=C.m end)end
 paint()render()
 local spawn=button(win,'SPAWN SELECTED',UDim2.new(1,-176,1,-67),UDim2.fromOffset(160,34))
@@ -4126,7 +4152,15 @@ for row=0,1 do
         rim.Thickness=1
     end
 end
-local giftTitle=label(giftHead,'🎁 Gifting Panel',UDim2.fromOffset(14,14),UDim2.fromOffset(220,22),17)
+local giftTitle=label(giftHead,'Gifting Panel',UDim2.fromOffset(44,14),UDim2.fromOffset(200,22),17)
+local giftHeaderSymbol=Instance.new('ImageLabel')
+giftHeaderSymbol.Name='GiftHeaderSymbol'
+giftHeaderSymbol.Position=UDim2.fromOffset(14,14)
+giftHeaderSymbol.Size=UDim2.fromOffset(22,22)
+giftHeaderSymbol.BackgroundTransparency=1
+giftHeaderSymbol.ImageColor3=C.w
+giftHeaderSymbol.ScaleType=Enum.ScaleType.Fit
+giftHeaderSymbol.Parent=giftHead
 local giftLogo=Instance.new('ImageLabel')
 giftLogo.Name='StealAnEggLogo'
 giftLogo.AnchorPoint=Vector2.new(.5,.5)
@@ -4625,16 +4659,8 @@ giftBoxPart(UDim2.fromOffset(38,29),UDim2.fromOffset(15,18),Color3.fromRGB(39,22
 giftBoxPart(UDim2.fromOffset(37,15),UDim2.fromOffset(19,16),Color3.fromRGB(49,238,8),8,0,true)
 giftBoxPart(UDim2.fromOffset(13,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,-18,true)
 giftBoxPart(UDim2.fromOffset(50,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,18,true)
--- A small vertical hop, with no scaling or rotation of the gift artwork.
-local giftBoxMotion=game:GetService('TweenService'):Create(
-    giftSentIcon,
-    TweenInfo.new(.7,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true,.15),
-    {Position=UDim2.new(.5,0,0,6)}
-)
-local function resetGiftBoxMotion()
-    giftBoxMotion:Cancel()
-    giftSentIcon.Position=UDim2.new(.5,0,0,12)
-end
+-- The present stays completely still.
+
 local giftSentTitle=label(giftSent,'GIFT SENT',UDim2.fromOffset(20,116),UDim2.new(1,-40,0,38),32)
 giftSentTitle.Font=Enum.Font.GothamBlack
 giftSentTitle.TextXAlignment=Enum.TextXAlignment.Center
@@ -4675,7 +4701,6 @@ local function cancelGiftSearch()
 end
 local function setGiftPage(page)
     stopGiftRain()
-    resetGiftBoxMotion()
     giftPage=page
     giftDetail.Visible=page=='form'
     giftSearching.Visible=page=='search'
@@ -4691,22 +4716,16 @@ local function setGiftPage(page)
     giftSpinnerTween:Cancel()
     giftSpinner.Rotation=0
     if page=='search' then giftSpinnerTween:Play() end
-    if page=='sent' then giftBoxMotion:Play() end
 end
 giftWin:GetPropertyChangedSignal('Visible'):Connect(function()
     if not giftWin.Visible then
-        resetGiftBoxMotion()
         stopGiftRain()
         cancelGiftSearch()
         giftSpinnerTween:Cancel()
         if giftPage=='search' then setGiftPage('form') end
-    elseif giftPage=='sent' then
-        resetGiftBoxMotion()
-        giftBoxMotion:Play()
     end
 end)
 giftGui.Destroying:Connect(function()
-    resetGiftBoxMotion()
     stopGiftRain()
     giftSearchSerial+=1
     giftBusy=false
@@ -4820,6 +4839,20 @@ local function giftImages(category,product)
     GiftImageAssets[key]=asset
     return asset
 end
+-- Inventory and Gifting share these exact embedded PNGs; no world textures.
+local inventoryProducts={}
+for category,products in pairs(GiftProducts) do
+    for _,product in ipairs(products) do
+        inventoryProducts[product.model]={category=category,product=product}
+        inventoryProducts[product.name]={category=category,product=product}
+    end
+end
+inventoryProducts.Star={category='Others',product={imageKey='1-star'}}
+E.SAE_ITEM_ICON_RESOLVER=function(name)
+    local entry=inventoryProducts[name]
+    if not entry then return nil end
+    return giftImages(entry.category,entry.product)
+end
 local giftImageQueue={}
 local giftImageWorker=false
 local function queueGiftImage(target,category,product)
@@ -4852,6 +4885,7 @@ local function queueGiftImage(target,category,product)
     end)
 end
 queueGiftImage(giftLogo,'UI',{imageKey='shop-wordmark'})
+queueGiftImage(giftHeaderSymbol,'UI',{imageKey='gift-button-symbol'})
 local function startGiftRain(product)
     stopGiftRain()
     local serial=giftRainSerial
@@ -5060,7 +5094,7 @@ local function showGiftCatalog()
                 liftTween=giftTweenService:Create(card,TweenInfo.new(.16,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
                     Position=UDim2.fromOffset(0,inside and -3 or 0)
                 })
-                outline.Color=inside and C.g or C.border
+                outline.Color=C.border
                 liftTween:Play()
             end
             slot.MouseEnter:Connect(function() hover(true) end)
@@ -5236,7 +5270,10 @@ showGiftCatalog()
     if not giftOk then warn('[SAE] Gifting Panel error: '..tostring(giftError)) end
 end)
 
-RS.DescendantAdded:Connect(function()cache={} iconCache={}end)P.CharacterAdded:Connect(function()task.wait(.5)cache={}end)
+RS.DescendantAdded:Connect(function(object)
+    if object:IsA('Model') or object:IsA('Tool') then cache={} end
+end)
+P.CharacterAdded:Connect(function() cache={} end)
 print('[SAE] V7 true-3D inventory loaded: no stacked image fallbacks.')
 
 end)
@@ -5354,6 +5391,11 @@ local function readImage(obj)
 end
 
 local function exactIcon(name)
+    local shared=((getgenv and getgenv()) or _G).SAE_ITEM_ICON_RESOLVER
+    if type(shared)=='function' then
+        local image=shared(name)
+        if image then return image end
+    end
     if iconCache[name] then
         return iconCache[name]
     end
@@ -5455,19 +5497,28 @@ local function patchVisibleHotbar(name,image)
         if d:IsA('ImageLabel') or d:IsA('ImageButton') then
             local dn=norm(d.Name)
             if dn:find('icon',1,true) or dn:find('thumbnail',1,true) or dn=='itemimage' or dn=='image' then
+                d.ImageRectOffset=Vector2.zero
+                d.ImageRectSize=Vector2.zero
                 d.Image=image
                 return
             end
             if not fallback and (d.Image=='' or d.Image=='rbxassetid://0') then fallback=d end
         end
     end
-    if fallback then fallback.Image=image end
+    if fallback then
+        fallback.ImageRectOffset=Vector2.zero
+        fallback.ImageRectSize=Vector2.zero
+        fallback.Image=image
+    end
 end
 
+local patchedToolImages=setmetatable({},{__mode='k'})
 local function applyIcon(tool)
     if not tool or not tool:IsA('Tool') or not VALID[tool.Name] then return end
-    local current=usableImage(tool.TextureId)
+    local current=tool:GetAttribute('SAE_EXACT_REFERENCE_ICON') or usableImage(tool.TextureId)
     local image=current or exactIcon(tool.Name)
+    if image and patchedToolImages[tool]==image and tool.TextureId==image then return end
+    if image then patchedToolImages[tool]=image end
     if image and tool.TextureId~=image then
         pcall(function() tool.TextureId=image end)
     end
@@ -5631,15 +5682,6 @@ local PG=P:FindFirstChildOfClass('PlayerGui') or P:WaitForChild('PlayerGui',10)
 local BP=P:FindFirstChildOfClass('Backpack') or P:WaitForChild('Backpack',10)
 if not PG or not BP then return end
 
--- This historical commit is the build where the user's exact supplied renders
--- were preserved as embedded PNGs. We read only that image table.
-local REF_URL='https://raw.githubusercontent.com/randomcamper707/stealanegg1/6f14a6070a1207346018d4283037d2bc539c0b1d/Main.lua?v='..tostring(os.time())
-local okRef,refSource=pcall(function() return game:HttpGet(REF_URL) end)
-if not okRef or type(refSource)~='string' then
-    warn('[SAE] Could not download exact item references: '..tostring(refSource))
-    return
-end
-
 local IMAGE_KEY={
     ['Unicorn Egg']='unicorn_egg',
     ['Unicorn']='unicorn_pet',
@@ -5668,99 +5710,10 @@ local IMAGE_KEY={
     ['Star']='star',
 }
 
-local B64='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-local function pureBase64Decode(data)
-    data=data:gsub('[^'..B64..'=]','')
-    return (data:gsub('.',function(x)
-        if x=='=' then return '' end
-        local r,f='',(B64:find(x,1,true)-1)
-        for i=6,1,-1 do
-            r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0')
-        end
-        return r
-    end):gsub('%d%d%d?%d?%d?%d?%d?%d?',function(x)
-        if #x~=8 then return '' end
-        local c=0
-        for i=1,8 do
-            c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0)
-        end
-        return string.char(c)
-    end))
-end
-
-local function decode64(data)
-    local raw=nil
-    pcall(function()
-        if crypt and crypt.base64 and crypt.base64.decode then
-            raw=crypt.base64.decode(data)
-        elseif syn and syn.crypt and syn.crypt.base64 and syn.crypt.base64.decode then
-            raw=syn.crypt.base64.decode(data)
-        end
-    end)
-    if type(raw)~='string' or #raw<100 then
-        local ok,v=pcall(pureBase64Decode,data)
-        if ok then raw=v end
-    end
-    return raw
-end
-
-local function escapePattern(s)
-    return (s:gsub('(%W)','%%%1'))
-end
-
-local encodedCache={}
-local function exactEncoded(name)
-    if encodedCache[name]~=nil then return encodedCache[name] or nil end
-    local key=IMAGE_KEY[name]
-    if not key then encodedCache[name]=false return nil end
-    local pat='%["'..escapePattern(key)..'"%]=%{w=%d+,h=%d+,data=%[%[([%s%S]-)%]%]%}'
-    local data=refSource:match(pat)
-    if type(data)~='string' or #data<100 then
-        warn('[SAE] Exact reference image missing for '..name)
-        encodedCache[name]=false
-        return nil
-    end
-    encodedCache[name]=data
-    return data
-end
-
-local assetCache={}
 local function exactAsset(name)
-    if assetCache[name]~=nil then return assetCache[name] or nil end
-    local data=exactEncoded(name)
-    if not data then assetCache[name]=false return nil end
-    if type(writefile)~='function' then
-        warn('[SAE] writefile unavailable; cannot install exact hotbar image for '..name)
-        assetCache[name]=false
-        return nil
-    end
-    local raw=decode64(data)
-    if type(raw)~='string' or #raw<100 then
-        warn('[SAE] Could not decode exact hotbar image for '..name)
-        assetCache[name]=false
-        return nil
-    end
-
-    local safe=name:gsub('[^%w]+','_')
-    local path='SAE_exact_icon_'..safe..'.png'
-    local okWrite=pcall(function() writefile(path,raw) end)
-    if not okWrite then assetCache[name]=false return nil end
-
-    local asset=nil
-    pcall(function()
-        if type(getcustomasset)=='function' then
-            asset=getcustomasset(path)
-        elseif type(getsynasset)=='function' then
-            asset=getsynasset(path)
-        end
-    end)
-    if type(asset)~='string' or asset=='' then
-        warn('[SAE] Custom asset API unavailable for '..name)
-        assetCache[name]=false
-        return nil
-    end
-    assetCache[name]=asset
-    return asset
+    local resolver=((getgenv and getgenv()) or _G).SAE_ITEM_ICON_RESOLVER
+    if type(resolver)~='function' then return nil end
+    return resolver(name)
 end
 
 local function norm(s)
@@ -5771,24 +5724,34 @@ end
 local function patchVisibleSlot(name,asset)
     if not asset or not PG then return end
     local want=norm(name)
-
-    -- First try a slot that contains the item's text/name.
     for _,obj in ipairs(PG:GetDescendants()) do
-        if obj:IsA('TextLabel') or obj:IsA('TextButton') then
-            if norm(obj.Text)==want then
-                local holder=obj.Parent
-                for depth=1,4 do
-                    if not holder then break end
-                    for _,d in ipairs(holder:GetDescendants()) do
-                        if d:IsA('ImageLabel') or d:IsA('ImageButton') then
-                            local dn=norm(d.Name)
-                            if dn:find('icon',1,true) or dn:find('image',1,true) or dn:find('item',1,true) or d.Image=='' then
-                                d.Image=asset
+        if (obj:IsA('TextLabel') or obj:IsA('TextButton')) and norm(obj.Text)==want then
+            local holder=obj.Parent
+            local ancestor=holder
+            local hotbar=false
+            for _=1,6 do
+                if not ancestor then break end
+                local n=norm(ancestor.Name)
+                if n:find('hotbar',1,true) or n:find('backpack',1,true)
+                    or n:find('inventory',1,true) or n:find('toolbar',1,true)
+                    or n:find('slot',1,true) then hotbar=true break end
+                ancestor=ancestor.Parent
+            end
+            if hotbar and holder then
+                for depth=1,2 do
+                    for _,image in ipairs(holder:GetDescendants()) do
+                        if image:IsA('ImageLabel') or image:IsA('ImageButton') then
+                            local n=norm(image.Name)
+                            if n:find('icon',1,true) or n:find('thumbnail',1,true) or n=='itemimage' or n=='image' then
+                                image.ImageRectOffset=Vector2.zero
+                                image.ImageRectSize=Vector2.zero
+                                image.Image=asset
                                 return
                             end
                         end
                     end
                     holder=holder.Parent
+                    if not holder then break end
                 end
             end
         end
@@ -5801,6 +5764,8 @@ local function applyExact(tool)
 
     local asset=exactAsset(tool.Name)
     if not asset then return end
+    if tool.TextureId==asset and tool:GetAttribute('SAE_EXACT_ICON_BOUND') then return end
+    tool:SetAttribute('SAE_EXACT_ICON_BOUND',true)
 
     pcall(function()
         tool.TextureId=asset
