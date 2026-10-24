@@ -4111,14 +4111,14 @@ giftList.Parent=giftWin
 corner(giftList,10)
 stroke(giftList,.5)
 local giftGrid=Instance.new('UIGridLayout')
-giftGrid.CellSize=UDim2.new(1/3,-12,0,112)
+giftGrid.CellSize=UDim2.new(1/3,-12,0,116)
 giftGrid.FillDirection=Enum.FillDirection.Horizontal
 giftGrid.FillDirectionMaxCells=3
-giftGrid.CellPadding=UDim2.fromOffset(8,8)
+giftGrid.CellPadding=UDim2.fromOffset(8,6)
 giftGrid.SortOrder=Enum.SortOrder.LayoutOrder
 giftGrid.Parent=giftList
 local giftPadding=Instance.new('UIPadding')
-giftPadding.PaddingTop=UDim.new(0,8)
+giftPadding.PaddingTop=UDim.new(0,6)
 giftPadding.PaddingLeft=UDim.new(0,8)
 giftPadding.PaddingRight=UDim.new(0,8)
 giftPadding.Parent=giftList
@@ -4146,44 +4146,86 @@ local function giftStepFrame(name)
     return frame
 end
 local giftDetail=giftStepFrame('UsernamePage')
-local giftDetailIcon=Instance.new('ImageLabel')
-giftDetailIcon.Position=UDim2.fromOffset(110,14)
-giftDetailIcon.Size=UDim2.fromOffset(64,64)
-giftDetailIcon.BackgroundColor3=C.card2
-giftDetailIcon.BorderSizePixel=0
-giftDetailIcon.ScaleType=Enum.ScaleType.Fit
-giftDetailIcon.Parent=giftDetail
-corner(giftDetailIcon,10)
+local giftDetailImages=Instance.new('Frame')
+giftDetailImages.Position=UDim2.fromOffset(70,0)
+giftDetailImages.Size=UDim2.fromOffset(180,88)
+giftDetailImages.BackgroundTransparency=1
+giftDetailImages.Parent=giftDetail
+local giftStackIcons={}
+for i=1,3 do
+    local icon=Instance.new('ImageLabel')
+    icon.Name='QuantityImage'..i
+    icon.BackgroundTransparency=1
+    icon.BorderSizePixel=0
+    icon.ScaleType=Enum.ScaleType.Fit
+    icon.Visible=i==1
+    icon.ZIndex=i==2 and 3 or 2
+    icon.Parent=giftDetailImages
+    giftStackIcons[i]=icon
+end
+local giftDetailIcon=giftStackIcons[1]
 local giftDetailPlaceholder=label(giftDetailIcon,'Loading image...',UDim2.fromScale(0,0),UDim2.fromScale(1,1),10,C.m)
 giftDetailPlaceholder.Name='GiftImagePlaceholder'
 giftDetailPlaceholder.TextWrapped=true
 giftDetailPlaceholder.TextXAlignment=Enum.TextXAlignment.Center
 giftDetailPlaceholder.TextYAlignment=Enum.TextYAlignment.Center
-local giftDetailName=label(giftDetail,'',UDim2.fromOffset(190,16),UDim2.fromOffset(220,36),15)
+local giftDetailName
+local giftDetailMeta
+local function updateGiftQuantityImages()
+    local count=(giftSelected and giftSelected.category=='Others') and 1 or giftQty
+    local layouts={
+        {{0,0,88,88}},
+        {{0,2,72,84},{68,2,72,84}},
+        {{0,4,64,80},{58,0,64,80},{116,4,64,80}}
+    }
+    local widths={88,140,180}
+    local imageWidth=widths[count]
+    local left=(520-imageWidth-16-200)/2
+    giftDetailImages.Position=UDim2.fromOffset(left,0)
+    giftDetailImages.Size=UDim2.fromOffset(imageWidth,88)
+    if giftDetailName then giftDetailName.Position=UDim2.fromOffset(left+imageWidth+16,18) end
+    if giftDetailMeta then giftDetailMeta.Position=UDim2.fromOffset(left+imageWidth+16,64) end
+    local layout=layouts[count]
+    for i,icon in ipairs(giftStackIcons) do
+        icon.Visible=i<=count
+        if layout[i] then
+            local rect=layout[i]
+            icon.Position=UDim2.fromOffset(rect[1],rect[2])
+            icon.Size=UDim2.fromOffset(rect[3],rect[4])
+        end
+        if i>1 then icon.Image=giftDetailIcon.Image end
+    end
+end
+giftDetailIcon:GetPropertyChangedSignal('Image'):Connect(function()
+    for i=2,3 do giftStackIcons[i].Image=giftDetailIcon.Image end
+end)
+updateGiftQuantityImages()
+giftDetailName=label(giftDetail,'',UDim2.fromOffset(212,18),UDim2.fromOffset(200,42),15)
 giftDetailName.Font=Enum.Font.GothamBold
 giftDetailName.TextWrapped=true
 giftDetailName.TextXAlignment=Enum.TextXAlignment.Center
 giftDetailName.TextYAlignment=Enum.TextYAlignment.Center
-local giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(190,54),UDim2.fromOffset(220,16),11,C.m)
+giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(212,64),UDim2.fromOffset(200,18),11,C.m)
 giftDetailMeta.TextXAlignment=Enum.TextXAlignment.Center
-local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(165,86),UDim2.fromOffset(70,28),12,C.m)
+local giftQtyLabel=label(giftDetail,'Quantity',UDim2.fromOffset(165,94),UDim2.fromOffset(70,26),12,C.m)
 giftQtyLabel.TextXAlignment=Enum.TextXAlignment.Center
 local giftQtyButtons={}
 for i,n in ipairs({1,2,3}) do
     local quantity=n
-    local b=button(giftDetail,tostring(n),UDim2.fromOffset(247+(i-1)*38,86),UDim2.fromOffset(32,28))
+    local b=button(giftDetail,tostring(n),UDim2.fromOffset(247+(i-1)*38,94),UDim2.fromOffset(32,26))
     b.TextSize=13
     giftQtyButtons[n]=b
     b.MouseButton1Click:Connect(function()
         if giftSelected and giftSelected.category=='Others' then return end
         giftQty=quantity
+        updateGiftQuantityImages()
         for q,btn in pairs(giftQtyButtons) do btn.BackgroundColor3=(q==giftQty) and C.p2 or C.card2 end
     end)
 end
-local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(110,126),UDim2.fromOffset(300,18),13)
+local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(110,130),UDim2.fromOffset(300,18),13)
 giftUsernameLabel.TextXAlignment=Enum.TextXAlignment.Center
 local giftRecipientInput=Instance.new('TextBox')
-giftRecipientInput.Position=UDim2.fromOffset(110,150)
+giftRecipientInput.Position=UDim2.fromOffset(110,154)
 giftRecipientInput.Size=UDim2.fromOffset(192,32)
 giftRecipientInput.BackgroundColor3=C.card2
 giftRecipientInput.BorderSizePixel=0
@@ -4196,12 +4238,12 @@ giftRecipientInput.TextSize=14
 giftRecipientInput.ClearTextOnFocus=false
 giftRecipientInput.Parent=giftDetail
 corner(giftRecipientInput,8)
-local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(310,150),UDim2.fromOffset(100,32))
+local giftLookup=button(giftDetail,'SEARCH PLAYER',UDim2.fromOffset(310,154),UDim2.fromOffset(100,32))
 giftLookup.TextSize=11
-local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(110,188),UDim2.fromOffset(300,20),11,C.r)
+local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(110,194),UDim2.fromOffset(300,20),11,C.r)
 giftDetailStatus.TextWrapped=true
 giftDetailStatus.TextXAlignment=Enum.TextXAlignment.Center
-local giftBack=button(giftDetail,'BACK TO ITEMS',UDim2.fromOffset(186,220),UDim2.fromOffset(148,30))
+local giftBack=button(giftDetail,'BACK TO ITEMS',UDim2.fromOffset(186,226),UDim2.fromOffset(148,30))
 giftBack.TextSize=12
 giftBack.BackgroundColor3=C.card2
 
@@ -4250,15 +4292,40 @@ giftFoundUsername.Font=Enum.Font.GothamBold
 giftFoundUsername.TextXAlignment=Enum.TextXAlignment.Center
 local giftFoundSummary=label(giftFound,'',UDim2.fromOffset(90,184),UDim2.fromOffset(340,18),11,C.m)
 giftFoundSummary.TextXAlignment=Enum.TextXAlignment.Center
-local giftFoundBack=button(giftFound,'CHANGE PLAYER',UDim2.fromOffset(100,206),UDim2.fromOffset(148,32))
+local giftFoundBack=button(giftFound,'CHANGE PLAYER',UDim2.fromOffset(94,204),UDim2.fromOffset(148,36))
 giftFoundBack.TextSize=12
 giftFoundBack.BackgroundColor3=C.card2
-local giftPreview=button(giftFound,'GIFT PREVIEW',UDim2.fromOffset(272,206),UDim2.fromOffset(148,32))
-giftPreview.TextSize=13
+local giftPreview=button(giftFound,'GIFT',UDim2.fromOffset(262,204),UDim2.fromOffset(164,36))
+giftPreview.TextSize=15
 giftPreview.BackgroundColor3=C.g
 giftPreview.TextColor3=C.bg
 local giftDemoNote=label(giftFound,'Demo preview only. No game item is sent.',UDim2.fromOffset(40,244),UDim2.new(1,-80,0,14),10,C.o)
 giftDemoNote.TextXAlignment=Enum.TextXAlignment.Center
+
+local giftSent=giftStepFrame('GiftSentPage')
+local giftSentCheck=Instance.new('Frame')
+giftSentCheck.AnchorPoint=Vector2.new(.5,0)
+giftSentCheck.Position=UDim2.new(.5,0,0,22)
+giftSentCheck.Size=UDim2.fromOffset(64,64)
+giftSentCheck.BackgroundColor3=C.g
+giftSentCheck.BorderSizePixel=0
+giftSentCheck.Parent=giftSent
+corner(giftSentCheck,32)
+local giftCheck=label(giftSentCheck,'✓',UDim2.fromScale(0,0),UDim2.fromScale(1,1),40,C.bg)
+giftCheck.Font=Enum.Font.GothamBold
+giftCheck.TextXAlignment=Enum.TextXAlignment.Center
+giftCheck.TextYAlignment=Enum.TextYAlignment.Center
+local giftSentTitle=label(giftSent,'Gift sent',UDim2.fromOffset(20,100),UDim2.new(1,-40,0,30),24,C.g)
+giftSentTitle.Font=Enum.Font.GothamBold
+giftSentTitle.TextXAlignment=Enum.TextXAlignment.Center
+local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,142),UDim2.new(1,-60,0,44),14)
+giftSentSummary.TextWrapped=true
+giftSentSummary.TextXAlignment=Enum.TextXAlignment.Center
+giftSentSummary.TextYAlignment=Enum.TextYAlignment.Center
+local giftSentNote=label(giftSent,'Demo confirmation. No item was transferred.',UDim2.fromOffset(20,196),UDim2.new(1,-40,0,20),11,C.o)
+giftSentNote.TextXAlignment=Enum.TextXAlignment.Center
+local giftSentDone=button(giftSent,'DONE',UDim2.fromOffset(186,226),UDim2.fromOffset(148,30))
+giftSentDone.TextSize=13
 
 local function cancelGiftSearch()
     giftSearchSerial+=1
@@ -4271,6 +4338,7 @@ local function setGiftPage(page)
     giftDetail.Visible=page=='form'
     giftSearching.Visible=page=='search'
     giftFound.Visible=page=='found'
+    giftSent.Visible=page=='sent'
     giftTabs.Visible=page=='catalog'
     giftSearch.Visible=page=='catalog'
     giftList.Visible=page=='catalog'
@@ -4548,7 +4616,7 @@ local function showGiftCatalog()
             card.Parent=giftList
             corner(card,9)
             local icon=Instance.new('ImageLabel')
-            icon.Position=UDim2.fromOffset(8,10)
+            icon.Position=UDim2.fromOffset(8,4)
             icon.Size=UDim2.fromOffset(64,64)
             icon.BackgroundTransparency=1
             icon.BorderSizePixel=0
@@ -4565,13 +4633,14 @@ local function showGiftCatalog()
             name.TextWrapped=true
             name.TextYAlignment=Enum.TextYAlignment.Center
             label(card,'Divine  ·  '..product.rate,UDim2.fromOffset(80,44),UDim2.new(1,-88,0,14),10,C.m)
-            local giftButton=button(card,'GIFT',UDim2.fromOffset(80,68),UDim2.new(1,-88,0,34))
-            giftButton.TextSize=13
+            local giftButton=button(card,'GIFT',UDim2.fromOffset(8,70),UDim2.new(1,-16,0,40))
+            giftButton.TextSize=15
             addGiftButtonSymbol(giftButton)
             giftButton.MouseButton1Click:Connect(function()
                 cancelGiftSearch()
                 giftSelected={imageKey=productData.imageKey,name=productData.name,model=productData.model,rate=productData.rate,imageCategory=productData.imageCategory,category=productCategory}
                 giftQty=1
+                updateGiftQuantityImages()
                 giftRecipient=nil
                 giftRecipientInput.Text=''
                 giftDetailStatus.Text=''
@@ -4579,7 +4648,7 @@ local function showGiftCatalog()
                 giftDetailMeta.Text='Divine  ·  '..productData.rate
                 giftDetailIcon.Image=''
                 queueGiftImage(giftDetailIcon,productCategory,productData)
-                giftPreview.Text='GIFT PREVIEW'
+                giftPreview.Text='GIFT'
                 giftQtyLabel.Visible=productCategory~='Others'
                 for q,btn in pairs(giftQtyButtons) do
                     btn.Visible=productCategory~='Others'
@@ -4643,7 +4712,7 @@ giftLookup.MouseButton1Click:Connect(function()
         giftFoundUsername.Text='@'..canonicalName
         local count=giftSelected.category=='Others' and 1 or giftQty
         giftFoundSummary.Text=count..'× '..giftSelected.name
-        giftPreview.Text='GIFT PREVIEW'
+        giftPreview.Text='GIFT'
         giftDemoNote.Text='Demo preview only. No game item is sent.'
         setGiftPage('found')
     end)
@@ -4662,9 +4731,14 @@ end)
 giftPreview.MouseButton1Click:Connect(function()
     if not giftSelected or not giftRecipient then return end
     local count=giftSelected.category=='Others' and 1 or giftQty
-    giftFoundSummary.Text='Preview ready: '..count..'× '..giftSelected.name
-    giftDemoNote.Text='Demo complete. No item was sent.'
-    giftPreview.Text='PREVIEW READY'
+    giftSentSummary.Text=count..'× '..giftSelected.name..'\nTo @'..giftRecipient.username
+    setGiftPage('sent')
+end)
+giftSentDone.MouseButton1Click:Connect(function()
+    cancelGiftSearch()
+    giftRecipient=nil
+    giftSelected=nil
+    showGiftCatalog()
 end)
 giftBack.MouseButton1Click:Connect(function()
     cancelGiftSearch()
