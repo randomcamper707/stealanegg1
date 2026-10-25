@@ -4197,17 +4197,17 @@ giftDragHandle.BackgroundTransparency=1
 giftDragHandle.Text=''
 giftDragHandle.AutoButtonColor=false
 giftDragHandle.Selectable=false
-giftDragHandle.Size=UDim2.new(1,-156,1,0)
+giftDragHandle.Size=UDim2.new(1,-168,1,0)
 giftDragHandle.ZIndex=2
 giftDragHandle.Parent=giftHead
 local giftClose=button(giftHead,'X',UDim2.new(1,-44,0,9),UDim2.fromOffset(32,32))
 giftClose.TextSize=16
 giftClose.ZIndex=3
 giftButtonPaint(giftClose,'cyan')
-local giftAllButton=button(giftHead,'Gift All',UDim2.new(1,-148,0,9),UDim2.fromOffset(96,32))
+local giftAllButton=button(giftHead,'Gift All',UDim2.new(1,-158,0,9),UDim2.fromOffset(106,32))
 giftAllButton.Name='GiftAll'
 giftAllButton.TextSize=14
-giftAllButton.ZIndex=3
+giftAllButton.ZIndex=5
 giftGradient(giftAllButton,Color3.fromRGB(255,111,87),Color3.fromRGB(224,42,25))
 giftLauncher.MouseButton1Click:Connect(function() giftWin.Visible=not giftWin.Visible end)
 giftClose.MouseButton1Click:Connect(function() giftWin.Visible=false end)
@@ -4899,23 +4899,41 @@ local function queueGiftImage(target,category,product)
         montage.BackgroundTransparency=1
         montage.ZIndex=target.ZIndex+1
         montage.Parent=target
-        giftGradient(montage,Color3.fromRGB(249,255,238),Color3.fromRGB(218,246,223))
-        corner(montage,8)
-        for index,item in ipairs(giftBundleArt) do
-            local thumbnail=Instance.new('ImageLabel')
-            thumbnail.Name=item.imageKey
-            thumbnail.BackgroundTransparency=1
-            thumbnail.Position=UDim2.new(((index-1)%4)/4,2,math.floor((index-1)/4)/2,2)
-            thumbnail.Size=UDim2.new(1/4,-4,1/2,-4)
-            local bounds=GiftArtworkBounds[item.imageKey]
-            if bounds then
-                thumbnail.ImageRectOffset=Vector2.new(bounds[1],bounds[2])
-                thumbnail.ImageRectSize=Vector2.new(bounds[3]-bounds[1],bounds[4]-bounds[2])
+        montage.BackgroundTransparency=0
+        giftGradient(montage,Color3.fromRGB(248,255,228),Color3.fromRGB(204,244,229),35)
+        corner(montage,10)
+        -- Layered hero arrangement: pets behind, eggs in front, equipment at the base.
+        local placements={
+            {key='archangel-pet',x=.02,y=.03,w=.42,h=.56,z=1,rotation=-8},
+            {key='nightflame-pet',x=.58,y=.02,w=.40,h=.58,z=1,rotation=7},
+            {key='3-stars',x=.38,y=.00,w=.26,h=.24,z=2,rotation=-7},
+            {key='unicorn',x=.24,y=.18,w=.34,h=.64,z=3,rotation=-9},
+            {key='kitsune',x=.48,y=.25,w=.34,h=.56,z=4,rotation=9},
+            {key='ben-treadmill',x=.01,y=.62,w=.38,h=.35,z=5,rotation=-6},
+            {key='brockodile-treadmill',x=.65,y=.63,w=.34,h=.35,z=5,rotation=5}
+        }
+        for _,placement in ipairs(placements) do
+            local item=nil
+            for _,candidate in ipairs(giftBundleArt) do
+                if candidate.imageKey==placement.key then item=candidate break end
             end
-            thumbnail.ScaleType=Enum.ScaleType.Fit
-            thumbnail.ZIndex=montage.ZIndex
-            thumbnail.Parent=montage
-            queueGiftImage(thumbnail,'All',item)
+            if item then
+                local thumbnail=Instance.new('ImageLabel')
+                thumbnail.Name=item.imageKey
+                thumbnail.BackgroundTransparency=1
+                thumbnail.Position=UDim2.fromScale(placement.x,placement.y)
+                thumbnail.Size=UDim2.fromScale(placement.w,placement.h)
+                thumbnail.Rotation=placement.rotation
+                local bounds=GiftArtworkBounds[item.imageKey]
+                if bounds then
+                    thumbnail.ImageRectOffset=Vector2.new(bounds[1],bounds[2])
+                    thumbnail.ImageRectSize=Vector2.new(bounds[3]-bounds[1],bounds[4]-bounds[2])
+                end
+                thumbnail.ScaleType=Enum.ScaleType.Fit
+                thumbnail.ZIndex=montage.ZIndex+placement.z
+                thumbnail.Parent=montage
+                queueGiftImage(thumbnail,'All',item)
+            end
         end
         return
     end
