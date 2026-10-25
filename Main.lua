@@ -3056,7 +3056,7 @@ local function sendAnnouncement(message,targetStatus)
 end
 local function renderPresets()
     for _,child in ipairs(presetList:GetChildren()) do
-        if child:IsA("TextButton") or child.Name=="EmptyPresetHint" then child:Destroy() end
+        if child:IsA("TextButton") or child.Name=="PresetRow" or child.Name=="EmptyPresetHint" then child:Destroy() end
     end
     if #saved==0 then
         local empty=label(presetList,"Your saved announcements appear here.",UDim2.new(),UDim2.new(1,-12,0,42),11)
@@ -3067,14 +3067,41 @@ local function renderPresets()
     end
     for index,message in ipairs(saved) do
         local presetMessage=message
-        local entry=button(presetList,message,UDim2.new(),UDim2.new(1,-12,0,38),true)
-        entry.Name="Preset"..index
-        entry.LayoutOrder=index
+        local row=Instance.new("Frame")
+        row.Name="PresetRow"
+        row.Size=UDim2.new(1,-12,0,38)
+        row.BackgroundTransparency=1
+        row.LayoutOrder=index
+        row.Parent=presetList
+        local entry=button(row,message,UDim2.new(),UDim2.new(1,-70,1,0),true)
+        entry.Name="AnnouncePreset"
         entry.TextSize=12
         entry.TextWrapped=true
         entry.TextTruncate=Enum.TextTruncate.AtEnd
         entry.MouseButton1Click:Connect(function()
             sendAnnouncement(presetMessage,presetStatus)
+        end)
+        local remove=button(row,"Delete",UDim2.new(1,-64,0,0),UDim2.fromOffset(64,38),true)
+        remove.Name="DeletePreset"
+        remove.TextSize=11
+        remove.BackgroundColor3=C.red
+        remove:SetAttribute("RestingColor",C.red)
+        remove:SetAttribute("HoverColor",C.red:Lerp(C.white,.16))
+        local deleting=false
+        remove.MouseButton1Click:Connect(function()
+            if deleting then return end
+            deleting=true
+            -- Resolve the message again so a stale row cannot delete another preset.
+            for savedIndex,savedMessage in ipairs(saved) do
+                if savedMessage==presetMessage then
+                    table.remove(saved,savedIndex)
+                    local persisted=persistPresets()
+                    renderPresets()
+                    presetStatus.Text=persisted and "Preset deleted." or "Deleted for this session; saved file could not be updated."
+                    presetStatus.TextColor3=persisted and C.muted or C.orange
+                    return
+                end
+            end
         end)
     end
 end
