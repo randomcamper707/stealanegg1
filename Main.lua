@@ -4452,6 +4452,29 @@ local function luxuryTreadmill(m,croc)
 
 end
 
+local function stabilizeTreadmillShapes(m)
+    -- Native Ball parts render as stretched ellipsoids under a Humanoid, but
+    -- revert to spheres outside it. A block carrier with a Sphere mesh keeps
+    -- the same three dimensions in the Tool, Backpack and placed Model.
+    for _,p in ipairs(allParts(m)) do
+        if p:IsA('Part') and p.Shape==Enum.PartType.Ball then
+            local dimensions=p.Size
+            local transform=p.CFrame
+            p.Shape=Enum.PartType.Block
+            p.Size=dimensions
+            p.CFrame=transform
+            local mesh=Instance.new('SpecialMesh')
+            mesh.Name='SAE_STABLE_ELLIPSOID'
+            mesh.MeshType=Enum.MeshType.Sphere
+            mesh.Scale=Vector3.new(1,1,1)
+            mesh.Offset=Vector3.zero
+            mesh.Parent=p
+            p:SetAttribute('SAE_STABLE_CURVED_DETAIL',true)
+        end
+    end
+    m:SetAttribute('SAE_TREADMILL_SHAPE_VERSION',2)
+end
+
 local function customTreadmill(name,crocodile)
     local m=Instance.new('Model')
     m.Name=name
@@ -4568,6 +4591,7 @@ local function customTreadmill(name,crocodile)
     detailTreadmill(m,crocodile)
     refineTreadmill(m,crocodile)
     luxuryTreadmill(m,crocodile)
+    stabilizeTreadmillShapes(m)
     m.PrimaryPart=root
     m:ScaleTo(1.18)
     m:SetAttribute('SAE_TREADMILL_MODEL_SCALE',1.18)
@@ -4659,6 +4683,7 @@ local function placeTreadmill(t,m)
     end
     -- Preserve the held build itself, including scale, detail and light attachments.
     local placed=m:Clone()
+    stabilizeTreadmillShapes(placed)
     for _,p in ipairs(allParts(placed)) do
         p.Anchored=true
         p.CanCollide=false
