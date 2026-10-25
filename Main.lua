@@ -4639,6 +4639,7 @@ local function createTreadmillRuntime()
     local api={}
     local entries,connections,tracks={},{},setmetatable({},{__mode='k'})
     local active=nil
+    local dismounted=nil
     local cooldown=0
     local dead=false
     local UIS=game:GetService('UserInputService')
@@ -4648,28 +4649,14 @@ local function createTreadmillRuntime()
         connections[#connections+1]=c
         return c
     end
-    local screen=Instance.new('ScreenGui')
-    screen.Name='SAE_TREADMILL_RUNNING'
-    screen.ResetOnSpawn=false screen.DisplayOrder=745 screen.Enabled=false screen.Parent=PG
-    local stop=Instance.new('TextButton')
-    stop.AnchorPoint=Vector2.new(.5,1)
-    stop.Position=UDim2.new(.5,0,1,-95) stop.Size=UDim2.fromOffset(238,46)
-    stop.BackgroundColor3=rgb(228,47,44) stop.BorderSizePixel=0
-    stop.Text='Stop running' stop.TextColor3=rgb(255,255,255)
-    stop.Font=Enum.Font.GothamBold stop.TextSize=18 stop.Parent=screen
-    local round=Instance.new('UICorner') round.CornerRadius=UDim.new(0,12) round.Parent=stop
-    local outline=Instance.new('UIStroke') outline.Color=rgb(51,21,25) outline.Thickness=2 outline.Parent=stop
-    local hint=Instance.new('TextLabel')
-    hint.AnchorPoint=Vector2.new(.5,1) hint.Position=UDim2.new(.5,0,1,-146)
-    hint.Size=UDim2.fromOffset(340,25) hint.BackgroundTransparency=1
-    hint.Text='Jump or press S to stop' hint.TextColor3=rgb(255,255,255)
-    hint.TextStrokeTransparency=.25 hint.TextStrokeColor3=rgb(0,0,0)
-    hint.Font=Enum.Font.GothamBold hint.TextSize=14 hint.Parent=screen
+    local stale=PG:FindFirstChild('SAE_TREADMILL_RUNNING')
+    if stale then stale:Destroy() end
 
     local function stopRunning(jump)
         local state=active
         if not state then return end
-        active=nil cooldown=os.clock()+1.8 screen.Enabled=false
+        active=nil cooldown=os.clock()+.6
+        if jump then dismounted=state.entry.model end
         if state.track then pcall(function() state.track:Stop(.18) end) end
         if state.headphones then state.headphones:Destroy() end
         for joint,original in pairs(state.joints or {}) do
@@ -4782,7 +4769,6 @@ local function createTreadmillRuntime()
         state.track=runTrack(character,humanoid)
         if active~=state then return end
         if state.track then pcall(function() state.track:Play(.18,1,1.35) end) end
-        screen.Enabled=true
     end
 
     function api:Watch(model)
@@ -4795,8 +4781,8 @@ local function createTreadmillRuntime()
         if oldPlane then oldPlane:Destroy() end
         local scale=model:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
         local plane=part(model,'SAE_TREADMILL_ARROW_SURFACE',
-            Vector3.new(belt.Size.X*.98,.01,belt.Size.Z*.98),rgb(0,0,0),
-            belt.CFrame*CFrame.new(0,belt.Size.Y*.5+.115*scale,0),MAT,1)
+            Vector3.new(belt.Size.X*.98,belt.Size.Z*.98,.01),rgb(0,0,0),
+            belt.CFrame*CFrame.new(0,belt.Size.Y*.5+.115*scale,0)*CFrame.Angles(math.pi/2,0,0),MAT,1)
         plane.CastShadow=false
         plane.Anchored=model:GetAttribute('SAE_PLACED_TREADMILL')==true
         if not plane.Anchored then
@@ -4804,40 +4790,82 @@ local function createTreadmillRuntime()
         end
         local color=model.Name=="Brocodile's Treadmill" and rgb(139,255,38) or rgb(35,230,255)
         local surface=Instance.new('SurfaceGui')
-        surface.Name='SAE_MOVING_BELT_ARROWS' surface.Adornee=plane surface.Face=Enum.NormalId.Top
+        surface.Name='SAE_MOVING_BELT_ARROWS' surface.Adornee=plane surface.Face=Enum.NormalId.Front
         surface.SizingMode=Enum.SurfaceGuiSizingMode.FixedSize surface.CanvasSize=Vector2.new(512,1024)
         surface.AlwaysOnTop=false surface.LightInfluence=0 surface.Brightness=1.6
         surface.MaxDistance=110 surface.ZOffset=.025 surface.Parent=plane
         local canvas=Instance.new('Frame')
         canvas.Size=UDim2.fromScale(1,1) canvas.BackgroundTransparency=1 canvas.ClipsDescendants=true canvas.Parent=surface
-        local entry={model=model,belt=belt,plane=plane,surface=surface,rows={},sparks={},color=color}
+        local entry={model=model,belt=belt,plane=plane,surface=surface,rows={},sparks={},gradients={},emitters={},color=color}
         for i=1,4 do
             local row=Instance.new('Frame')
             row.AnchorPoint=Vector2.new(.5,.5) row.Size=UDim2.fromScale(1,.15)
             row.BackgroundTransparency=1 row.Parent=canvas
             local pieces={}
             for _,side in ipairs({-1,1}) do
-                for layer=1,3 do
+                for layer=1,4 do
                     local arm=Instance.new('Frame')
                     arm.AnchorPoint=Vector2.new(.5,.5)
-                    arm.Position=UDim2.fromScale(.5+side*.157,.48)
-                    arm.Size=UDim2.fromScale(.35,layer==1 and .45 or layer==2 and .24 or .095)
-                    arm.Rotation=-side*22 arm.BorderSizePixel=0
-                    arm.BackgroundColor3=layer==3 and rgb(229,255,255) or color
-                    arm.BackgroundTransparency=layer==1 and .82 or layer==2 and .22 or .06
+                    arm.Position=UDim2.fromScale(.5+side*.218,.50)
+                    arm.Size=UDim2.fromScale(.47,({.86,.53,.28,.13})[layer])
+                    arm.Rotation=side*22 arm.BorderSizePixel=0
+                    arm.BackgroundColor3=layer>=3 and rgb(255,255,255) or color
+                    arm.BackgroundTransparency=({.94,.77,.10,.035})[layer]
                     arm.ZIndex=layer arm.Parent=row
                     local corner=Instance.new('UICorner') corner.CornerRadius=UDim.new(1,0) corner.Parent=arm
+                    if layer>=3 then
+                        local gradient=Instance.new('UIGradient')
+                        local base=layer==4 and color:Lerp(rgb(255,255,255),.68) or color
+                        gradient.Color=ColorSequence.new({
+                            ColorSequenceKeypoint.new(0,base),
+                            ColorSequenceKeypoint.new(.38,base),
+                            ColorSequenceKeypoint.new(.50,rgb(255,255,255)),
+                            ColorSequenceKeypoint.new(.62,base),
+                            ColorSequenceKeypoint.new(1,base)})
+                        gradient.Parent=arm
+                        entry.gradients[#entry.gradients+1]=gradient
+                    end
                     pieces[#pieces+1]={frame=arm,alpha=arm.BackgroundTransparency}
                 end
             end
             entry.rows[#entry.rows+1]={frame=row,pieces=pieces}
         end
-        for i=1,5 do
+        for i=1,8 do
             local star=Instance.new('ImageLabel')
-            star.BackgroundTransparency=1 star.Image='rbxasset://textures/glow.png'
+            star.BackgroundTransparency=1 star.Image='rbxasset://textures/particles/sparkles_main.dds'
             star.ImageColor3=rgb(222,255,255) star.AnchorPoint=Vector2.new(.5,.5)
-            star.Size=UDim2.fromOffset(26,26) star.ZIndex=4 star.Parent=canvas
+            star.Size=UDim2.fromOffset(32,32) star.ZIndex=4 star.Parent=canvas
             entry.sparks[#entry.sparks+1]=star
+        end
+        -- Small world-space glints float above the belt edges.
+        for _,side in ipairs({-1,1}) do
+            for _,endSide in ipairs({-1,1}) do
+                local attachment=Instance.new('Attachment')
+                attachment.Position=Vector3.new(side*plane.Size.X*.43,endSide*plane.Size.Y*.30,-.035)
+                attachment.Parent=plane
+                local emitter=Instance.new('ParticleEmitter')
+                emitter.Name='BeltEdgeTwinkle'
+                emitter.Texture='rbxasset://textures/particles/sparkles_main.dds'
+                emitter.Color=ColorSequence.new(color:Lerp(rgb(255,255,255),.70))
+                emitter.LightEmission=1 emitter.LightInfluence=0
+                emitter.Rate=2 emitter.Lifetime=NumberRange.new(.45,.85)
+                emitter.Speed=NumberRange.new(.18,.48) emitter.Drag=1
+                emitter.EmissionDirection=Enum.NormalId.Front
+                emitter.SpreadAngle=Vector2.new(18,18)
+                emitter.Size=NumberSequence.new({
+                    NumberSequenceKeypoint.new(0,.035*scale),
+                    NumberSequenceKeypoint.new(.25,.16*scale),
+                    NumberSequenceKeypoint.new(1,0)})
+                emitter.Transparency=NumberSequence.new({
+                    NumberSequenceKeypoint.new(0,1),
+                    NumberSequenceKeypoint.new(.18,.10),
+                    NumberSequenceKeypoint.new(.68,.32),
+                    NumberSequenceKeypoint.new(1,1)})
+                emitter.Rotation=NumberRange.new(-20,20)
+                emitter.RotSpeed=NumberRange.new(-18,18)
+                emitter.Parent=attachment
+                entry.emitters[#entry.emitters+1]=emitter
+            end
         end
         entries[model]=entry
         if model:GetAttribute('SAE_PLACED_TREADMILL') then
@@ -4863,13 +4891,7 @@ local function createTreadmillRuntime()
     end
     for _,folder in ipairs(workspace:GetChildren()) do watchFolder(folder) end
     connect(workspace.ChildAdded,watchFolder)
-    connect(stop.Activated,function() stopRunning(false) end)
     connect(UIS.JumpRequest,function() if active then stopRunning(true) end end)
-    connect(UIS.InputBegan,function(input,processed)
-        if processed or UIS:GetFocusedTextBox() then return end
-        if input.KeyCode==Enum.KeyCode.S or input.KeyCode==Enum.KeyCode.Down or
-            input.KeyCode==Enum.KeyCode.ButtonB then stopRunning(false) end
-    end)
     connect(P.CharacterRemoving,function() stopRunning(false) end)
     connect(Run.PreSimulation,function()
         local state=active
@@ -4908,19 +4930,31 @@ local function createTreadmillRuntime()
             else
                 local visible=root and (entry.belt.Position-root.Position).Magnitude<110
                 entry.surface.Enabled=not not visible
+                if entry.visible~=visible then
+                    entry.visible=visible
+                    for _,emitter in ipairs(entry.emitters) do emitter.Enabled=not not visible end
+                end
                 if visible then
                     for i,row in ipairs(entry.rows) do
                         local p=(now*.38+(i-1)/4)%1
-                        row.frame.Position=UDim2.fromScale(.5,p)
+                        -- Front face: decreasing canvas Y maps to the belt's +Z end.
+                        row.frame.Position=UDim2.fromScale(.5,1-p)
                         local fade=1-math.min(1,p/.10,(1-p)/.10)
                         for _,piece in ipairs(row.pieces) do
                             piece.frame.BackgroundTransparency=piece.alpha+(1-piece.alpha)*fade
                         end
                     end
+                    local sweep=Vector2.new(((now*.48)%1)*2.8-1.4,0)
+                    for _,gradient in ipairs(entry.gradients) do gradient.Offset=sweep end
                     for i,spark in ipairs(entry.sparks) do
-                        local phase=(now*.26+i*.193)%1
-                        spark.Position=UDim2.fromScale(.12+((i*37)%76)/100,phase)
-                        spark.ImageTransparency=.30+.65*(.5+.5*math.sin(now*3+i*2))
+                        local phase=(now*.21+i*.137)%1
+                        local pulse=math.max(0,math.sin(now*2.7+i*1.9))^3
+                        local edge=math.min(1,phase/.12,(1-phase)/.12)
+                        local size=18+pulse*23
+                        spark.Position=UDim2.fromScale(.10+((i*37)%80)/100,1-phase)
+                        spark.Size=UDim2.fromOffset(size,size)
+                        spark.ImageTransparency=1-(.14+.80*pulse)*edge
+                        spark.Rotation=math.sin(now*.7+i)*12
                     end
                 end
             end
@@ -4934,10 +4968,18 @@ local function createTreadmillRuntime()
         if sample<.10 then return end
         sample=0
         if now<cooldown or not root or not humanoid or humanoid.Health<=0 or humanoid.Sit or root.Anchored then return end
+        if dismounted then
+            if not dismounted.Parent then dismounted=nil
+            else
+                local p=dismounted:GetPivot():PointToObjectSpace(root.Position)
+                local scale=dismounted:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
+                if math.abs(p.X)>2.05*scale or p.Z<-3*scale or p.Z>4.6*scale then dismounted=nil end
+            end
+        end
         local leg=humanoid.RigType==Enum.HumanoidRigType.R6 and character:FindFirstChild('Left Leg')
         local standing=humanoid.HipHeight+root.Size.Y*.5+(leg and leg.Size.Y or 0)
         for model,entry in pairs(entries) do
-            if model:GetAttribute('SAE_PLACED_TREADMILL') then
+            if model~=dismounted and model:GetAttribute('SAE_PLACED_TREADMILL') then
                 local localPos=model:GetPivot():PointToObjectSpace(root.Position)
                 local scale=model:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
                 local beltY=.49*scale+standing
@@ -4955,7 +4997,6 @@ local function createTreadmillRuntime()
         for _,connection in ipairs(connections) do connection:Disconnect() end
         for _,entry in pairs(entries) do if entry.plane.Parent then entry.plane:Destroy() end end
         for _,track in pairs(tracks) do pcall(function() track:Stop(0); track:Destroy() end) end
-        screen:Destroy()
     end
     E.SAE_TREADMILL_RUNTIME=api
     return api
