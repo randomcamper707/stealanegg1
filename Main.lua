@@ -4266,18 +4266,19 @@ local function luxuryTreadmill(m,croc)
             orb('UprightWhiteEar',Vector3.new(1.10,3.44,.62),white,side*1.03,8.01,-4.08,rot)
             orb('UprightRedEarRim',Vector3.new(.82,3.04,.24),rgb(255,28,35),side*1.03,8.01,-3.73,rot,NEON)
             orb('UprightDarkEarInset',Vector3.new(.62,2.74,.15),black,side*1.03,8.01,-3.58,rot)
-            -- A simple red eye mask with white sclera; no overlapping brow wedges.
-            local tilt=CFrame.Angles(0,0,math.rad(side*5))
-            orb('CleanRedEyeMask',Vector3.new(1.65,.99,.31),red,side*.85,6.17,-2.98,tilt)
-            orb('CleanEyeSocket',Vector3.new(1.35,.78,.18),black,side*.85,6.17,-2.79,tilt)
-            orb('CleanWhiteEye',Vector3.new(1.18,.68,.18),rgb(255,255,255),side*.85,6.17,-2.67,tilt)
-            orb('CleanBlueIris',Vector3.new(.53,.59,.12),rgb(0,173,228),side*.78,6.17,-2.53)
-            orb('CleanCyanIrisRim',Vector3.new(.42,.51,.09),cyan,side*.78,6.17,-2.45,nil,NEON)
-            orb('CleanBlackPupil',Vector3.new(.26,.40,.08),rgb(5,14,25),side*.78,6.18,-2.38)
-            orb('CleanEyeShine',Vector3.new(.14,.15,.055),white,side*.78-.08,6.35,-2.31)
-            orb('CleanSmallEyeShine',Vector3.new(.055,.055,.035),white,side*.78+.09,6.02,-2.31)
+            -- Thin, recessed lenses sit inside the mask instead of on stalks.
+            local tilt=CFrame.Angles(0,0,math.rad(side*10))
+            orb('CleanRedEyeMask',Vector3.new(1.68,.72,.14),red,side*.85,6.22,-3.13,tilt)
+            orb('CleanEyeSocket',Vector3.new(1.32,.48,.065),black,side*.85,6.20,-3.043,tilt)
+            orb('CleanWhiteEye',Vector3.new(1.19,.41,.055),rgb(255,255,255),side*.85,6.20,-2.998,tilt)
+            orb('CleanBlueIris',Vector3.new(.43,.39,.035),rgb(0,170,228),side*.77,6.19,-2.961)
+            orb('CleanCyanIrisRim',Vector3.new(.32,.34,.025),cyan,side*.77,6.19,-2.936)
+            orb('CleanBlackPupil',Vector3.new(.20,.29,.020),rgb(5,14,25),side*.77,6.19,-2.916)
+            orb('CleanEyeShine',Vector3.new(.09,.11,.015),white,side*.77-.06,6.29,-2.898)
+            box('WhiteUpperEyelid',Vector3.new(1.43,.17,.16),white,side*.89,6.49,-3.11,tilt)
+            beam('MaskTempleConnector',Vector3.new(side*1.46,6.30,-3.17),Vector3.new(side*1.73,6.30,-3.61),.19,red)
         end
-        box('MaskNoseBridge',Vector3.new(.42,.25,.19),red,0,6.21,-2.88)
+        box('MaskNoseBridge',Vector3.new(.40,.20,.13),red,0,6.25,-3.13)
         for _,side in ipairs({-1,1}) do
             -- Wide pods with inset panels support the layered red shard silhouette.
             box('HeavyRearRedHousing',Vector3.new(1.28,.81,2.02),red,side*3.02,.73,-3.25)
@@ -4285,19 +4286,21 @@ local function luxuryTreadmill(m,croc)
             box('HeavyRearBlackInset',Vector3.new(.09,.37,1.34),black,side*3.69,.78,-3.25)
             box('HeavyRearCyanInset',Vector3.new(.045,.15,1.04),cyan,side*3.75,.80,-3.25,nil,NEON)
             for _,spec in ipairs({
-                {3.01,4.94,-4.47,1.85,1.23,32},
-                {3.37,3.75,-4.32,1.55,1.13,40},
-                {3.52,2.12,-3.00,1.77,1.38,36},
-                {3.41,1.62,-.30,1.37,1.18,40}
+                {3.08,5.03,-4.47,2.14,1.44,32},
+                {3.49,3.83,-4.32,1.89,1.39,40},
+                {3.60,2.20,-3.00,2.07,1.62,36},
+                {3.51,1.74,-.30,1.65,1.40,40},
+                {3.31,1.42,2.20,1.18,1.15,35},
+                {2.82,5.40,-5.13,1.42,1.08,25}
             }) do
                 local x,y,z,h,depth,angle=unpack(spec)
                 local rot=CFrame.Angles(0,0,math.rad(-side*angle))*CFrame.Angles(0,side*math.pi/2,0)
-                wedge(m,'LuxuryRedArmorShard',Vector3.new(.69,h,depth),red,CFrame.new(side*x,y,z)*rot,MAT)
-                wedge(m,'ShardDarkRecess',Vector3.new(.065,h*.72,depth*.68),black,CFrame.new(side*x,y-.03,z+.39)*rot,MAT)
+                wedge(m,'LuxuryRedArmorShard',Vector3.new(.95,h,depth),red,CFrame.new(side*x,y,z)*rot,MAT)
+                wedge(m,'ShardDarkRecess',Vector3.new(.065,h*.72,depth*.68),black,CFrame.new(side*x,y-.03,z+.53)*rot,MAT)
                 local face=CFrame.new(side*x,y,z)*rot
                 beam('ShardRedLightEdge',
-                    (face*CFrame.new(-side*.37,-h*.48,-depth*.48)).Position,
-                    (face*CFrame.new(-side*.37,h*.48,depth*.48)).Position,
+                    (face*CFrame.new(-side*.51,-h*.48,-depth*.48)).Position,
+                    (face*CFrame.new(-side*.51,h*.48,depth*.48)).Position,
                     .065,rgb(255,43,38),NEON)
                 box('ShardWhiteRoot',Vector3.new(.63,.25,depth*.80),white,side*(x-.17),y-h*.34,z+.07,rot)
             end
@@ -4367,7 +4370,86 @@ local function luxuryTreadmill(m,croc)
             orb('WaterfallFoam',Vector3.new(.70,.10,.33),rgb(187,255,255),side*2.69,1.06,-1.45)
         end
     end
-    m:SetAttribute('SAE_TREADMILL_DETAIL_REVISION',4)
+
+    -- Substantial rear housings make the console a complete volume from every side.
+    box('DeepConsoleHousing',Vector3.new(4.10,4.43,1.62),croc and rgb(94,110,70) or black,0,3.30,-4.91)
+    box('RearConsolePanel',Vector3.new(3.45,3.38,.18),croc and stone or white,0,3.23,-5.80)
+    box('RearRecessPanel',Vector3.new(2.62,2.48,.11),croc and rgb(79,97,55) or black,0,3.22,-5.94)
+    box('HeavyRearBumper',Vector3.new(5.76,.43,1.06),croc and stone or red,0,.10,-5.35)
+    for _,side in ipairs({-1,1}) do
+        box('DeepShoulderBody',Vector3.new(1.12,3.72,1.38),croc and stone or red,side*2.24,3.18,-4.83)
+        box('ShoulderRearBevel',Vector3.new(1.20,.33,1.44),croc and rgb(104,145,56) or white,side*2.24,5.11,-4.83)
+        if not croc then
+            for row=0,4 do
+                box('RearCoolingVent',Vector3.new(.67,.11,.055),black,side*2.24,2.36+row*.28,-5.56)
+            end
+            box('ShoulderSideDarkPanel',Vector3.new(.12,2.08,.94),black,side*2.84,3.44,-4.82)
+            box('ShoulderSideRedLight',Vector3.new(.065,1.62,.13),rgb(255,38,37),side*2.92,3.44,-4.78,nil,NEON)
+            beam('ShardSupportStrut',Vector3.new(side*2.80,1.06,-3.90),Vector3.new(side*3.38,4.73,-4.63),.33,red)
+            for _,z in ipairs({-2.05,.13,2.36}) do
+                box('RailOuterVolume',Vector3.new(.60,.62,1.40),red,side*3.23,.83,z)
+                box('RailArmorChamfer',Vector3.new(.64,.20,1.44),white,side*3.23,1.24,z)
+                for _,offset in ipairs({-.41,.41}) do
+                    orb('ArmorRecessedBolt',Vector3.new(.06,.10,.10),rgb(156,173,189),side*3.56,.88,z+offset)
+                end
+            end
+        else
+            -- A connected stone lip catches the cascade and leads into the pool.
+            for _,edge in ipairs({-.48,.48}) do
+                box('WaterfallStoneCheek',Vector3.new(.18,1.45,.66),stone,side*2.69+edge,1.77,-1.92)
+                box('PoolSideCoping',Vector3.new(.17,.22,1.42),stone,side*2.69+edge,.98,-1.08)
+            end
+            box('SpoutWaterBridge',Vector3.new(.74,.10,.49),rgb(45,220,242),side*2.69,2.48,-1.93,nil,NEON).Transparency=.17
+            box('WaterTopMouth',Vector3.new(.87,.21,.28),stone,side*2.69,2.71,-1.89)
+            beam('ShoulderLampPillar',Vector3.new(side*3.05,3.83,-3.91),Vector3.new(side*3.05,4.82,-3.91),.34,stone)
+            beam('UpperLampBrace',Vector3.new(side*2.12,5.35,-4.01),Vector3.new(side*2.12,5.75,-4.01),.36,stone)
+            -- Gold hardware joins the cords to the hat brim rather than floating.
+            orb('HatCordAttachment',Vector3.new(.18,.16,.18),gold,side*1.93,7.75,-3.58,nil,Enum.Material.Metal)
+            box('SafariHatStitch',Vector3.new(.032,.15,.025),gold,side*.93,8.22,-3.22)
+            -- Extra palms grow from stone pockets at the rear and middle sides.
+            for _,tree in ipairs({{3.23,-4.77,5.28},{3.34,-2.77,3.62},{3.38,.38,2.01}}) do
+                local x,z,top=side*tree[1],tree[2],tree[3]
+                box('PalmStonePlanter',Vector3.new(.67,.43,.70),stone,x,.68,z)
+                box('PalmSoilPocket',Vector3.new(.48,.07,.50),rgb(63,77,36),x,.94,z)
+                local bottom=Vector3.new(x,.94,z)
+                local crown=Vector3.new(x+side*.12,top,z-.12)
+                beam('PalmTexturedTrunk',bottom,crown,.18,rgb(100,101,42))
+                for ring=1,5 do
+                    local point=bottom:Lerp(crown,ring/6)
+                    box('PalmTrunkRidge',Vector3.new(.23,.07,.23),rgb(128,122,54),point.X,point.Y,point.Z)
+                end
+                for frond=0,4 do
+                    local angle=frond*math.pi*2/5
+                    local span=top>4 and 1.05 or .76
+                    local tip=crown+Vector3.new(math.cos(angle)*span,-.23,math.sin(angle)*span)
+                    local hump=(crown+tip)*.5+Vector3.new(0,.28,0)
+                    beam('PalmFrondSpine',crown,hump,.055,rgb(43,141,45))
+                    beam('PalmFrondSpine',hump,tip,.04,rgb(36,123,39))
+                    for _,section in ipairs({{crown,hump},{hump,tip}}) do
+                        local middle=(section[1]+section[2])*.5
+                        ball(m,'BroadPalmFrond',Vector3.new(.31,.10,(section[2]-section[1]).Magnitude*1.12),
+                            rgb(25,139,44),CFrame.lookAt(middle,section[2]),MAT)
+                    end
+                    for leaf=1,3 do
+                        local point=crown:Lerp(tip,leaf/4)+Vector3.new(0,.20*math.sin(leaf*math.pi/4),0)
+                        for _,edge in ipairs({-1,1}) do
+                            local endPoint=point+Vector3.new(-math.sin(angle)*edge*.27,-.10,math.cos(angle)*edge*.27)
+                            wedge(m,'SculptedPalmLeaf',Vector3.new(.17,.19,(endPoint-point).Magnitude*2.15),
+                                rgb(26,143+leaf*7,47),CFrame.lookAt((point+endPoint)*.5,endPoint),MAT)
+                        end
+                    end
+                end
+            end
+            for row=0,3 do
+                for col=-1,1 do
+                    box('RearStoneTile',Vector3.new(.88,.59,.16),row%2==0 and stone or rgb(126,140,91),
+                        col*.98,1.87+row*.72,-6.04)
+                end
+            end
+        end
+    end
+    m:SetAttribute('SAE_TREADMILL_DETAIL_REVISION',5)
+
 end
 
 local function customTreadmill(name,crocodile)
@@ -4486,6 +4568,9 @@ local function customTreadmill(name,crocodile)
     detailTreadmill(m,crocodile)
     refineTreadmill(m,crocodile)
     luxuryTreadmill(m,crocodile)
+    m.PrimaryPart=root
+    m:ScaleTo(1.18)
+    m:SetAttribute('SAE_TREADMILL_MODEL_SCALE',1.18)
     m:SetAttribute('SAE_TREADMILL',true)
     m:SetAttribute('SAE_REFERENCE_DETAIL','CustomTreadmill')
     return finalize(m,root)
@@ -4523,7 +4608,73 @@ local function model(cat,name)
     return entry.template:Clone(),entry.exact
 end
 local function weld(t,m,off)m.Parent=t m:PivotTo(t.Handle.CFrame*off)if m:GetAttribute('SAE_REFERENCE_DETAIL') and m.PrimaryPart then local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=m.PrimaryPart w.Parent=t.Handle else for _,p in ipairs(allParts(m))do p.Anchored=false p.CanCollide=false p.CanTouch=false p.CanQuery=false p.Massless=true local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=p w.Parent=t.Handle end end end
-local function place(t,m)local c=m:Clone()for _,d in ipairs(c:GetDescendants())do if d:IsA('WeldConstraint')or d:IsA('Motor6D')then d:Destroy()end end c.Parent=Placed for _,p in ipairs(allParts(c))do p.Anchored=true p.CanCollide=false p.CanQuery=true end local mouse=P:GetMouse()local pos=mouse and mouse.Hit and mouse.Hit.Position local hrp=P.Character and P.Character:FindFirstChild('HumanoidRootPart')pos=pos or(hrp and(hrp.Position+hrp.CFrame.LookVector*9))or Vector3.zero local rp=RaycastParams.new()rp.FilterType=Enum.RaycastFilterType.Exclude rp.FilterDescendantsInstances={P.Character,Placed}local ray=workspace:Raycast(pos+Vector3.new(0,35,0),Vector3.new(0,-100,0),rp)if ray then pos=ray.Position end c:PivotTo(CFrame.new(pos))local cf,sz=c:GetBoundingBox()c:PivotTo(c:GetPivot()+Vector3.new(0,pos.Y-(cf.Position.Y-sz.Y/2)+.08,0))t:Destroy()end
+local function placeTreadmill(t,m)
+    local function reject(message)
+        t.ToolTip=message
+        local last=t:GetAttribute('SAE_LAST_PLACEMENT_NOTICE') or -10
+        if os.clock()-last>2 then
+            t:SetAttribute('SAE_LAST_PLACEMENT_NOTICE',os.clock())
+            pcall(function()
+                game:GetService('StarterGui'):SetCore('SendNotification',{
+                    Title='Treadmill placement',Text=message,Duration=2})
+            end)
+        end
+        return false
+    end
+    local character=P.Character
+    local hrp=character and character:FindFirstChild('HumanoidRootPart')
+    local mouse=P:GetMouse()
+    if not hrp or not mouse or t.Parent~=character then return false end
+    local params=RaycastParams.new()
+    params.FilterType=Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances={character,Placed}
+    params.IgnoreWater=true
+    params.RespectCanCollide=true
+    local function isFloor(hit)
+        if not hit or hit.Normal.Y<.97 then return false end
+        return hit.Instance==workspace.Terrain or
+            (hit.Instance:IsA('BasePart') and hit.Instance.Anchored and hit.Instance.CanCollide)
+    end
+    -- Sky clicks have no valid hit and never fall back to mouse.Hit.
+    local unit=mouse.UnitRay
+    local hit=workspace:Raycast(unit.Origin,unit.Direction*180,params)
+    if not isFloor(hit) or (hit.Position-hrp.Position).Magnitude>100 then
+        return reject('Click a flat floor to place the treadmill.')
+    end
+    local look=m:GetPivot().LookVector
+    look=Vector3.new(look.X,0,look.Z)
+    if look.Magnitude<.05 then look=Vector3.new(hrp.CFrame.LookVector.X,0,hrp.CFrame.LookVector.Z) end
+    if look.Magnitude<.05 then look=Vector3.new(0,0,-1) end
+    local target=CFrame.lookAt(hit.Position,hit.Position+look.Unit)
+    local scale=m:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
+    -- All four feet need support at the same height: no ledges or suspended builds.
+    for _,x in ipairs({-2.83,2.83}) do
+        for _,z in ipairs({-4.20,4.20}) do
+            local point=(target*CFrame.new(x*scale,0,z*scale)).Position
+            local support=workspace:Raycast(point+Vector3.new(0,3,0),Vector3.new(0,-6,0),params)
+            if not isFloor(support) or math.abs(support.Position.Y-hit.Position.Y)>.18 then
+                return reject('Choose a flat floor with room under all four feet.')
+            end
+        end
+    end
+    -- Preserve the held build itself, including scale, detail and light attachments.
+    local placed=m:Clone()
+    for _,p in ipairs(allParts(placed)) do
+        p.Anchored=true
+        p.CanCollide=false
+        p.CanTouch=false
+        p.CanQuery=false
+    end
+    placed:PivotTo(CFrame.new())
+    local bounds,size=placed:GetBoundingBox()
+    local bottom=bounds.Position.Y-size.Y*.5
+    placed:PivotTo(target*CFrame.new(0,-bottom+.025,0))
+    placed:SetAttribute('SAE_PLACED_TREADMILL',true)
+    placed.Parent=Placed
+    t:Destroy()
+    return true
+end
+local function place(t,m)if m:GetAttribute('SAE_TREADMILL') then return placeTreadmill(t,m) end local c=m:Clone()for _,d in ipairs(c:GetDescendants())do if d:IsA('WeldConstraint')or d:IsA('Motor6D')then d:Destroy()end end c.Parent=Placed for _,p in ipairs(allParts(c))do p.Anchored=true p.CanCollide=false p.CanQuery=true end local mouse=P:GetMouse()local pos=mouse and mouse.Hit and mouse.Hit.Position local hrp=P.Character and P.Character:FindFirstChild('HumanoidRootPart')pos=pos or(hrp and(hrp.Position+hrp.CFrame.LookVector*9))or Vector3.zero local rp=RaycastParams.new()rp.FilterType=Enum.RaycastFilterType.Exclude rp.FilterDescendantsInstances={P.Character,Placed}local ray=workspace:Raycast(pos+Vector3.new(0,35,0),Vector3.new(0,-100,0),rp)if ray then pos=ray.Position end c:PivotTo(CFrame.new(pos))local cf,sz=c:GetBoundingBox()c:PivotTo(c:GetPivot()+Vector3.new(0,pos.Y-(cf.Position.Y-sz.Y/2)+.08,0))t:Destroy()end
 local iconCache={}
 local function imageContent(value)
     if type(value)~='string' then return nil end
@@ -4720,7 +4871,7 @@ local function showInventoryToast(name)
 end
 
 local function spawnTool(cat,name)local image=itemImage(cat,name) if not image then return false,'Exact item image is not ready'end local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=image t:SetAttribute('SAE_EXACT_REFERENCE_ICON',image) t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if m:GetAttribute('SAE_TREADMILL') then
-    t.ToolTip='Equip and click a spot to place this treadmill.'
+    t.ToolTip='Equip and click a flat floor to place this treadmill.'
     t.Grip=CFrame.new(0,-.5,0)
     weld(t,m,CFrame.new(0,-1.2,-7.2))
     t.Activated:Connect(function() if t.Parent==P.Character then place(t,m) end end)
