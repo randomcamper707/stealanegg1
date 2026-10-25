@@ -4223,7 +4223,7 @@ local function luxuryTreadmill(m,croc)
     local names=croc and {'SmallIvoryTooth','TurquoiseWaterfall','WaterfallHighlights'} or {
         'EarWhiteArmor','EarRedRim','EarBlackInset','BentEarCap',
         'RedEyeMask','EyeRecess','EyeWhite','BlueIris','EyePupil','EyeCatchlight','SmallEyeCatchlight','MaskEdge',
-        'TaperedBrowPlate','BrowOuterBevel','ForeheadCenterPlate'}
+        'TaperedBrowPlate','BrowOuterBevel','ForeheadCenterPlate','CheekArmor'}
     for _,name in ipairs(names) do remove[name]=true end
     for _,child in ipairs(m:GetChildren()) do if remove[child.Name] then child:Destroy() end end
     local function box(n,size,color,x,y,z,rotation,material)
@@ -4270,15 +4270,16 @@ local function luxuryTreadmill(m,croc)
             local tilt=CFrame.Angles(0,0,math.rad(side*10))
             orb('CleanRedEyeMask',Vector3.new(1.68,.72,.14),red,side*.85,6.22,-3.13,tilt)
             orb('CleanEyeSocket',Vector3.new(1.32,.48,.065),black,side*.85,6.20,-3.043,tilt)
-            orb('CleanWhiteEye',Vector3.new(1.19,.41,.055),rgb(255,255,255),side*.85,6.20,-2.998,tilt)
+            orb('CleanWhiteEye',Vector3.new(1.15,.46,.055),rgb(255,255,255),side*.85,6.20,-2.998,tilt)
             orb('CleanBlueIris',Vector3.new(.43,.39,.035),rgb(0,170,228),side*.77,6.19,-2.961)
             orb('CleanCyanIrisRim',Vector3.new(.32,.34,.025),cyan,side*.77,6.19,-2.936)
             orb('CleanBlackPupil',Vector3.new(.20,.29,.020),rgb(5,14,25),side*.77,6.19,-2.916)
             orb('CleanEyeShine',Vector3.new(.09,.11,.015),white,side*.77-.06,6.29,-2.898)
-            box('WhiteUpperEyelid',Vector3.new(1.43,.17,.16),white,side*.89,6.49,-3.11,tilt)
+            orb('WhiteUpperEyelid',Vector3.new(1.45,.22,.17),white,side*.89,6.48,-3.11,tilt)
+            orb('SmoothEyeCheek',Vector3.new(.70,.55,.42),white,side*1.40,5.88,-3.20,tilt)
             beam('MaskTempleConnector',Vector3.new(side*1.46,6.30,-3.17),Vector3.new(side*1.73,6.30,-3.61),.19,red)
         end
-        box('MaskNoseBridge',Vector3.new(.40,.20,.13),red,0,6.25,-3.13)
+        orb('MaskNoseBridge',Vector3.new(.40,.20,.13),red,0,6.25,-3.13)
         for _,side in ipairs({-1,1}) do
             -- Wide pods with inset panels support the layered red shard silhouette.
             box('HeavyRearRedHousing',Vector3.new(1.28,.81,2.02),red,side*3.02,.73,-3.25)
@@ -4632,6 +4633,335 @@ local function model(cat,name)
     return entry.template:Clone(),entry.exact
 end
 local function weld(t,m,off)m.Parent=t m:PivotTo(t.Handle.CFrame*off)if m:GetAttribute('SAE_REFERENCE_DETAIL') and m.PrimaryPart then local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=m.PrimaryPart w.Parent=t.Handle else for _,p in ipairs(allParts(m))do p.Anchored=false p.CanCollide=false p.CanTouch=false p.CanQuery=false p.Massless=true local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=p w.Parent=t.Handle end end end
+local function createTreadmillRuntime()
+    local previous=E.SAE_TREADMILL_RUNTIME
+    if previous and type(previous.Destroy)=='function' then pcall(function() previous:Destroy() end) end
+    local api={}
+    local entries,connections,tracks={},{},setmetatable({},{__mode='k'})
+    local active=nil
+    local cooldown=0
+    local dead=false
+    local UIS=game:GetService('UserInputService')
+    local Run=game:GetService('RunService')
+    local function connect(signal,fn)
+        local c=signal:Connect(fn)
+        connections[#connections+1]=c
+        return c
+    end
+    local screen=Instance.new('ScreenGui')
+    screen.Name='SAE_TREADMILL_RUNNING'
+    screen.ResetOnSpawn=false screen.DisplayOrder=745 screen.Enabled=false screen.Parent=PG
+    local stop=Instance.new('TextButton')
+    stop.AnchorPoint=Vector2.new(.5,1)
+    stop.Position=UDim2.new(.5,0,1,-95) stop.Size=UDim2.fromOffset(238,46)
+    stop.BackgroundColor3=rgb(228,47,44) stop.BorderSizePixel=0
+    stop.Text='Stop running' stop.TextColor3=rgb(255,255,255)
+    stop.Font=Enum.Font.GothamBold stop.TextSize=18 stop.Parent=screen
+    local round=Instance.new('UICorner') round.CornerRadius=UDim.new(0,12) round.Parent=stop
+    local outline=Instance.new('UIStroke') outline.Color=rgb(51,21,25) outline.Thickness=2 outline.Parent=stop
+    local hint=Instance.new('TextLabel')
+    hint.AnchorPoint=Vector2.new(.5,1) hint.Position=UDim2.new(.5,0,1,-146)
+    hint.Size=UDim2.fromOffset(340,25) hint.BackgroundTransparency=1
+    hint.Text='Jump or press S to stop' hint.TextColor3=rgb(255,255,255)
+    hint.TextStrokeTransparency=.25 hint.TextStrokeColor3=rgb(0,0,0)
+    hint.Font=Enum.Font.GothamBold hint.TextSize=14 hint.Parent=screen
+
+    local function stopRunning(jump)
+        local state=active
+        if not state then return end
+        active=nil cooldown=os.clock()+1.8 screen.Enabled=false
+        if state.track then pcall(function() state.track:Stop(.18) end) end
+        if state.headphones then state.headphones:Destroy() end
+        for joint,original in pairs(state.joints or {}) do
+            if joint.Parent then joint.Transform=original end
+        end
+        if state.root.Parent then
+            state.root.Anchored=state.anchored
+            state.root.AssemblyLinearVelocity=Vector3.zero
+            state.root.AssemblyAngularVelocity=Vector3.zero
+        end
+        if state.humanoid.Parent then
+            state.humanoid.WalkSpeed=state.speed
+            state.humanoid.AutoRotate=state.rotate
+            if jump then state.humanoid.Jump=true end
+        end
+    end
+
+    local function headphones(character,color)
+        local head=character:FindFirstChild('Head')
+        if not head then return nil end
+        local old=character:FindFirstChild('SAE_TREADMILL_HEADPHONES')
+        if old then old:Destroy() end
+        local model=Instance.new('Model') model.Name='SAE_TREADMILL_HEADPHONES'
+        model.Parent=character
+        local function piece(name,size,col,cf,rounded,material)
+            local p=part(model,name,size,col,head.CFrame*cf,material or MAT)
+            if rounded then
+                local mesh=Instance.new('SpecialMesh') mesh.MeshType=Enum.MeshType.Sphere mesh.Parent=p
+            end
+            local weld=Instance.new('WeldConstraint') weld.Part0=head weld.Part1=p weld.Parent=p
+            return p
+        end
+        local rx=head.Size.X*.5+.22
+        local ry=head.Size.Y*.5+.32
+        for i=0,9 do
+            local a=-math.pi/2+i*math.pi/10
+            local b=-math.pi/2+(i+1)*math.pi/10
+            local p=Vector3.new(math.sin(a)*rx,.04+math.cos(a)*ry,0)
+            local q=Vector3.new(math.sin(b)*rx,.04+math.cos(b)*ry,0)
+            piece('PaddedHeadband',Vector3.new(.14,.18,(q-p).Magnitude+.04),rgb(244,247,250),CFrame.lookAt((p+q)*.5,q))
+        end
+        for _,side in ipairs({-1,1}) do
+            piece('EarCushion',Vector3.new(.24,.61,.54),rgb(19,24,33),CFrame.new(side*rx,-.06,0),true)
+            piece('HeadphoneShell',Vector3.new(.22,.65,.59),rgb(243,246,250),CFrame.new(side*(rx+.16),-.06,0),true)
+            piece('HeadphoneAccent',Vector3.new(.08,.46,.43),color,CFrame.new(side*(rx+.28),-.06,0),true)
+            piece('HeadphoneLight',Vector3.new(.035,.23,.09),color,CFrame.new(side*(rx+.33),-.06,.02),true,NEON)
+        end
+        return model
+    end
+
+    local function runTrack(character,humanoid)
+        local cached=tracks[humanoid]
+        if cached then return cached end
+        local animate=character:FindFirstChild('Animate')
+        local animation=nil
+        local function usable(value)
+            return value and value:IsA('Animation') and value.AnimationId:match('%d+')~=nil
+        end
+        if animate then
+            for _,name in ipairs({'run','Run','walk','Walk'}) do
+                local group=animate:FindFirstChild(name)
+                local candidate=group and group:FindFirstChildWhichIsA('Animation',true)
+                if usable(candidate) then animation=candidate break end
+            end
+        end
+        if not animation then
+            for _,v in ipairs(character:GetDescendants()) do
+                if usable(v) and (v.Name:lower():find('run',1,true) or v.Name:lower():find('walk',1,true)) then
+                    animation=v break
+                end
+            end
+        end
+        local animator=humanoid:FindFirstChildOfClass('Animator')
+        if not animator or not animation or animation.AnimationId=='' then return nil end
+        local ok,track=pcall(function() return animator:LoadAnimation(animation) end)
+        if not ok then return nil end
+        track.Looped=true track.Priority=Enum.AnimationPriority.Action
+        tracks[humanoid]=track
+        return track
+    end
+
+    local function startRunning(entry,character,humanoid,root)
+        if active or humanoid.Health<=0 or root.Anchored then return end
+        local scale=entry.model:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
+        local leg=humanoid.RigType==Enum.HumanoidRigType.R6 and character:FindFirstChild('Left Leg')
+        local standing=humanoid.HipHeight+root.Size.Y*.5+(leg and leg.Size.Y or 0)
+        local cf=entry.model:GetPivot()
+        local position=(cf*CFrame.new(0,.49*scale+standing,.40*scale)).Position
+        local toward=(cf*CFrame.new(0,.49*scale+standing,-3*scale)).Position
+        local state={
+            entry=entry,character=character,humanoid=humanoid,root=root,
+            anchored=root.Anchored,speed=humanoid.WalkSpeed,rotate=humanoid.AutoRotate,
+            started=os.clock(),joints={},
+        }
+        for _,joint in ipairs(character:GetDescendants()) do
+            if joint:IsA('Motor6D') then
+                local name=joint.Name:lower():gsub('%s','')
+                if name:find('shoulder',1,true) or name:find('hip',1,true) or
+                    name:find('knee',1,true) or name:find('elbow',1,true) then
+                    state.joints[joint]=joint.Transform
+                end
+            end
+        end
+        active=state
+        humanoid.WalkSpeed=0 humanoid.AutoRotate=false
+        root.AssemblyLinearVelocity=Vector3.zero root.AssemblyAngularVelocity=Vector3.zero
+        root.CFrame=CFrame.lookAt(position,toward)
+        root.Anchored=true
+        state.headphones=headphones(character,entry.color)
+        state.track=runTrack(character,humanoid)
+        if active~=state then return end
+        if state.track then pcall(function() state.track:Play(.18,1,1.35) end) end
+        screen.Enabled=true
+    end
+
+    function api:Watch(model)
+        if dead or entries[model] or not model:GetAttribute('SAE_TREADMILL') then return end
+        local belt=model:FindFirstChild('RunningBelt',true)
+        if not belt then return end
+        local old=belt:FindFirstChild('SAE_MOVING_BELT_ARROWS')
+        if old then old:Destroy() end
+        local oldPlane=model:FindFirstChild('SAE_TREADMILL_ARROW_SURFACE')
+        if oldPlane then oldPlane:Destroy() end
+        local scale=model:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
+        local plane=part(model,'SAE_TREADMILL_ARROW_SURFACE',
+            Vector3.new(belt.Size.X*.98,.01,belt.Size.Z*.98),rgb(0,0,0),
+            belt.CFrame*CFrame.new(0,belt.Size.Y*.5+.115*scale,0),MAT,1)
+        plane.CastShadow=false
+        plane.Anchored=model:GetAttribute('SAE_PLACED_TREADMILL')==true
+        if not plane.Anchored then
+            local weld=Instance.new('WeldConstraint') weld.Part0=model.PrimaryPart weld.Part1=plane weld.Parent=plane
+        end
+        local color=model.Name=="Brocodile's Treadmill" and rgb(139,255,38) or rgb(35,230,255)
+        local surface=Instance.new('SurfaceGui')
+        surface.Name='SAE_MOVING_BELT_ARROWS' surface.Adornee=plane surface.Face=Enum.NormalId.Top
+        surface.SizingMode=Enum.SurfaceGuiSizingMode.FixedSize surface.CanvasSize=Vector2.new(512,1024)
+        surface.AlwaysOnTop=false surface.LightInfluence=0 surface.Brightness=1.6
+        surface.MaxDistance=110 surface.ZOffset=.025 surface.Parent=plane
+        local canvas=Instance.new('Frame')
+        canvas.Size=UDim2.fromScale(1,1) canvas.BackgroundTransparency=1 canvas.ClipsDescendants=true canvas.Parent=surface
+        local entry={model=model,belt=belt,plane=plane,surface=surface,rows={},sparks={},color=color}
+        for i=1,4 do
+            local row=Instance.new('Frame')
+            row.AnchorPoint=Vector2.new(.5,.5) row.Size=UDim2.fromScale(1,.15)
+            row.BackgroundTransparency=1 row.Parent=canvas
+            local pieces={}
+            for _,side in ipairs({-1,1}) do
+                for layer=1,3 do
+                    local arm=Instance.new('Frame')
+                    arm.AnchorPoint=Vector2.new(.5,.5)
+                    arm.Position=UDim2.fromScale(.5+side*.157,.48)
+                    arm.Size=UDim2.fromScale(.35,layer==1 and .45 or layer==2 and .24 or .095)
+                    arm.Rotation=-side*22 arm.BorderSizePixel=0
+                    arm.BackgroundColor3=layer==3 and rgb(229,255,255) or color
+                    arm.BackgroundTransparency=layer==1 and .82 or layer==2 and .22 or .06
+                    arm.ZIndex=layer arm.Parent=row
+                    local corner=Instance.new('UICorner') corner.CornerRadius=UDim.new(1,0) corner.Parent=arm
+                    pieces[#pieces+1]={frame=arm,alpha=arm.BackgroundTransparency}
+                end
+            end
+            entry.rows[#entry.rows+1]={frame=row,pieces=pieces}
+        end
+        for i=1,5 do
+            local star=Instance.new('ImageLabel')
+            star.BackgroundTransparency=1 star.Image='rbxasset://textures/glow.png'
+            star.ImageColor3=rgb(222,255,255) star.AnchorPoint=Vector2.new(.5,.5)
+            star.Size=UDim2.fromOffset(26,26) star.ZIndex=4 star.Parent=canvas
+            entry.sparks[#entry.sparks+1]=star
+        end
+        entries[model]=entry
+        if model:GetAttribute('SAE_PLACED_TREADMILL') then
+            belt.CanCollide=true belt.CanQuery=true
+            local ramp=model:FindFirstChild('SAE_TREADMILL_ENTRY_RAMP')
+            if not ramp then
+                local scale=model:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
+                ramp=Instance.new('WedgePart') ramp.Name='SAE_TREADMILL_ENTRY_RAMP'
+                ramp.Size=Vector3.new(4.05,1.31,1.65)*scale
+                ramp.CFrame=model:GetPivot()*CFrame.new(0,-.165*scale,5.48*scale)*CFrame.Angles(0,math.pi,0)
+                ramp.Anchored=true ramp.CanCollide=true ramp.CanTouch=false ramp.CanQuery=true
+                ramp.Transparency=1 ramp.CastShadow=false ramp.Parent=model
+            end
+        end
+    end
+
+    local function watchFolder(folder)
+        if not folder:IsA('Folder') or folder.Name~='SAE_V7_PLACED' then return end
+        for _,model in ipairs(folder:GetChildren()) do
+            if model:IsA('Model') then api:Watch(model) end
+        end
+        connect(folder.ChildAdded,function(model) if model:IsA('Model') then api:Watch(model) end end)
+    end
+    for _,folder in ipairs(workspace:GetChildren()) do watchFolder(folder) end
+    connect(workspace.ChildAdded,watchFolder)
+    connect(stop.Activated,function() stopRunning(false) end)
+    connect(UIS.JumpRequest,function() if active then stopRunning(true) end end)
+    connect(UIS.InputBegan,function(input,processed)
+        if processed or UIS:GetFocusedTextBox() then return end
+        if input.KeyCode==Enum.KeyCode.S or input.KeyCode==Enum.KeyCode.Down or
+            input.KeyCode==Enum.KeyCode.ButtonB then stopRunning(false) end
+    end)
+    connect(P.CharacterRemoving,function() stopRunning(false) end)
+    connect(Run.PreSimulation,function()
+        local state=active
+        if not state then return end
+        if state.track and state.track.IsPlaying and state.track.Length>0 then return end
+        -- R6/R15 fallback when the experience does not expose a run Animation.
+        local phase=(os.clock()-state.started)*10
+        for joint in pairs(state.joints) do
+            if joint.Parent then
+                local name=joint.Name:lower()
+                local side=name:find('left',1,true) and 1 or -1
+                local swing=math.sin(phase)*side
+                if name:find('shoulder',1,true) then
+                    joint.Transform=CFrame.Angles(math.rad(-18)+swing*.72,0,0)
+                elseif name:find('hip',1,true) then
+                    joint.Transform=CFrame.Angles(-swing*.90,0,0)
+                elseif name:find('knee',1,true) then
+                    joint.Transform=CFrame.Angles(math.max(0,swing)*1.05,0,0)
+                elseif name:find('elbow',1,true) then
+                    joint.Transform=CFrame.Angles(-.65,0,0)
+                end
+            end
+        end
+    end)
+    local sample=0
+    connect(Run.Heartbeat,function(dt)
+        if dead then return end
+        local character=P.Character
+        local root=character and character:FindFirstChild('HumanoidRootPart')
+        local humanoid=character and character:FindFirstChildOfClass('Humanoid')
+        local now=os.clock()
+        for model,entry in pairs(entries) do
+            if not model.Parent or not entry.belt.Parent then
+                if active and active.entry==entry then stopRunning(false) end
+                entries[model]=nil
+            else
+                local visible=root and (entry.belt.Position-root.Position).Magnitude<110
+                entry.surface.Enabled=not not visible
+                if visible then
+                    for i,row in ipairs(entry.rows) do
+                        local p=(now*.38+(i-1)/4)%1
+                        row.frame.Position=UDim2.fromScale(.5,p)
+                        local fade=1-math.min(1,p/.10,(1-p)/.10)
+                        for _,piece in ipairs(row.pieces) do
+                            piece.frame.BackgroundTransparency=piece.alpha+(1-piece.alpha)*fade
+                        end
+                    end
+                    for i,spark in ipairs(entry.sparks) do
+                        local phase=(now*.26+i*.193)%1
+                        spark.Position=UDim2.fromScale(.12+((i*37)%76)/100,phase)
+                        spark.ImageTransparency=.30+.65*(.5+.5*math.sin(now*3+i*2))
+                    end
+                end
+            end
+        end
+        if active then
+            if active.character~=character or not root or not humanoid or humanoid.Health<=0 or
+                not active.entry.model.Parent or not active.root.Parent then stopRunning(false) end
+            return
+        end
+        sample+=dt
+        if sample<.10 then return end
+        sample=0
+        if now<cooldown or not root or not humanoid or humanoid.Health<=0 or humanoid.Sit or root.Anchored then return end
+        local leg=humanoid.RigType==Enum.HumanoidRigType.R6 and character:FindFirstChild('Left Leg')
+        local standing=humanoid.HipHeight+root.Size.Y*.5+(leg and leg.Size.Y or 0)
+        for model,entry in pairs(entries) do
+            if model:GetAttribute('SAE_PLACED_TREADMILL') then
+                local localPos=model:GetPivot():PointToObjectSpace(root.Position)
+                local scale=model:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
+                local beltY=.49*scale+standing
+                if math.abs(localPos.X)<1.85*scale and localPos.Z>-2.8*scale and localPos.Z<4.25*scale
+                    and math.abs(localPos.Y-beltY)<.85 and humanoid.FloorMaterial~=Enum.Material.Air then
+                    startRunning(entry,character,humanoid,root)
+                    break
+                end
+            end
+        end
+    end)
+    function api:Destroy()
+        if dead then return end
+        dead=true stopRunning(false)
+        for _,connection in ipairs(connections) do connection:Disconnect() end
+        for _,entry in pairs(entries) do if entry.plane.Parent then entry.plane:Destroy() end end
+        for _,track in pairs(tracks) do pcall(function() track:Stop(0); track:Destroy() end) end
+        screen:Destroy()
+    end
+    E.SAE_TREADMILL_RUNTIME=api
+    return api
+end
+local treadmillRuntime=createTreadmillRuntime()
+
 local function placeTreadmill(t,m)
     local function reject(message)
         t.ToolTip=message
@@ -4696,6 +5026,7 @@ local function placeTreadmill(t,m)
     placed:PivotTo(target*CFrame.new(0,-bottom+.025,0))
     placed:SetAttribute('SAE_PLACED_TREADMILL',true)
     placed.Parent=Placed
+    treadmillRuntime:Watch(placed)
     t:Destroy()
     return true
 end
@@ -4899,6 +5230,7 @@ local function spawnTool(cat,name)local image=itemImage(cat,name) if not image t
     t.ToolTip='Equip and click a flat floor to place this treadmill.'
     t.Grip=CFrame.new(0,-.5,0)
     weld(t,m,CFrame.new(0,-1.2,-7.2))
+    treadmillRuntime:Watch(m)
     t.Activated:Connect(function() if t.Parent==P.Character then place(t,m) end end)
 elseif cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP showInventoryToast(name) return true,(m:GetAttribute('SAE_TREADMILL') and 'Custom 3D treadmill') or (cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
