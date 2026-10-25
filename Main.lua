@@ -1131,13 +1131,67 @@ end)
 -- Centered announcement layer.
 Notify=Instance.new("Frame"); Notify.BackgroundTransparency=1; Notify.Size=UDim2.fromScale(1,1); Notify.Parent=Gui
 function nt(par,t,col,z,font) local x=label(par,t,UDim2.new(),UDim2.fromOffset(0,46),z); x.AutomaticSize=Enum.AutomaticSize.X; x.Font=font or Enum.Font.GothamBlack; x.TextColor3=col; x.TextStrokeTransparency=0; x.TextStrokeColor3=Color3.new(0,0,0); return x end
+local noticeStack=Instance.new("Frame")
+noticeStack.Name="AnnouncementStack"
+noticeStack.BackgroundTransparency=1
+noticeStack.Position=UDim2.fromOffset(0,7)
+noticeStack.Size=UDim2.new(1,0,1,-14)
+noticeStack.Parent=Notify
+local noticeLayout=Instance.new("UIListLayout")
+noticeLayout.FillDirection=Enum.FillDirection.Vertical
+noticeLayout.HorizontalAlignment=Enum.HorizontalAlignment.Center
+noticeLayout.VerticalAlignment=Enum.VerticalAlignment.Top
+noticeLayout.SortOrder=Enum.SortOrder.LayoutOrder
+noticeLayout.Padding=UDim.new(0,5)
+noticeLayout.Parent=noticeStack
+local noticeSerial=0
 function notice(uid,sender,before,red,after,font)
-    local row=Instance.new("Frame"); row.BackgroundTransparency=1; row.AutomaticSize=Enum.AutomaticSize.X; row.Size=UDim2.fromOffset(0,50); row.AnchorPoint=Vector2.new(.5,0); row.Position=UDim2.new(.5,0,0,-60); row.Parent=Notify
-    local l=Instance.new("UIListLayout"); l.FillDirection=Enum.FillDirection.Horizontal; l.HorizontalAlignment=Enum.HorizontalAlignment.Center; l.VerticalAlignment=Enum.VerticalAlignment.Center; l.Padding=UDim.new(0,4); l.Parent=row
-    local im=Instance.new("ImageLabel"); im.BackgroundTransparency=1; im.Size=UDim2.fromOffset(40,40); im.Image="rbxthumb://type=AvatarHeadShot&id="..tostring(uid or P.UserId).."&w=150&h=150"; im.Parent=row
-    nt(row,sender,C.blue,29,font); verified(row,26); if before~="" then nt(row,before,C.white,29,font) end; if red~="" then nt(row,red,C.red,29,font) end; if after~="" then nt(row,after,C.white,29,font) end
-    TweenService:Create(row,TweenInfo.new(.25,Enum.EasingStyle.Quint),{Position=UDim2.new(.5,0,0,7)}):Play()
-    task.delay(4,function() if row.Parent then local tw=TweenService:Create(row,TweenInfo.new(.2),{Position=UDim2.new(.5,0,0,-60)}); tw:Play(); tw.Completed:Wait(); if row.Parent then row:Destroy() end end end)
+    noticeSerial+=1
+    local row=Instance.new("CanvasGroup")
+    row.Name="Announcement"..noticeSerial
+    row.BackgroundTransparency=1
+    row.AutomaticSize=Enum.AutomaticSize.X
+    row.Size=UDim2.fromOffset(0,50)
+    row.LayoutOrder=noticeSerial
+    row.GroupTransparency=1
+    row.Parent=noticeStack
+    local layout=Instance.new("UIListLayout")
+    layout.FillDirection=Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment=Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment=Enum.VerticalAlignment.Center
+    layout.SortOrder=Enum.SortOrder.LayoutOrder
+    layout.Padding=UDim.new(0,4)
+    layout.Parent=row
+    local avatar=Instance.new("ImageLabel")
+    avatar.BackgroundTransparency=1
+    avatar.Size=UDim2.fromOffset(40,40)
+    avatar.Image="rbxthumb://type=AvatarHeadShot&id="..tostring(uid or P.UserId).."&w=150&h=150"
+    avatar.LayoutOrder=1
+    avatar.Parent=row
+    local order=2
+    local function text(value,color)
+        if not value or value=="" then return end
+        local caption=nt(row,value,color,29,font)
+        caption.LayoutOrder=order
+        order+=1
+    end
+    text(sender,C.blue)
+    local badge=verified(row,26)
+    badge.LayoutOrder=order
+    order+=1
+    text(before,C.white)
+    text(red,C.red)
+    text(after,C.white)
+    -- Layout positions each live message below the previous one. Fade only:
+    -- competing Position tweens cannot pull multiple announcements onto one line.
+    TweenService:Create(row,TweenInfo.new(.15),{GroupTransparency=0}):Play()
+    task.delay(4,function()
+        if not row.Parent then return end
+        local fade=TweenService:Create(row,TweenInfo.new(.2),{GroupTransparency=1})
+        fade:Play()
+        fade.Completed:Wait()
+        if row.Parent then row:Destroy() end
+    end)
 end
 
 function norm(s) return string.lower(tostring(s or "")):gsub("[^%w]","") end
@@ -3050,7 +3104,7 @@ local function sendAnnouncement(message,targetStatus)
         return
     end
     callRemote("Announcement",msg)
-    notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent an","ANNOUNCEMENT","- "..msg,Enum.Font.FredokaOne)
+    notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,"","",msg,Enum.Font.FredokaOne)
     feedback.Text="Announcement shown."
     feedback.TextColor3=C.green
 end
@@ -3073,7 +3127,7 @@ local function renderPresets()
         row.BackgroundTransparency=1
         row.LayoutOrder=index
         row.Parent=presetList
-        local entry=button(row,message,UDim2.new(),UDim2.new(1,-70,1,0),true)
+        local entry=button(row,message,UDim2.new(),UDim2.fromScale(1,1),true)
         entry.Name="AnnouncePreset"
         entry.TextSize=12
         entry.TextWrapped=true
@@ -3081,12 +3135,36 @@ local function renderPresets()
         entry.MouseButton1Click:Connect(function()
             sendAnnouncement(presetMessage,presetStatus)
         end)
-        local remove=button(row,"Delete",UDim2.new(1,-64,0,0),UDim2.fromOffset(64,38),true)
+        local remove=button(row,"",UDim2.new(1,-32,0,4),UDim2.fromOffset(30,30),true)
         remove.Name="DeletePreset"
-        remove.TextSize=11
         remove.BackgroundColor3=C.red
         remove:SetAttribute("RestingColor",C.red)
         remove:SetAttribute("HoverColor",C.red:Lerp(C.white,.16))
+        -- Draw a compact trash-can symbol without relying on emoji font support.
+        local function trashPart(x,y,w,h,color)
+            local part=Instance.new("Frame")
+            part.Position=UDim2.fromOffset(x,y)
+            part.Size=UDim2.fromOffset(w,h)
+            part.BackgroundColor3=color or C.white
+            part.BorderSizePixel=0
+            part.Active=false
+            part.Parent=remove
+            corner(part,1)
+        end
+        trashPart(10,11,10,12)
+        trashPart(8,8,14,2)
+        trashPart(12,5,6,2)
+        trashPart(12,13,1,7,C.red)
+        trashPart(16,13,1,7,C.red)
+        local touchOnly=UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+        local function showDelete(visible)
+            remove.Visible=visible or touchOnly
+            entry.Size=UDim2.new(1,remove.Visible and -38 or 0,1,0)
+        end
+        showDelete(false)
+        row.MouseEnter:Connect(function() showDelete(true) end)
+        row.MouseLeave:Connect(function() showDelete(false) end)
+        entry.SelectionGained:Connect(function() showDelete(true) end)
         local deleting=false
         remove.MouseButton1Click:Connect(function()
             if deleting then return end
@@ -3410,7 +3488,7 @@ local qv=q("/givevps")
 local function findPlayer(s) s=string.lower(tostring(s)); for _,p in ipairs(Players:GetPlayers()) do if string.lower(p.Name)==s or string.lower(p.DisplayName)==s then return p end end; for _,p in ipairs(Players:GetPlayers()) do if string.sub(string.lower(p.Name),1,string.len(s))==s then return p end end end
 local function command(raw)
     raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,consoleText); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
-    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.red); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..rest,Enum.Font.FredokaOne); line("Announcement shown."); return end
+    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.red); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,"","",rest,Enum.Font.FredokaOne); line("Announcement shown."); return end
     if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.red); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Choose a shortcut below.",C.red)
 end
 ci.FocusLost:Connect(function(enter)
