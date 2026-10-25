@@ -3864,6 +3864,204 @@ local function star()local m=Instance.new('Model')m.Name='Star'local gold,edge,d
 
 local function refEgg(name) return function() return buildSculptedEgg(name) end end
 -- Custom treadmill geometry follows the supplied shop art, with a full running deck.
+local function detailTreadmill(m,croc)
+    -- Replace the simple face blocks with layered eyes, masks, ears and sculpture.
+    local removeNames={RabbitEar=true,EarInset=true,RabbitHead=true,RabbitMuzzle=true,EyeSocket=true,BlueEye=true,Pupil=true,RedBrow=true,Nose=true,Smile=true,ShoulderArmor=true,ConsoleArmor=true,ConsoleEdgeLight=true,ArmorFoot=true,FootRedTrim=true,PawPad=true,PawToe=true,CrocodileHead=true,CrocodileSnout=true,LowerJaw=true,CrocodileEye=true,CrocodilePupil=true,EyeShine=true,Nostril=true,CrocodileTooth=true,ExplorerHatBrim=true,ExplorerHatCrown=true,HatBand=true,HatBadge=true,PortalStone=true,ArchStone=true,JungleLeaf=true,CrystalPlinth=true,EmeraldCrystal=true,WaterfallChannel=true,Waterfall=true,PoolRim=true,WaterPool=true,SpeedArrow=true}
+    for _,child in ipairs(m:GetChildren()) do if removeNames[child.Name] then child:Destroy() end end
+    local white=rgb(240,243,248)
+    local black=rgb(15,22,31)
+    local red=rgb(224,23,32)
+    local cyan=rgb(0,215,255)
+    local lime=rgb(111,255,9)
+    local stone=rgb(151,155,116)
+    local function box(n,size,color,x,y,z,material,rotation)
+        return part(m,n,size,color,CFrame.new(x,y,z)*(rotation or CFrame.new()),material or MAT)
+    end
+    local function orb(n,size,color,x,y,z,material,rotation)
+        return ball(m,n,size,color,CFrame.new(x,y,z)*(rotation or CFrame.new()),material or MAT)
+    end
+    local function bar(n,a,b,width,color,material)
+        local delta=b-a
+        if math.abs(delta.Unit.Y)>.99 then return part(m,n,Vector3.new(width,delta.Magnitude,width),color,CFrame.new((a+b)*.5),material or MAT) end
+        return part(m,n,Vector3.new(width,width,delta.Magnitude),color,CFrame.lookAt((a+b)*.5,b),material or MAT)
+    end
+    local function glow(anchor,color,diameter,power)
+        local light=Instance.new('PointLight')
+        light.Color=color light.Brightness=power or .7 light.Range=diameter or 5 light.Shadows=false light.Parent=anchor
+        local halo=Instance.new('BillboardGui')
+        halo.Name='LocalLightHalo' halo.Adornee=anchor halo.AlwaysOnTop=false
+        halo.LightInfluence=0 halo.Size=UDim2.fromScale((diameter or 5)*.48,(diameter or 5)*.48)
+        halo.MaxDistance=100 halo.Parent=anchor
+        local image=Instance.new('ImageLabel')
+        image.BackgroundTransparency=1 image.Size=UDim2.fromScale(1,1)
+        image.Image='rbxasset://textures/glow.png'
+        image.ImageColor3=color image.ImageTransparency=.72 image.Parent=halo
+    end
+    local function chevron(y,color)
+        -- Broad arrow faces instead of thin diagonal rods.
+        for _,side in ipairs({-1,1}) do
+            part(m,'ArrowFace',Vector3.new(1.16,.42,.13),color,CFrame.new(side*.43,y,-3.83)*CFrame.Angles(0,0,math.rad(-side*35)),NEON)
+        end
+    end
+    chevron(3.75,croc and lime or cyan)
+    chevron(2.75,croc and lime or cyan)
+    local arrowGlow=box('DisplayGlow',Vector3.new(.13,.13,.13),croc and lime or cyan,0,3.3,-3.75,NEON)
+    arrowGlow.Transparency=1
+    glow(arrowGlow,croc and lime or cyan,5,.65)
+    if not croc then
+        local function ear(x,y,z,height,angle)
+            local rot=CFrame.Angles(0,0,math.rad(angle))
+            orb('EarWhiteArmor',Vector3.new(1.1,height,.56),white,x,y,z,MAT,rot)
+            orb('EarRedRim',Vector3.new(.82,height*.87,.21),red,x,y,z+.31,NEON,rot)
+            orb('EarBlackInset',Vector3.new(.65,height*.78,.13),black,x,y,z+.43,MAT,rot)
+        end
+        ear(1.13,8.0,-4.02,3.35,-24)
+        ear(-.92,7.35,-4.04,2.25,20)
+        ear(-1.62,8.14,-4.0,1.95,72)
+        box('BentEarCap',Vector3.new(.95,.18,1.0),white,-2.23,8.39,-3.97,MAT,CFrame.Angles(0,0,math.rad(15)))
+        orb('RabbitCranium',Vector3.new(3.66,1.9,1.75),white,0,6.05,-4.05)
+        orb('RabbitJaw',Vector3.new(2.92,.91,1.25),rgb(216,224,230),0,5.48,-3.75)
+        for _,side in ipairs({-1,1}) do
+            local tilt=CFrame.Angles(0,0,math.rad(side*9))
+            orb('RedEyeMask',Vector3.new(1.72,.96,.44),red,side*.88,6.13,-3.29,MAT,tilt)
+            orb('EyeRecess',Vector3.new(1.34,.77,.32),black,side*.88,6.12,-3.03,MAT,tilt)
+            orb('EyeWhite',Vector3.new(1.10,.66,.20),white,side*.88,6.11,-2.84,MAT,tilt)
+            orb('BlueIris',Vector3.new(.56,.61,.15),cyan,side*.82,6.09,-2.71,NEON)
+            orb('EyePupil',Vector3.new(.30,.46,.12),rgb(4,15,26),side*.80,6.1,-2.61)
+            orb('EyeCatchlight',Vector3.new(.19,.19,.08),white,side*.80-.11,6.28,-2.53)
+            orb('SmallEyeCatchlight',Vector3.new(.075,.075,.06),white,side*.80+.12,5.98,-2.53)
+            part(m,'AngledWhiteBrow',Vector3.new(1.51,.48,.65),white,CFrame.new(side*.91,6.61,-3.13)*CFrame.Angles(0,0,math.rad(side*17)),MAT)
+            bar('MaskEdge',Vector3.new(side*.2,6.39,-2.88),Vector3.new(side*1.65,6.62,-3.02),.11,red)
+            orb('MuzzleLobe',Vector3.new(1.55,.73,.64),white,side*.49,5.64,-3.02)
+            wedge(m,'CheekArmor',Vector3.new(.7,.7,.8),white,CFrame.new(side*1.55,5.86,-3.46)*CFrame.Angles(0,0,math.rad(side*25)),MAT)
+        end
+        orb('RabbitNose',Vector3.new(.55,.26,.25),black,0,5.79,-2.61)
+        bar('Philtrum',Vector3.new(0,5.68,-2.57),Vector3.new(0,5.43,-2.58),.045,black)
+        local smile={{-.78,5.69},{-.62,5.54},{-.38,5.45},{0,5.41},{.38,5.45},{.62,5.54},{.78,5.69}}
+        for i=1,#smile-1 do bar('CurvedSmile',Vector3.new(smile[i][1],smile[i][2],-2.61),Vector3.new(smile[i+1][1],smile[i+1][2],-2.61),.052,black) end
+        for _,side in ipairs({-1,1}) do
+            box('ColumnRedSpine',Vector3.new(.74,4.25,1.13),red,side*2.04,3.35,-4.12)
+            box('ColumnWhiteFace',Vector3.new(.52,3.7,.23),white,side*2.04,3.3,-3.43)
+            local strip=box('RedNeonColumn',Vector3.new(.13,3.15,.14),rgb(255,35,30),side*1.66,3.13,-3.64,NEON)
+            if side==1 then glow(strip,rgb(255,35,30),3,.45) end
+            for _,y in ipairs({1.72,4.95}) do
+                part(m,'RedShoulderFin',Vector3.new(.95,1.35,.74),red,CFrame.new(side*2.43,y,-4.18)*CFrame.Angles(0,0,math.rad(-side*27)),MAT)
+                bar('FinLight',Vector3.new(side*2.4,y-.46,-3.75),Vector3.new(side*2.79,y+.39,-3.75),.085,rgb(255,49,41),NEON)
+            end
+            part(m,'ShoulderWhiteHousing',Vector3.new(.72,1.1,.42),white,CFrame.new(side*2.18,5.05,-3.59)*CFrame.Angles(0,0,math.rad(-side*24)),MAT)
+            box('ShoulderDarkScreen',Vector3.new(.38,.69,.12),black,side*2.18,5.02,-3.27)
+            for k=0,1 do box('ShoulderCyanScreen',Vector3.new(.31,.12,.08),cyan,side*2.18,4.86+k*.29,-3.17,NEON) end
+            -- Octagonal white/red badge frame with a rabbit silhouette.
+            cyl(m,'ArmBadgeBack',Vector3.new(.16,1.33,1.33),black,CFrame.new(side*2.04,3.55,-3.18)*CFrame.Angles(0,math.pi/2,0),MAT)
+            for i=1,8 do
+                local t=(i-1)*math.pi/4+math.pi/8
+                local u=i*math.pi/4+math.pi/8
+                bar('BadgeWhiteBevel',Vector3.new(side*2.04+math.cos(t)*.73,3.55+math.sin(t)*.73,-3.12),Vector3.new(side*2.04+math.cos(u)*.73,3.55+math.sin(u)*.73,-3.12),.15,white)
+                bar('BadgeRedInset',Vector3.new(side*2.04+math.cos(t)*.59,3.55+math.sin(t)*.59,-3.03),Vector3.new(side*2.04+math.cos(u)*.59,3.55+math.sin(u)*.59,-3.03),.07,red)
+            end
+            orb('RabbitBadgeHead',Vector3.new(.43,.34,.08),red,side*2.04,3.34,-2.99)
+            for _,earSide in ipairs({-1,1}) do orb('RabbitBadgeEar',Vector3.new(.14,.55,.08),red,side*2.04+earSide*.15,3.68,-2.99,MAT,CFrame.Angles(0,0,math.rad(-earSide*23))) end
+            box('LowerArmScreen',Vector3.new(.39,.76,.13),black,side*2.04,2.12,-3.24)
+            for k=0,1 do box('ArmCyanLight',Vector3.new(.28,.12,.09),cyan,side*2.04,1.95+k*.31,-3.14,NEON) end
+            -- Thick angled side armor and illuminated channels down to the front paws.
+            bar('WhiteSideArmor',Vector3.new(side*2.56,.92,3.6),Vector3.new(side*2.56,2.02,-2.5),.61,white)
+            bar('RedSideSpine',Vector3.new(side*2.84,.76,3.5),Vector3.new(side*2.84,1.85,-2.45),.30,red)
+            bar('SideBlackChannel',Vector3.new(side*2.58,1.18,2.8),Vector3.new(side*2.58,1.89,-1.7),.30,black)
+            bar('SideCyanChannel',Vector3.new(side*2.6,1.2,2.7),Vector3.new(side*2.6,1.91,-1.6),.10,cyan,NEON)
+            box('PawHousingRed',Vector3.new(1.23,1.15,.93),red,side*2.48,.91,4.61)
+            box('PawHousingWhite',Vector3.new(1.07,1.06,.25),white,side*2.48,.99,5.15)
+            orb('PawDarkInset',Vector3.new(.88,.86,.13),black,side*2.48,1.01,5.32)
+            local pad=orb('CyanPawPad',Vector3.new(.39,.34,.10),cyan,side*2.48,.84,5.41,NEON)
+            for toe=0,3 do
+                local x=(toe-1.5)*.19
+                orb('CyanPawToe',Vector3.new(.20,.26,.10),cyan,side*2.48+x,1.11+(.5-math.abs(x))*.22,5.41,NEON)
+            end
+            glow(pad,cyan,3,.6)
+            box('PawBottomBumper',Vector3.new(1.28,.18,.43),red,side*2.48,.38,5.2)
+            for _,z in ipairs({-2.4,.2,2.8}) do
+                box('DeckWhiteSegment',Vector3.new(.61,.48,1.6),white,side*2.7,.30,z)
+                box('DeckRedCorner',Vector3.new(.21,.23,1.3),red,side*3.02,.28,z)
+            end
+        end
+    else
+        -- Rounded safari hat and oversized glossy eyes from the crocodile reference.
+        orb('CrocHeadSculpt',Vector3.new(3.55,1.7,1.80),rgb(112,185,46),0,6.64,-4.06)
+        box('ShortRoundedSnout',Vector3.new(2.86,.63,.96),rgb(132,198,55),0,6.30,-3.03)
+        orb('SnoutRoundLip',Vector3.new(2.91,.56,.40),rgb(132,198,55),0,6.31,-2.54)
+        box('CrocMouthLine',Vector3.new(2.45,.10,.08),rgb(52,91,30),0,6.01,-2.33)
+        for _,side in ipairs({-1,1}) do
+            orb('OversizedCrocEye',Vector3.new(1.31,1.48,.57),rgb(253,253,239),side*.92,7.11,-3.10)
+            orb('GlossyBlackCrocEye',Vector3.new(1.03,1.21,.28),rgb(5,11,17),side*.92,7.13,-2.78)
+            orb('BigEyeCatchlight',Vector3.new(.32,.36,.10),white,side*.92-.19,7.45,-2.61)
+            orb('TinyEyeCatchlight',Vector3.new(.12,.14,.08),white,side*.92+.23,6.90,-2.60)
+            orb('CrocNostril',Vector3.new(.23,.12,.08),rgb(60,105,31),side*.78,6.55,-2.32)
+        end
+        for i=0,5 do wedge(m,'SmallCrocTooth',Vector3.new(.25,.23,.16),rgb(243,238,210),CFrame.new(-.94+i*.38,5.94,-2.32),MAT) end
+        cyl(m,'SafariHatBrim',Vector3.new(.16,4.55,2.55),rgb(26,57,35),CFrame.new(0,7.97,-4.07)*CFrame.Angles(0,0,math.pi/2),MAT)
+        cyl(m,'SafariHatCrown',Vector3.new(.65,2.91,1.79),rgb(37,70,41),CFrame.new(0,8.35,-4.07)*CFrame.Angles(0,0,math.pi/2),MAT)
+        orb('HatSoftTop',Vector3.new(2.89,.36,1.77),rgb(37,70,41),0,8.68,-4.07)
+        cyl(m,'SafariHatBand',Vector3.new(.14,3.0,1.85),rgb(69,88,49),CFrame.new(0,8.09,-4.07)*CFrame.Angles(0,0,math.pi/2),MAT)
+        local gold=rgb(243,211,109)
+        orb('HatAnimalBadge',Vector3.new(.30,.26,.07),gold,0,8.40,-3.12)
+        bar('HatBadgeTail',Vector3.new(-.05,8.36,-3.1),Vector3.new(-.47,8.48,-3.1),.07,gold)
+        bar('HatBadgeNeck',Vector3.new(.09,8.46,-3.1),Vector3.new(.19,8.62,-3.1),.07,gold)
+        for _,side in ipairs({-1,1}) do bar('HatBadgeLeg',Vector3.new(side*.06,8.34,-3.1),Vector3.new(side*.25,8.25,-3.1),.055,gold) end
+        for _,side in ipairs({-1,1}) do
+            for i=0,3 do
+                local p=box('CarvedPortalStone',Vector3.new(.81,.84,1.08),stone,side*2.04,1.34+i*.84,-4.09,Enum.Material.Cobblestone)
+                p.TopSurface=Enum.SurfaceType.Studs
+                box('StoneJoint',Vector3.new(.84,.045,.08),rgb(90,101,71),side*2.04,.94+i*.84,-3.49)
+            end
+        end
+        for i=0,8 do
+            local theta=i*math.pi/8
+            box('CurvedArchBlock',Vector3.new(.82,.57,1.08),stone,math.cos(theta)*2.04,4.17+math.sin(theta)*1.40,-4.09,Enum.Material.Cobblestone,CFrame.Angles(0,0,theta-math.pi/2))
+        end
+        for _,side in ipairs({-1,1}) do
+            for level=0,3 do
+                box('JungleOuterStone',Vector3.new(.79,.68,.9),level%2==0 and rgb(113,132,69) or stone,side*(2.62+(level%2)*.14),1.4+level*.89,-4.3)
+                box('MossPatch',Vector3.new(.53,.15,.22),rgb(93,150,37),side*(2.62+(level%2)*.14),1.78+level*.89,-3.8)
+            end
+            box('TotemFace',Vector3.new(.65,.85,.37),stone,side*2.65,4.21,-3.67)
+            for _,eye in ipairs({-.16,.16}) do box('TotemEye',Vector3.new(.13,.12,.08),rgb(228,240,44),side*2.65+eye,4.41,-3.43,NEON) end
+            box('TotemNose',Vector3.new(.18,.38,.16),rgb(105,120,76),side*2.65,4.05,-3.36)
+            box('WaterSpoutStone',Vector3.new(.95,.72,.94),stone,side*2.69,2.56,-2.46)
+            box('WaterSpoutOpening',Vector3.new(.62,.26,.13),rgb(45,89,70),side*2.69,2.47,-1.94)
+            local waterfall=box('TurquoiseWaterfall',Vector3.new(.62,1.45,.17),rgb(52,216,239),side*2.69,1.66,-1.89,NEON)
+            waterfall.Transparency=.20
+            for i=0,3 do
+                local highlight=box('WaterfallHighlights',Vector3.new(.07,.20,.04),rgb(166,253,255),side*2.69-.20+(i%2)*.32,1.15+i*.32,-1.78,NEON)
+                highlight.Transparency=.32
+            end
+            box('WaterTrough',Vector3.new(1.12,.22,1.62),stone,side*2.69,.80,-1.08)
+            cyl(m,'RoundWaterPool',Vector3.new(.06,.78,1.15),rgb(13,204,225),CFrame.new(side*2.69,.95,-1.02)*CFrame.Angles(0,0,math.pi/2),NEON)
+            for _,z in ipairs({-3.72,3.82}) do
+                box('GemStonePedestal',Vector3.new(.79,.35,.79),stone,side*2.62,.81,z)
+                local crystal=box('EmeraldCrystalBody',Vector3.new(.47,.73,.47),lime,side*2.62,1.35,z,NEON,CFrame.Angles(0,math.pi/4,0))
+                for _,turn in ipairs({0,math.pi}) do wedge(m,'CrystalTip',Vector3.new(.48,.39,.48),lime,CFrame.new(side*2.62,1.88,z)*CFrame.Angles(0,turn,0),NEON) end
+                glow(crystal,lime,4,.8)
+            end
+            bar('PalmTrunk',Vector3.new(side*3.06,.9,-3.0),Vector3.new(side*3.19,4.7,-4.46),.18,rgb(83,99,41))
+            for tier=0,2 do
+                local cy=2.6+tier*.88
+                for leaf=0,3 do
+                    local angle=math.rad(side*(25+leaf*28))
+                    wedge(m,'PalmLeaf',Vector3.new(.31,.23,1.89),rgb(18,116+tier*15,41),CFrame.new(side*(3.02+leaf*.17),cy,-4.05+leaf*.11)*CFrame.Angles(math.rad(-10+leaf*7),angle,math.rad(-side*20)),MAT)
+                end
+            end
+            for j=0,5 do
+                local moss=box('DeckMoss',Vector3.new(.46,.16,.52),rgb(82,151,35),side*2.80,.61,-2.5+j*1.0)
+                moss.TopSurface=Enum.SurfaceType.Studs
+            end
+        end
+    end
+    -- Small studs on the belt and segmented side panels retain the toy-like style.
+    for row=0,12 do
+        for col=-1,1 do box('RaisedBeltCell',Vector3.new(.38,.035,.21),rgb(37,44,52),col*.92,.55,-3.85+row*.63) end
+    end
+end
+
+
 local function customTreadmill(name,crocodile)
     local m=Instance.new('Model')
     m.Name=name
@@ -3977,6 +4175,7 @@ local function customTreadmill(name,crocodile)
         block('HatBand',Vector3.new(3.0,.18,2.0),rgb(73,88,48),0,8.1,-4.1)
         block('HatBadge',Vector3.new(.67,.32,.09),rgb(244,210,101),0,8.37,-3.09)
     end
+    detailTreadmill(m,crocodile)
     m:SetAttribute('SAE_TREADMILL',true)
     m:SetAttribute('SAE_REFERENCE_DETAIL','CustomTreadmill')
     return finalize(m,root)
