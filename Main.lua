@@ -5635,7 +5635,7 @@ corner(giftWin,14)
 stroke(giftWin,.12)
 giftGradient(giftWin,Color3.fromRGB(44,211,247),Color3.fromRGB(112,255,142),0)
 local giftScale=Instance.new('UIScale')
-giftScale.Scale=.9
+giftScale.Scale=.81
 giftScale.Parent=giftWin
 
 local giftHead=Instance.new('Frame')
@@ -5766,7 +5766,7 @@ local function moveGiftPanel(center)
 end
 local function fitGiftPanel()
     local viewport=giftViewport()
-    giftScale.Scale=.9
+    giftScale.Scale=.81
     moveGiftPanel(giftPanelCenter or viewport*.5)
 end
 local function setGiftPanelSize(size)
