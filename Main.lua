@@ -5635,7 +5635,7 @@ corner(giftWin,14)
 stroke(giftWin,.12)
 giftGradient(giftWin,Color3.fromRGB(44,211,247),Color3.fromRGB(112,255,142),0)
 local giftScale=Instance.new('UIScale')
-giftScale.Scale=1
+giftScale.Scale=.9
 giftScale.Parent=giftWin
 
 local giftHead=Instance.new('Frame')
@@ -5766,7 +5766,7 @@ local function moveGiftPanel(center)
 end
 local function fitGiftPanel()
     local viewport=giftViewport()
-    giftScale.Scale=1
+    giftScale.Scale=.9
     moveGiftPanel(giftPanelCenter or viewport*.5)
 end
 local function setGiftPanelSize(size)
@@ -6763,7 +6763,7 @@ showGiftCatalog=function()
             local icon=Instance.new('ImageLabel')
             icon.AnchorPoint=Vector2.new(.5,.5)
             icon.Position=UDim2.fromScale(.5,.5)
-            icon.Size=productCategory=='Others' and UDim2.fromOffset(86,71) or UDim2.fromOffset(62,51)
+            icon.Size=productCategory=='Pets' and UDim2.fromOffset(62,51) or UDim2.fromOffset(86,71)
             local imageBounds=GiftArtworkBounds[product.imageKey]
             if imageBounds then
                 icon.ImageRectOffset=Vector2.new(imageBounds[1],imageBounds[2])
