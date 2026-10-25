@@ -4096,6 +4096,11 @@ local GiftProducts={
         {imageKey='1-star',name='1 Star',model='Star',rate='0.90%',imageCategory='Star'},
     },
 }
+local giftBundleProducts={}
+for _,category in ipairs({'Eggs','Pets','Others'}) do
+    for _,product in ipairs(GiftProducts[category]) do giftBundleProducts[#giftBundleProducts+1]=product end
+end
+local GiftAllProduct={imageKey='all-shop-items',name='Everything in the Shop',model='All Shop Items',rate='',bundle=true}
 local giftCategory='Eggs'
 local giftQuery=''
 local giftSelected=nil
@@ -4327,6 +4332,8 @@ giftStatus.TextWrapped=true
 giftStatus.TextYAlignment=Enum.TextYAlignment.Center
 
 local giftPage='catalog'
+local showGiftCatalog
+local resetGiftFlow
 local giftSearchSerial=0
 local function giftStepFrame(name)
     local frame=Instance.new('Frame')
@@ -4393,7 +4400,7 @@ local function updateGiftQuantityImages()
         {{0,6,84,100},{64,6,84,100}},
         {{0,9,74,96},{37,3,74,96},{74,9,74,96}}
     }
-    local layout=layouts[count]
+    local layout=giftSelected and giftSelected.bundle and {{0,0,148,112}} or layouts[count]
     for i,icon in ipairs(giftStackIcons) do
         icon.Visible=i<=count
         if layout[i] then
@@ -4568,7 +4575,7 @@ for count=1,3 do
     caption.ZIndex=choice.ZIndex+2
     giftFoundQuantityCards[count]={button=choice,images=images,caption=caption,outline=outline}
     choice.MouseButton1Click:Connect(function()
-        if not giftSelected or giftSelected.category=='Others' then return end
+        if not giftSelected or giftSelected.category=='Others' or giftSelected.bundle then return end
         giftQty=quantity
         updateGiftQuantityImages()
         for q,card in ipairs(giftFoundQuantityCards) do
@@ -4732,7 +4739,7 @@ giftWin:GetPropertyChangedSignal('Visible'):Connect(function()
         stopGiftRain()
         cancelGiftSearch()
         giftSpinnerTween:Cancel()
-        if giftPage=='search' then setGiftPage('form') end
+        if resetGiftFlow then resetGiftFlow() else setGiftPage('catalog') end
     end
 end)
 giftGui.Destroying:Connect(function()
@@ -4867,6 +4874,31 @@ local giftImageQueue={}
 local giftImageWorker=false
 local function queueGiftImage(target,category,product)
     target:SetAttribute('SAE_GiftImageKey',product.imageKey)
+    local oldMontage=target:FindFirstChild('BundleMontage')
+    if oldMontage then oldMontage:Destroy() end
+    if product.bundle then
+        target.Image=''
+        local loading=target:FindFirstChild('GiftImagePlaceholder')
+        if loading then loading.Visible=false end
+        local montage=Instance.new('Frame')
+        montage.Name='BundleMontage'
+        montage.Size=UDim2.fromScale(1,1)
+        montage.BackgroundTransparency=1
+        montage.ZIndex=target.ZIndex+1
+        montage.Parent=target
+        for index,item in ipairs(giftBundleProducts) do
+            local thumbnail=Instance.new('ImageLabel')
+            thumbnail.Name=item.imageKey
+            thumbnail.BackgroundTransparency=1
+            thumbnail.Position=UDim2.fromScale(((index-1)%6)/6,math.floor((index-1)/6)/5)
+            thumbnail.Size=UDim2.fromScale(1/6,1/5)
+            thumbnail.ScaleType=Enum.ScaleType.Fit
+            thumbnail.ZIndex=montage.ZIndex
+            thumbnail.Parent=montage
+            queueGiftImage(thumbnail,'All',item)
+        end
+        return
+    end
     local placeholder=target:FindFirstChild('GiftImagePlaceholder')
     if placeholder then
         placeholder.Text='Loading image...'
@@ -4903,8 +4935,14 @@ local function startGiftRain(product)
         return giftRainSerial==serial and giftGui.Parent and giftWin.Visible and giftPage=='sent'
     end
     task.spawn(function()
-        local ok,asset=pcall(giftImages,product.category,product)
-        if not active() or not ok or not asset then return end
+        local rainProducts=product.bundle and giftBundleProducts or {product}
+        local rainAssets={}
+        for _,item in ipairs(rainProducts) do
+            if not active() then return end
+            local ok,asset=pcall(giftImages,product.category,item)
+            if ok and asset then rainAssets[#rainAssets+1]={asset=asset,product=item} end
+        end
+        if not active() or #rainAssets==0 then return end
         giftRainLayer.Visible=true
         local random=Random.new()
         local tweenService=game:GetService('TweenService')
@@ -4920,12 +4958,13 @@ local function startGiftRain(product)
             image.Size=UDim2.fromOffset(size,size)
             image.BackgroundTransparency=1
             image.Active=false
-            image.Image=asset
+            local falling=rainAssets[random:NextInteger(1,#rainAssets)]
+            image.Image=falling.asset
             image.ScaleType=Enum.ScaleType.Fit
             image.Rotation=random:NextInteger(-35,35)
             image.ZIndex=21
             image.Parent=giftRainLayer
-            local bounds=GiftArtworkBounds[product.imageKey]
+            local bounds=GiftArtworkBounds[falling.product.imageKey]
             if bounds then
                 image.ImageRectOffset=Vector2.new(bounds[1],bounds[2])
                 image.ImageRectSize=Vector2.new(bounds[3]-bounds[1],bounds[4]-bounds[2])
@@ -4956,7 +4995,7 @@ local function startGiftRain(product)
 end
 local function refreshGiftFoundQuantity()
     if not giftSelected then return end
-    local single=giftSelected.category=='Others'
+    local single=giftSelected.category=='Others' or giftSelected.bundle
     for count,card in ipairs(giftFoundQuantityCards) do
         card.button.Visible=not single or count==1
         card.button.Position=UDim2.fromOffset(single and 372 or 236+(count-1)*136,104)
@@ -5021,7 +5060,7 @@ local function addGiftShimmer(target)
     if not target:IsA('GuiButton') or target:GetAttribute('SAE_GiftShimmer') then return end
     -- Only primary actions shimmer; tabs, close icons, and quantity choices stay still.
     local text=target.Text:lower()
-    if text~='gift' and text~='search player' and text~="yes, it's me!" and text~='no, go back' and text~='done' then return end
+    if text~='gift' and text~='search player' and text~="yes, it's me!" and text~='no, go back' and text~='done' and text~='gift all' then return end
     target:SetAttribute('SAE_GiftShimmer',true)
     giftShimmerIndex+=1
     local shine=Instance.new('Frame')
@@ -5055,25 +5094,49 @@ giftGui.Destroying:Connect(function() giftShimmerConnection:Disconnect() end)
 addGiftButtonSymbol(giftLauncher)
 -- The identity confirmation keeps its text-only reference design.
 
-local function showGiftCatalog()
+local function selectGiftItem(productData,productCategory)
+    cancelGiftSearch()
+    giftSelected={
+        imageKey=productData.imageKey,name=productData.name,model=productData.model,
+        rate=productData.rate,imageCategory=productData.imageCategory,
+        category=productCategory,bundle=productData.bundle
+    }
+    giftQty=1
+    updateGiftQuantityImages()
+    giftRecipient=nil
+    giftRecipientInput.Text=''
+    giftDetailStatus.Text=''
+    giftDetailName.Text=productData.name
+    giftDetailMeta.Text=productData.bundle and (#giftBundleProducts..' shop items') or ('Divine  ·  '..productData.rate)
+    giftDetailIcon.Image=''
+    queueGiftImage(giftDetailIcon,productCategory,productData)
+    giftPreview.Text="Yes, it's me!"
+    setGiftPage('form')
+end
+showGiftCatalog=function()
     cancelGiftSearch()
     setGiftPage('catalog')
     for _,child in ipairs(giftList:GetChildren()) do
         if child:IsA('Frame') then child:Destroy() end
     end
-    for i,category in ipairs({'Eggs','Pets','Others'}) do
+    for i,category in ipairs({'Eggs','Gift All','Pets','Others'}) do
         local categoryName=category
         local b=giftTabButtons[categoryName]
         if not b then
-            b=button(giftTabs,category,UDim2.new((i-1)/3,4,0,0),UDim2.new(1/3,-8,1,0))
+            b=button(giftTabs,category,UDim2.new((i-1)/4,3,0,0),UDim2.new(1/4,-6,1,0))
             giftTabButtons[categoryName]=b
             b.TextSize=14
+            if categoryName=='Gift All' then giftOpaqueWhiteCaption(b) end
             b.MouseButton1Click:Connect(function()
+                if categoryName=='Gift All' then selectGiftItem(GiftAllProduct,'All') return end
                 giftCategory=categoryName
                 showGiftCatalog()
             end)
         end
         giftButtonPaint(b,category=='Pets' and 'cyan' or (category=='Others' and 'amber' or 'green'),category==giftCategory)
+        if categoryName=='Gift All' then
+            giftGradient(b,Color3.fromRGB(255,111,87),Color3.fromRGB(224,42,25))
+        end
     end
     local query=giftQuery:lower()
     local shown=0
@@ -5153,24 +5216,28 @@ local function showGiftCatalog()
             giftButton.TextSize=20
             addGiftButtonSymbol(giftButton)
             giftButton.MouseButton1Click:Connect(function()
-                cancelGiftSearch()
-                giftSelected={imageKey=productData.imageKey,name=productData.name,model=productData.model,rate=productData.rate,imageCategory=productData.imageCategory,category=productCategory}
-                giftQty=1
-                updateGiftQuantityImages()
-                giftRecipient=nil
-                giftRecipientInput.Text=''
-                giftDetailStatus.Text=''
-                giftDetailName.Text=productData.name
-                giftDetailMeta.Text='Divine  ·  '..productData.rate
-                giftDetailIcon.Image=''
-                queueGiftImage(giftDetailIcon,productCategory,productData)
-                giftPreview.Text="Yes, it\'s me!"
-                setGiftPage('form')
+                selectGiftItem(productData,productCategory)
             end)
         end
     end
     giftStatus.Text=shown==0 and 'No matching items' or ('Showing '..shown..' '..giftCategory)
     giftStatus.TextColor3=C.m
+end
+resetGiftFlow=function()
+    cancelGiftSearch()
+    giftSelected=nil
+    giftRecipient=nil
+    giftQty=1
+    giftCategory='Eggs'
+    giftQuery=''
+    giftSearch.Text=''
+    giftRecipientInput.Text=''
+    giftDetailStatus.Text=''
+    giftRecipientAvatar.Image=''
+    giftFoundDisplayName.Text=''
+    giftFoundUsername.Text=''
+    giftList.CanvasPosition=Vector2.zero
+    showGiftCatalog()
 end
 giftSearch:GetPropertyChangedSignal('Text'):Connect(function()
     giftQuery=giftSearch.Text
@@ -5257,7 +5324,7 @@ giftPreview.MouseButton1Click:Connect(function()
     local function escaped(text)
         return text:gsub('&','&amp;'):gsub('<','&lt;'):gsub('>','&gt;')
     end
-    local quantityPrefix=giftSelected.category=='Others' and '' or (count..'× ')
+    local quantityPrefix=(giftSelected.category=='Others' or giftSelected.bundle) and '' or (count..'× ')
     giftSentSummary.Text=quantityPrefix..'<font color="#9228ed">'..escaped(giftSelected.name)..'</font> has been gifted to\n'..escaped(giftRecipient.username)..'.'
     setGiftPage('sent')
     startGiftRain(giftSelected)
