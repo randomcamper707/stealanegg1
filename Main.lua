@@ -5616,7 +5616,7 @@ giftGui.DisplayOrder=735
 giftGui.Parent=PG
 
 -- Share the Items launcher's screen layer so inset offsets cannot overlap them.
-local giftLauncher=button(gui,'GIFTS',UDim2.new(0,12,.5,30),UDim2.fromOffset(88,44))
+local giftLauncher=button(gui,'SEND',UDim2.new(0,12,.5,30),UDim2.fromOffset(88,44))
 giftGui.Destroying:Connect(function() giftLauncher:Destroy() end)
 giftLauncher.TextSize=14
 giftButtonPaint(giftLauncher,'green')
@@ -5665,19 +5665,10 @@ for row=0,1 do
         rim.Thickness=1
     end
 end
-local giftTitle=label(giftHead,'Gifting Panel',UDim2.fromOffset(44,14),UDim2.fromOffset(200,22),17)
-local giftHeaderSymbol=Instance.new('ImageLabel')
-giftHeaderSymbol.Name='GiftHeaderSymbol'
-giftHeaderSymbol.Position=UDim2.fromOffset(14,14)
-giftHeaderSymbol.Size=UDim2.fromOffset(22,22)
-giftHeaderSymbol.BackgroundTransparency=1
-giftHeaderSymbol.ImageColor3=C.w
-giftHeaderSymbol.ScaleType=Enum.ScaleType.Fit
-giftHeaderSymbol.Parent=giftHead
 local giftLogo=Instance.new('ImageLabel')
 giftLogo.Name='StealAnEggLogo'
-giftLogo.AnchorPoint=Vector2.new(.5,.5)
-giftLogo.Position=UDim2.fromScale(.5,.5)
+giftLogo.AnchorPoint=Vector2.new(0,.5)
+giftLogo.Position=UDim2.new(0,14,.5,0)
 giftLogo.Size=UDim2.fromOffset(120,50)
 giftLogo.BackgroundTransparency=1
 giftLogo.ScaleType=Enum.ScaleType.Fit
@@ -5686,7 +5677,7 @@ giftLogo.ZIndex=2
 local giftLogoShadow=Instance.new('ImageLabel')
 giftLogoShadow.Name='LogoShadow'
 giftLogoShadow.AnchorPoint=giftLogo.AnchorPoint
-giftLogoShadow.Position=UDim2.new(.5,1, .5,1)
+giftLogoShadow.Position=UDim2.new(0,15,.5,1)
 giftLogoShadow.Size=giftLogo.Size
 giftLogoShadow.BackgroundTransparency=1
 giftLogoShadow.ImageColor3=Color3.new(0,0,0)
@@ -5742,7 +5733,7 @@ local giftClose=button(giftHead,'X',UDim2.new(1,-44,0,9),UDim2.fromOffset(32,32)
 giftClose.TextSize=16
 giftClose.ZIndex=3
 giftButtonPaint(giftClose,'cyan')
-local giftAllButton=button(giftHead,'Gift All',UDim2.new(1,-158,0,9),UDim2.fromOffset(106,32))
+local giftAllButton=button(giftHead,'All',UDim2.new(1,-158,0,9),UDim2.fromOffset(106,32))
 giftAllButton.Name='GiftAll'
 giftAllButton.TextSize=14
 giftAllButton.ZIndex=5
@@ -6186,7 +6177,7 @@ end
 local giftSent=giftStepFrame('GiftSentPage')
 giftSent.Size=UDim2.fromOffset(666,304)
 local giftSentIcon=Instance.new('Frame')
-giftSentIcon.Name='GiftBox'
+giftSentIcon.Name='SentSymbol'
 giftSentIcon.AnchorPoint=Vector2.new(.5,0)
 giftSentIcon.Position=UDim2.new(.5,0,0,12)
 giftSentIcon.Size=UDim2.fromOffset(94,94)
@@ -6205,34 +6196,18 @@ for i=16,1,-1 do
     glow.Parent=giftSentIcon
     corner(glow,100)
 end
-local function giftBoxPart(position,size,color,radius,rotation,outlined)
-    local part=Instance.new('Frame')
-    part.Position=position
-    part.Size=size
-    part.BackgroundColor3=color
-    part.BorderSizePixel=0
-    part.Rotation=rotation or 0
-    part.Parent=giftSentIcon
-    part.ZIndex=2
-    corner(part,radius)
-    if outlined then
-        local rim=stroke(part)
-        rim.Color=Color3.fromRGB(11,64,13)
-        rim.Thickness=3
-    end
-    return part
-end
-giftBoxPart(UDim2.fromOffset(8,44),UDim2.fromOffset(78,48),Color3.new(1,1,1),7,0,true)
-giftBoxPart(UDim2.fromOffset(39,45),UDim2.fromOffset(15,46),Color3.fromRGB(55,235,5),0)
-giftBoxPart(UDim2.fromOffset(44,45),UDim2.fromOffset(8,46),Color3.fromRGB(9,91,10),0)
-giftBoxPart(UDim2.fromOffset(7,29),UDim2.fromOffset(80,18),Color3.new(1,1,1),5,-6,true)
-giftBoxPart(UDim2.fromOffset(38,29),UDim2.fromOffset(15,18),Color3.fromRGB(39,221,1),0,-6)
-giftBoxPart(UDim2.fromOffset(37,15),UDim2.fromOffset(19,16),Color3.fromRGB(49,238,8),8,0,true)
-giftBoxPart(UDim2.fromOffset(13,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,-18,true)
-giftBoxPart(UDim2.fromOffset(50,4),UDim2.fromOffset(31,27),Color3.fromRGB(67,245,17),15,18,true)
--- The present stays completely still.
+local giftSentPlane=Instance.new('ImageLabel')
+giftSentPlane.Name='PaperPlane'
+giftSentPlane.AnchorPoint=Vector2.new(.5,.5)
+giftSentPlane.Position=UDim2.fromScale(.5,.5)
+giftSentPlane.Size=UDim2.fromOffset(80,80)
+giftSentPlane.BackgroundTransparency=1
+giftSentPlane.ImageColor3=Color3.fromRGB(17,26,34)
+giftSentPlane.ScaleType=Enum.ScaleType.Fit
+giftSentPlane.ZIndex=2
+giftSentPlane.Parent=giftSentIcon
 
-local giftSentTitle=label(giftSent,'GIFT SENT',UDim2.fromOffset(20,116),UDim2.new(1,-40,0,38),32)
+local giftSentTitle=label(giftSent,'SENT',UDim2.fromOffset(20,116),UDim2.new(1,-40,0,38),32)
 giftSentTitle.Font=Enum.Font.GothamBlack
 giftSentTitle.TextXAlignment=Enum.TextXAlignment.Center
 local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,160),UDim2.new(1,-60,0,54),21)
@@ -6500,7 +6475,7 @@ local function queueGiftImage(target,category,product)
     end)
 end
 queueGiftImage(giftLogo,'UI',{imageKey='shop-wordmark'})
-queueGiftImage(giftHeaderSymbol,'UI',{imageKey='gift-button-symbol'})
+queueGiftImage(giftSentPlane,'UI',{imageKey='send-button-symbol'})
 local function startGiftRain(product)
     stopGiftRain()
     local serial=giftRainSerial
@@ -6659,7 +6634,7 @@ local function addGiftShimmer(target)
     if not target:IsA('GuiButton') or target:GetAttribute('SAE_GiftShimmer') then return end
     -- Only primary actions shimmer; tabs, close icons, and quantity choices stay still.
     local text=target.Text:lower()
-    if text~='gift' and text~='search player' and text~="yes, it's me!" and text~='no, go back' and text~='done' and text~='gift all' then return end
+    if text~='send' and text~='search player' and text~="yes, it's me!" and text~='no, go back' and text~='done' and text~='all' then return end
     target:SetAttribute('SAE_GiftShimmer',true)
     giftShimmerIndex+=1
     local shine=Instance.new('Frame')
@@ -6694,7 +6669,7 @@ end
 for _,target in ipairs(giftGui:GetDescendants()) do addGiftShimmer(target) end
 local giftShimmerConnection=giftGui.DescendantAdded:Connect(addGiftShimmer)
 giftGui.Destroying:Connect(function() giftShimmerConnection:Disconnect() end)
-addGiftButtonSymbol(giftLauncher)
+addGiftButtonSymbol(giftLauncher,'send-button-symbol')
 -- The identity confirmation keeps its text-only reference design.
 
 local function selectGiftItem(productData,productCategory)
@@ -6788,7 +6763,7 @@ showGiftCatalog=function()
             local icon=Instance.new('ImageLabel')
             icon.AnchorPoint=Vector2.new(.5,.5)
             icon.Position=UDim2.fromScale(.5,.5)
-            icon.Size=UDim2.fromOffset(98,81)
+            icon.Size=UDim2.fromOffset(86,71)
             local imageBounds=GiftArtworkBounds[product.imageKey]
             if imageBounds then
                 icon.ImageRectOffset=Vector2.new(imageBounds[1],imageBounds[2])
@@ -6930,7 +6905,7 @@ giftPreview.MouseButton1Click:Connect(function()
         return text:gsub('&','&amp;'):gsub('<','&lt;'):gsub('>','&gt;')
     end
     local quantityPrefix=(giftSelected.category=='Others' or giftSelected.bundle) and '' or (count..'× ')
-    giftSentSummary.Text=quantityPrefix..'<font color="#9228ed">'..escaped(giftSelected.name)..'</font> has been gifted to\n'..escaped(giftRecipient.username)..'.'
+    giftSentSummary.Text=quantityPrefix..'<font color="#9228ed">'..escaped(giftSelected.name)..'</font> has been sent to\n'..escaped(giftRecipient.username)..'.'
     setGiftPage('sent')
     startGiftRain(giftSelected)
 end)
