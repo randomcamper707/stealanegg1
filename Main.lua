@@ -4062,6 +4062,158 @@ local function detailTreadmill(m,croc)
 end
 
 
+local function refineTreadmill(m,croc)
+    local white=rgb(241,244,248)
+    local red=rgb(222,25,35)
+    local black=rgb(17,24,33)
+    local cyan=rgb(0,215,255)
+    local stone=rgb(149,154,116)
+    local remove={FrontRailSupport=true,RearRailSupport=true,LowerHandrail=true,RisingHandrail=true,RearHandrail=true,RailGlow=true}
+    if croc then
+        for _,n in ipairs({'CrocHeadSculpt','ShortRoundedSnout','SnoutRoundLip','CrocMouthLine','OversizedCrocEye','GlossyBlackCrocEye','BigEyeCatchlight','TinyEyeCatchlight','CrocNostril','SmallCrocTooth','SafariHatBrim','SafariHatCrown','HatSoftTop','SafariHatBand','HatAnimalBadge','HatBadgeTail','HatBadgeNeck','HatBadgeLeg','PalmTrunk','PalmLeaf'}) do remove[n]=true end
+    else
+        remove.AngledWhiteBrow=true
+        remove.WhiteSideArmor=true
+        remove.RedSideSpine=true
+        remove.SideBlackChannel=true
+        remove.SideCyanChannel=true
+        remove.PawHousingWhite=true
+    end
+    for _,child in ipairs(m:GetChildren()) do if remove[child.Name] then child:Destroy() end end
+    local function box(n,size,color,x,y,z,rotation,mat)
+        return part(m,n,size,color,CFrame.new(x,y,z)*(rotation or CFrame.new()),mat or MAT)
+    end
+    local function sphere(n,size,color,x,y,z,rotation,mat)
+        return ball(m,n,size,color,CFrame.new(x,y,z)*(rotation or CFrame.new()),mat or MAT)
+    end
+    local function beam(n,a,b,width,color,mat)
+        local d=b-a
+        if math.abs(d.Unit.Y)>.99 then return part(m,n,Vector3.new(width,d.Magnitude,width),color,CFrame.new((a+b)*.5),mat or MAT) end
+        return part(m,n,Vector3.new(width,width,d.Magnitude),color,CFrame.lookAt((a+b)*.5,b),mat or MAT)
+    end
+    if not croc then
+        -- The white eye armor is tapered on its inner edge, not a thick bar.
+        for _,side in ipairs({-1,1}) do
+            wedge(m,'TaperedBrowPlate',Vector3.new(.34,.51,1.42),white,CFrame.new(side*.89,6.53,-2.97)*CFrame.Angles(0,side*math.pi/2,0),MAT)
+            box('BrowOuterBevel',Vector3.new(.40,.25,.36),rgb(220,227,235),side*1.44,6.65,-3.15,CFrame.Angles(0,0,math.rad(side*12)))
+            -- Broad, sloped armor beams match the red/white side silhouette.
+            local front=Vector3.new(side*2.54,1.02,3.57)
+            local back=Vector3.new(side*2.54,2.06,-2.47)
+            beam('SideArmorWhiteShell',front,back,.76,white)
+            beam('SideArmorRedUnderlay',front+Vector3.new(side*.11,-.30,0),back+Vector3.new(side*.11,-.30,0),.57,red)
+            local tilt=CFrame.Angles(math.rad(9.8),0,0)
+            box('SideInsetBlackWindow',Vector3.new(.13,.43,3.07),black,side*2.96,1.53,.60,tilt)
+            box('SideInsetCyanWindow',Vector3.new(.04,.17,2.48),cyan,side*3.035,1.55,.60,tilt,NEON)
+            for _,z in ipairs({-.99,2.18}) do
+                box('WhiteWindowEndBevel',Vector3.new(.20,.56,.30),white,side*2.98,1.53-(z-.6)*.171,z,tilt)
+            end
+            for _,spec in ipairs({{-2.8,2.31},{.15,1.74}}) do
+                local z,y=spec[1],spec[2]
+                local rot=CFrame.Angles(0,math.rad(side*7),math.rad(-side*28))
+                wedge(m,'RedOuterBlade',Vector3.new(.50,1.40,1.25),red,CFrame.new(side*3.02,y,z)*rot,MAT)
+                wedge(m,'BladeDarkInset',Vector3.new(.13,1.03,.91),black,CFrame.new(side*3.30,y+.04,z+.05)*rot,MAT)
+                beam('BladeEdgeRedLight',Vector3.new(side*3.29,y-.42,z+.45),Vector3.new(side*3.55,y+.48,z-.10),.07,rgb(255,48,39),NEON)
+            end
+            box('RearArmorPod',Vector3.new(1.08,.65,1.44),red,side*2.95,.78,-2.95)
+            box('RearArmorWhiteCap',Vector3.new(1.10,.21,1.48),white,side*2.95,1.19,-2.95)
+            box('RearPodDarkPanel',Vector3.new(.07,.30,.92),black,side*3.52,.83,-2.95)
+            box('RearPodCyanPanel',Vector3.new(.035,.12,.64),cyan,side*3.57,.83,-2.95,nil,NEON)
+            box('FrontRedLink',Vector3.new(.74,.40,1.05),red,side*2.56,1.10,3.56,tilt)
+            box('FrontWhiteLink',Vector3.new(.76,.20,.66),white,side*2.56,1.39,3.48,tilt)
+            for point=1,8 do
+                local a=(point-1)*math.pi/4+math.pi/8
+                local b=point*math.pi/4+math.pi/8
+                beam('OctagonalPawBevel',
+                    Vector3.new(side*2.48+math.cos(a)*.58,1.01+math.sin(a)*.58,5.36),
+                    Vector3.new(side*2.48+math.cos(b)*.58,1.01+math.sin(b)*.58,5.36),
+                    .16,white)
+            end
+            for _,spec in ipairs({{4.15,.78},{1.62,.48},{-1.05,.48}}) do
+                local z,y=spec[1],spec[2]
+                box('DeckBlackArmorSeam',Vector3.new(.08,.22,.08),black,side*3.13,y,z)
+                sphere('SmallMetalFastener',Vector3.new(.07,.09,.09),rgb(164,177,190),side*3.18,y+.1,z)
+            end
+        end
+        -- A central forehead plate joins the brows without obscuring the eyes.
+        box('ForeheadCenterPlate',Vector3.new(.63,.68,.25),rgb(224,230,237),0,6.65,-3.25,CFrame.Angles(0,0,math.rad(45)))
+    else
+        -- The neck bridges the arch and muzzle; the skull physically meets the brim.
+        box('CrocodileNeck',Vector3.new(2.08,.66,1.16),rgb(104,163,43),0,5.79,-4.10)
+        box('BroadCrocodileSkull',Vector3.new(3.19,1.60,1.38),rgb(119,185,47),0,6.91,-4.04)
+        sphere('SkullLeftCorner',Vector3.new(.55,1.31,1.34),rgb(119,185,47),-1.48,6.88,-4.03)
+        sphere('SkullRightCorner',Vector3.new(.55,1.31,1.34),rgb(119,185,47),1.48,6.88,-4.03)
+        box('WideShortMuzzle',Vector3.new(2.81,.61,.80),rgb(139,199,58),0,6.31,-3.05)
+        sphere('SoftMuzzleLip',Vector3.new(2.83,.43,.30),rgb(139,199,58),0,6.27,-2.65)
+        box('FineMouthLine',Vector3.new(2.34,.045,.07),rgb(72,112,34),0,6.05,-2.47)
+        for _,side in ipairs({-1,1}) do
+            sphere('CrocEyeWhite',Vector3.new(1.02,1.20,.43),rgb(252,252,237),side*.86,7.10,-3.10)
+            sphere('CrocEyeBlack',Vector3.new(.78,.98,.24),rgb(8,15,22),side*.86,7.12,-2.86)
+            sphere('CrocEyeHighlight',Vector3.new(.23,.28,.08),white,side*.86-.15,7.39,-2.71)
+            sphere('CrocEyeSmallHighlight',Vector3.new(.085,.10,.06),white,side*.86+.18,6.93,-2.71)
+            box('RaisedNostrilScale',Vector3.new(.31,.22,.19),rgb(107,172,41),side*.73,6.62,-2.80)
+            sphere('NostrilOpening',Vector3.new(.14,.07,.07),rgb(58,103,32),side*.73,6.68,-2.67)
+        end
+        for i=0,5 do
+            wedge(m,'SmallIvoryTooth',Vector3.new(.18,.15,.15),rgb(232,225,188),CFrame.new(-.87+i*.35,5.99,-2.48),MAT)
+        end
+        -- Slice-built oval hat: explicit coordinates avoid cylinder-axis artifacts.
+        local hat=rgb(33,62,39)
+        local function ovalLayer(name,cx,cy,cz,rx,rz,height,color,count)
+            local step=2*rx/count
+            for i=1,count do
+                local x=-rx+(i-.5)*step
+                local depth=2*rz*math.sqrt(math.max(0,1-(x/rx)^2))
+                box(name,Vector3.new(step+.015,height,depth),color,cx+x,cy,cz)
+            end
+        end
+        ovalLayer('SafariBrim',0,7.76,-4.04,2.13,1.28,.14,hat,21)
+        ovalLayer('SafariCrownLower',0,8.005,-4.06,1.42,.91,.37,hat,17)
+        ovalLayer('SafariCrownUpper',0,8.285,-4.10,1.32,.84,.23,rgb(39,72,43),17)
+        ovalLayer('SafariCrownTop',0,8.435,-4.10,1.22,.77,.10,rgb(43,77,46),17)
+        ovalLayer('SafariBand',0,7.91,-4.06,1.46,.94,.13,rgb(72,91,50),17)
+        box('CrownCrease',Vector3.new(.06,.025,1.07),rgb(26,49,33),0,8.49,-4.1)
+        local gold=rgb(239,212,119)
+        sphere('HatAnimalBody',Vector3.new(.25,.21,.055),gold,0,8.21,-3.16)
+        beam('HatAnimalTail',Vector3.new(-.05,8.17,-3.14),Vector3.new(-.39,8.29,-3.14),.055,gold)
+        beam('HatAnimalNeck',Vector3.new(.06,8.25,-3.14),Vector3.new(.18,8.39,-3.14),.055,gold)
+        sphere('HatAnimalHead',Vector3.new(.13,.10,.05),gold,.20,8.39,-3.14)
+        for _,side in ipairs({-1,1}) do beam('HatAnimalLeg',Vector3.new(0,8.14,-3.14),Vector3.new(side*.19,8.09,-3.14),.045,gold) end
+        for _,side in ipairs({-1,1}) do
+            -- Continuous stepped stone sidewalls, with moss instead of white rails.
+            for step=0,5 do
+                local z=3.85-step*1.27
+                local height=.43+step*.18
+                local p=box('StoneSideStep',Vector3.new(.88,height,1.23),stone,side*2.70,.33+height/2,z,nil,Enum.Material.Cobblestone)
+                p.TopSurface=Enum.SurfaceType.Studs
+                box('SideMossCap',Vector3.new(.70,.13,.94),rgb(102,161,39),side*2.79,.42+height,z)
+                if step%2==0 then box('OuterMossBlock',Vector3.new(.33,.32,.55),rgb(86,143,33),side*3.21,.47+height*.5,z+.18) end
+            end
+            -- Palm fronds curve outwards, with individual tapered leaflets.
+            beam('HiddenPalmStem',Vector3.new(side*2.48,1.08,-4.75),Vector3.new(side*2.55,4.95,-4.75),.16,rgb(84,100,44))
+            for tier=0,1 do
+                local origin=Vector3.new(side*2.55,4.86-tier*1.38,-4.73)
+                for ray=0,2 do
+                    local endPoint=origin+Vector3.new(side*(.85+ray*.06),.30-ray*.41,.24+ray*.08)
+                    local middle=(origin+endPoint)*.5+Vector3.new(0,.21,0)
+                    beam('FrondStem',origin,middle,.052,rgb(35,121,46))
+                    beam('FrondStem',middle,endPoint,.045,rgb(35,121,46))
+                    for leaflet=1,4 do
+                        local t=leaflet/5
+                        local point=origin:Lerp(endPoint,t)+Vector3.new(0,.21*math.sin(t*math.pi),0)
+                        for _,leafSide in ipairs({-1,1}) do
+                            local tip=point+Vector3.new(side*.24,leafSide*(.33-.08*t),.025)
+                            local center=(point+tip)*.5
+                            wedge(m,'TaperedPalmLeaflet',Vector3.new(.065,.30,(tip-point).Magnitude*1.75),rgb(20,125+tier*13+ray*5,42),CFrame.lookAt(center,tip),MAT)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    m:SetAttribute('SAE_TREADMILL_DETAIL_REVISION',3)
+end
+
+
 local function customTreadmill(name,crocodile)
     local m=Instance.new('Model')
     m.Name=name
@@ -4176,6 +4328,7 @@ local function customTreadmill(name,crocodile)
         block('HatBadge',Vector3.new(.67,.32,.09),rgb(244,210,101),0,8.37,-3.09)
     end
     detailTreadmill(m,crocodile)
+    refineTreadmill(m,crocodile)
     m:SetAttribute('SAE_TREADMILL',true)
     m:SetAttribute('SAE_REFERENCE_DETAIL','CustomTreadmill')
     return finalize(m,root)
