@@ -3104,7 +3104,7 @@ local function sendAnnouncement(message,targetStatus)
         return
     end
     callRemote("Announcement",msg)
-    notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,"","",msg,Enum.Font.FredokaOne)
+    notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,":","",msg,Enum.Font.FredokaOne)
     feedback.Text="Announcement shown."
     feedback.TextColor3=C.green
 end
@@ -3156,15 +3156,8 @@ local function renderPresets()
         trashPart(12,5,6,2)
         trashPart(12,13,1,7,C.red)
         trashPart(16,13,1,7,C.red)
-        local touchOnly=UserInputService.TouchEnabled and not UserInputService.MouseEnabled
-        local function showDelete(visible)
-            remove.Visible=visible or touchOnly
-            entry.Size=UDim2.new(1,remove.Visible and -38 or 0,1,0)
-        end
-        showDelete(false)
-        row.MouseEnter:Connect(function() showDelete(true) end)
-        row.MouseLeave:Connect(function() showDelete(false) end)
-        entry.SelectionGained:Connect(function() showDelete(true) end)
+        remove.Visible=true
+        entry.Size=UDim2.new(1,-38,1,0)
         local deleting=false
         remove.MouseButton1Click:Connect(function()
             if deleting then return end
@@ -3488,7 +3481,7 @@ local qv=q("/givevps")
 local function findPlayer(s) s=string.lower(tostring(s)); for _,p in ipairs(Players:GetPlayers()) do if string.lower(p.Name)==s or string.lower(p.DisplayName)==s then return p end end; for _,p in ipairs(Players:GetPlayers()) do if string.sub(string.lower(p.Name),1,string.len(s))==s then return p end end end
 local function command(raw)
     raw=tostring(raw or ""); if raw=="" then return end; line("> "..raw,consoleText); local cmd,rest=raw:match("^(%S+)%s*(.*)$"); cmd=string.lower(cmd or ""); rest=rest or ""
-    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.red); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,"","",rest,Enum.Font.FredokaOne); line("Announcement shown."); return end
+    if cmd=="/announcement" or cmd=="/globalannouncement" then if rest=="" then line("Enter a message.",C.red); return end; local global=cmd=="/globalannouncement"; callRemote(global and "GlobalAnnouncement" or "Announcement",rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,":","",rest,Enum.Font.FredokaOne); line("Announcement shown."); return end
     if cmd=="/giveps" then cmd="/givevps" end; local acts={ ["/teleport"]={"Teleport","TELEPORT"}, ["/invite"]={"Invite","INVITE"}, ["/giveadmin"]={"GiveAdmin","ADMIN"}, ["/givecoowner"]={"GiveCoowner","CO-OWNER"}, ["/givevps"]={"GiveVPS","PRIVATE SERVER"} }; local a=acts[cmd]; if a then if rest=="" then line("Enter a player.",C.red); return end; local pl=findPlayer(rest); local target=pl and pl.DisplayName or rest; callRemote(a[1],rest); notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent an",a[2],"to "..target); line(a[2].." -> "..target); return end; line("Unknown command. Choose a shortcut below.",C.red)
 end
 ci.FocusLost:Connect(function(enter)
