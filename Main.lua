@@ -4214,6 +4214,162 @@ local function refineTreadmill(m,croc)
 end
 
 
+local function luxuryTreadmill(m,croc)
+    -- Static detail only: no per-frame effects or global Lighting changes.
+    local white,red,black=rgb(245,247,250),rgb(226,23,33),rgb(16,23,31)
+    local cyan,lime,gold=rgb(0,221,255),rgb(125,255,12),rgb(241,193,66)
+    local stone=rgb(149,154,116)
+    local remove={}
+    local names=croc and {'SmallIvoryTooth','TurquoiseWaterfall','WaterfallHighlights'} or {
+        'EarWhiteArmor','EarRedRim','EarBlackInset','BentEarCap',
+        'RedEyeMask','EyeRecess','EyeWhite','BlueIris','EyePupil','EyeCatchlight','SmallEyeCatchlight','MaskEdge',
+        'TaperedBrowPlate','BrowOuterBevel','ForeheadCenterPlate'}
+    for _,name in ipairs(names) do remove[name]=true end
+    for _,child in ipairs(m:GetChildren()) do if remove[child.Name] then child:Destroy() end end
+    local function box(n,size,color,x,y,z,rotation,material)
+        return part(m,n,size,color,CFrame.new(x,y,z)*(rotation or CFrame.new()),material or MAT)
+    end
+    local function orb(n,size,color,x,y,z,rotation,material)
+        return ball(m,n,size,color,CFrame.new(x,y,z)*(rotation or CFrame.new()),material or MAT)
+    end
+    local function beam(n,a,b,width,color,material)
+        local d=b-a
+        if math.abs(d.Unit.Y)>.99 then
+            return box(n,Vector3.new(width,d.Magnitude,width),color,(a.X+b.X)/2,(a.Y+b.Y)/2,(a.Z+b.Z)/2,nil,material)
+        end
+        return part(m,n,Vector3.new(width,width,d.Magnitude),color,CFrame.lookAt((a+b)*.5,b),material or MAT)
+    end
+    local function light(p,color,range)
+        local l=Instance.new('PointLight')
+        l.Color=color l.Brightness=.6 l.Range=range or 3.5 l.Shadows=false l.Parent=p
+        local halo=Instance.new('BillboardGui')
+        halo.Name='LocalLightHalo' halo.Adornee=p halo.AlwaysOnTop=false
+        halo.LightInfluence=0 halo.MaxDistance=95 halo.Size=UDim2.fromScale(1.35,1.35) halo.Parent=p
+        local image=Instance.new('ImageLabel')
+        image.Size=UDim2.fromScale(1,1) image.BackgroundTransparency=1
+        image.Image='rbxasset://textures/glow.png' image.ImageColor3=color image.ImageTransparency=.78 image.Parent=halo
+    end
+    -- A wider, layered chassis gives the machines weight without enlarging the belt.
+    box('HeavyChassisSkirt',Vector3.new(6.36,.32,10.90),croc and rgb(87,109,65) or black,0,-.35,0)
+    box('HeavyChassisPlinth',Vector3.new(6.64,.24,10.52),croc and stone or white,0,-.60,.03)
+    for _,side in ipairs({-1,1}) do
+        box('WideSideFoundation',Vector3.new(1.11,.48,8.70),croc and stone or red,side*2.84,.09,.16)
+        box('FoundationOuterTrim',Vector3.new(.10,.11,8.15),croc and lime or cyan,side*3.42,.14,.15,nil,NEON)
+        for _,z in ipairs({-4.28,4.20}) do
+            box('HeavyCornerFoot',Vector3.new(1.20,.38,1.28),croc and rgb(109,126,80) or black,side*2.83,-.63,z)
+        end
+    end
+    if not croc then
+        -- Straight, upright ears. All three layers share the same axis.
+        for _,side in ipairs({-1,1}) do
+            local rot=CFrame.Angles(0,0,math.rad(-side*16))
+            orb('UprightWhiteEar',Vector3.new(1.10,3.44,.62),white,side*1.03,8.01,-4.08,rot)
+            orb('UprightRedEarRim',Vector3.new(.82,3.04,.24),rgb(255,28,35),side*1.03,8.01,-3.73,rot,NEON)
+            orb('UprightDarkEarInset',Vector3.new(.62,2.74,.15),black,side*1.03,8.01,-3.58,rot)
+            -- A simple red eye mask with white sclera; no overlapping brow wedges.
+            local tilt=CFrame.Angles(0,0,math.rad(side*5))
+            orb('CleanRedEyeMask',Vector3.new(1.65,.99,.31),red,side*.85,6.17,-2.98,tilt)
+            orb('CleanEyeSocket',Vector3.new(1.35,.78,.18),black,side*.85,6.17,-2.79,tilt)
+            orb('CleanWhiteEye',Vector3.new(1.18,.68,.18),rgb(255,255,255),side*.85,6.17,-2.67,tilt)
+            orb('CleanBlueIris',Vector3.new(.53,.59,.12),rgb(0,173,228),side*.78,6.17,-2.53)
+            orb('CleanCyanIrisRim',Vector3.new(.42,.51,.09),cyan,side*.78,6.17,-2.45,nil,NEON)
+            orb('CleanBlackPupil',Vector3.new(.26,.40,.08),rgb(5,14,25),side*.78,6.18,-2.38)
+            orb('CleanEyeShine',Vector3.new(.14,.15,.055),white,side*.78-.08,6.35,-2.31)
+            orb('CleanSmallEyeShine',Vector3.new(.055,.055,.035),white,side*.78+.09,6.02,-2.31)
+        end
+        box('MaskNoseBridge',Vector3.new(.42,.25,.19),red,0,6.21,-2.88)
+        for _,side in ipairs({-1,1}) do
+            -- Wide pods with inset panels support the layered red shard silhouette.
+            box('HeavyRearRedHousing',Vector3.new(1.28,.81,2.02),red,side*3.02,.73,-3.25)
+            box('HeavyRearWhiteCap',Vector3.new(1.30,.23,1.97),white,side*3.02,1.25,-3.25)
+            box('HeavyRearBlackInset',Vector3.new(.09,.37,1.34),black,side*3.69,.78,-3.25)
+            box('HeavyRearCyanInset',Vector3.new(.045,.15,1.04),cyan,side*3.75,.80,-3.25,nil,NEON)
+            for _,spec in ipairs({
+                {3.01,4.94,-4.47,1.85,1.23,32},
+                {3.37,3.75,-4.32,1.55,1.13,40},
+                {3.52,2.12,-3.00,1.77,1.38,36},
+                {3.41,1.62,-.30,1.37,1.18,40}
+            }) do
+                local x,y,z,h,depth,angle=unpack(spec)
+                local rot=CFrame.Angles(0,0,math.rad(-side*angle))*CFrame.Angles(0,side*math.pi/2,0)
+                wedge(m,'LuxuryRedArmorShard',Vector3.new(.69,h,depth),red,CFrame.new(side*x,y,z)*rot,MAT)
+                wedge(m,'ShardDarkRecess',Vector3.new(.065,h*.72,depth*.68),black,CFrame.new(side*x,y-.03,z+.39)*rot,MAT)
+                local face=CFrame.new(side*x,y,z)*rot
+                beam('ShardRedLightEdge',
+                    (face*CFrame.new(-side*.37,-h*.48,-depth*.48)).Position,
+                    (face*CFrame.new(-side*.37,h*.48,depth*.48)).Position,
+                    .065,rgb(255,43,38),NEON)
+                box('ShardWhiteRoot',Vector3.new(.63,.25,depth*.80),white,side*(x-.17),y-h*.34,z+.07,rot)
+            end
+            -- Separate angular plates along the rail, with cyan technology windows.
+            for _,spec in ipairs({{2.44,1.62},{.71,1.33},{-1.15,1.68}}) do
+                local z,y=spec[1],spec[2]
+                box('LayeredRailRedPanel',Vector3.new(.25,.60,1.38),red,side*3.15,y,z,CFrame.Angles(math.rad(10),0,0))
+                box('LayeredRailWhiteBevel',Vector3.new(.27,.17,1.39),white,side*3.16,y+.35,z,CFrame.Angles(math.rad(10),0,0))
+                box('LayeredRailDarkInset',Vector3.new(.05,.28,.96),black,side*3.30,y,z)
+                box('LayeredRailCyanInset',Vector3.new(.035,.11,.70),cyan,side*3.34,y,z,nil,NEON)
+            end
+        end
+    else
+        local ivory=rgb(255,247,214)
+        -- Two tapered canines replace the row of little square teeth.
+        for _,side in ipairs({-1,1}) do
+            for _,half in ipairs({-1,1}) do
+                wedge(m,'IvoryCrocodileFang',Vector3.new(.24,.57,.17),ivory,
+                    CFrame.new(side*.91+half*.085,5.88,-2.47)*CFrame.Angles(0,-half*math.pi/2,math.pi),MAT)
+            end
+            -- Gold cords attach at the brim, follow the cheeks and end in tassels.
+            local cord={
+                Vector3.new(side*1.93,7.75,-3.58),Vector3.new(side*1.87,7.42,-3.20),
+                Vector3.new(side*1.80,7.03,-2.98),Vector3.new(side*1.77,6.66,-2.91),
+                Vector3.new(side*1.86,6.28,-3.03)}
+            for i=1,#cord-1 do beam('AttachedGoldHatCord',cord[i],cord[i+1],.065,gold,Enum.Material.Metal) end
+            orb('GoldCordKnot',Vector3.new(.15,.17,.15),gold,side*1.86,6.27,-3.03,nil,Enum.Material.Metal)
+            for strand=-1,1 do
+                beam('GoldHatTassel',Vector3.new(side*1.86+strand*.045,6.23,-3.03),
+                    Vector3.new(side*1.87+strand*.065,5.95,-3.01),.036,gold,Enum.Material.Metal)
+            end
+            -- Thick stone shoulder towers and wider stepped foundations.
+            box('HeavyTotemShoulder',Vector3.new(1.23,.51,1.33),stone,side*2.68,4.83,-4.10,nil,Enum.Material.Cobblestone)
+            box('ShoulderMossCrown',Vector3.new(1.17,.17,1.26),rgb(95,158,34),side*2.68,5.16,-4.10)
+            for step=0,4 do
+                local z=3.72-step*1.42
+                local h=.52+step*.16
+                box('OuterStoneButtress',Vector3.new(.64,h,1.22),stone,side*3.14,.31+h*.5,z,nil,Enum.Material.Cobblestone)
+                box('ButtressMossTop',Vector3.new(.61,.13,1.06),rgb(99,161,32),side*3.14,.36+h,z)
+            end
+            local function crystal(x,y,z,scale)
+                box('LuxuryLampStoneSocket',Vector3.new(.67*scale,.24,.67*scale),stone,x,y-.43*scale,z)
+                box('LuxuryLampGoldCollar',Vector3.new(.48*scale,.10,.48*scale),gold,x,y-.27*scale,z,nil,Enum.Material.Metal)
+                local body=box('LuxuryEmeraldLamp',Vector3.new(.34*scale,.65*scale,.34*scale),lime,x,y+.07*scale,z,CFrame.Angles(0,math.pi/4,0),NEON)
+                for _,turn in ipairs({0,math.pi}) do
+                    wedge(m,'LuxuryLampPoint',Vector3.new(.34*scale,.32*scale,.34*scale),rgb(181,255,61),
+                        CFrame.new(x,y+.55*scale,z)*CFrame.Angles(0,turn+math.pi/4,0),NEON)
+                end
+                light(body,lime,3.4)
+            end
+            crystal(side*2.12,6.11,-4.01,.97)
+            crystal(side*3.05,5.17,-3.91,.76)
+            local topLamp=box('TopArchWarmLight',Vector3.new(.24,.23,.17),gold,side*1.64,5.52,-3.48,nil,NEON)
+            light(topLamp,gold,2.4)
+            -- Continuous falling water: a sloped ribbon runs from spout to pool.
+            local angle=math.atan2(-.36,1.48)
+            local water=box('FullHeightWaterfall',Vector3.new(.73,1.59,.17),rgb(42,222,242),
+                side*2.69,1.76,-1.66,CFrame.Angles(angle,0,0),NEON)
+            water.Transparency=.17
+            for stripe=0,2 do
+                local p=box('LongWaterfallHighlight',Vector3.new(.045,1.52,.035),rgb(184,255,255),
+                    side*2.69-.24+stripe*.24,1.76,-1.56,CFrame.Angles(angle,0,0),NEON)
+                p.Transparency=.38
+            end
+            local landing=box('ConnectedWaterLanding',Vector3.new(.76,.075,.97),rgb(30,213,237),side*2.69,1.01,-1.16,nil,NEON)
+            landing.Transparency=.13
+            orb('WaterfallFoam',Vector3.new(.70,.10,.33),rgb(187,255,255),side*2.69,1.06,-1.45)
+        end
+    end
+    m:SetAttribute('SAE_TREADMILL_DETAIL_REVISION',4)
+end
+
 local function customTreadmill(name,crocodile)
     local m=Instance.new('Model')
     m.Name=name
@@ -4329,6 +4485,7 @@ local function customTreadmill(name,crocodile)
     end
     detailTreadmill(m,crocodile)
     refineTreadmill(m,crocodile)
+    luxuryTreadmill(m,crocodile)
     m:SetAttribute('SAE_TREADMILL',true)
     m:SetAttribute('SAE_REFERENCE_DETAIL','CustomTreadmill')
     return finalize(m,root)
