@@ -3552,7 +3552,7 @@ local GiftCatalog={
         'World Burner','Aetheron','Cthulhu','Luminous Cthulhu',
         'Sabertooth','Skeletal Sabertooth','Octophant','Mecha Scrambler'
     },
-    Star={'Star'}
+    Star={'Star',"Ben's Treadmill","Brocodile's Treadmill"}
 }
 
 local Eggs=GiftCatalog.Eggs
@@ -3863,6 +3863,126 @@ end
 local function star()local m=Instance.new('Model')m.Name='Star'local gold,edge,dark=rgb(255,208,22),rgb(239,165,10),rgb(25,20,18)local r=ball(m,'Center',Vector3.new(4.5,4.5,1.25),gold,CFrame.new(),MAT)for i=0,4 do local a=math.rad(-90+i*72)local x,y=math.cos(a)*3.25,math.sin(a)*3.25 wedge(m,'Point',Vector3.new(2.75,4.7,1.15),gold,CFrame.new(x,y,0)*CFrame.Angles(0,0,a+math.rad(90)),MAT)wedge(m,'BackEdge',Vector3.new(2.55,4.4,.3),edge,CFrame.new(x,y,.68)*CFrame.Angles(0,0,a+math.rad(90)),MAT)end for _,s in ipairs({{-1.25,1.45},{0,1.65},{1.15,1.15},{-2,.55},{-.8,.55},{.45,.6},{1.8,.45},{-1.55,-.65},{-.35,-.5},{.9,-.55},{1.65,-.95},{-.95,-1.65},{.25,-1.6}})do part(m,'Stud',Vector3.new(.52,.52,.22),rgb(255,221,43),CFrame.new(s[1],s[2],-.72),MAT)end eye(m,-.9,.15,-.78,dark,Vector3.new(.82,1.05,.3))eye(m,.9,.15,-.78,dark,Vector3.new(.82,1.05,.3))ball(m,'BlushL',Vector3.new(.65,.32,.14),rgb(255,133,97),CFrame.new(-1.75,-.55,-.83),NEON)ball(m,'BlushR',Vector3.new(.65,.32,.14),rgb(255,133,97),CFrame.new(1.75,-.55,-.83),NEON)return finalize(m,r)end
 
 local function refEgg(name) return function() return buildSculptedEgg(name) end end
+-- Custom treadmill geometry follows the supplied shop art, with a full running deck.
+local function customTreadmill(name,crocodile)
+    local m=Instance.new('Model')
+    m.Name=name
+    local shell=crocodile and rgb(135,145,102) or rgb(239,242,246)
+    local dark=crocodile and rgb(48,69,45) or rgb(37,43,54)
+    local accent=crocodile and rgb(106,245,20) or rgb(226,39,45)
+    local light=crocodile and rgb(101,255,12) or rgb(30,218,255)
+    local stone=rgb(157,162,122)
+    local root=part(m,'DeckFrame',Vector3.new(5.6,.55,11),shell,CFrame.new(0,0,0),MAT)
+    root.TopSurface=Enum.SurfaceType.Studs
+    local function block(n,size,color,x,y,z,material,transparency)
+        return part(m,n,size,color,CFrame.new(x,y,z),material or MAT,transparency)
+    end
+    local function beam(n,a,b,width,color,material)
+        local delta=b-a
+        if math.abs(delta.Unit.Y)>.99 then
+            return part(m,n,Vector3.new(width,delta.Magnitude,width),color,CFrame.new((a+b)*.5),material or MAT)
+        end
+        return part(m,n,Vector3.new(width,width,delta.Magnitude),color,CFrame.lookAt((a+b)*.5,b),material or MAT)
+    end
+    block('RunningBelt',Vector3.new(4.2,.2,9.3),rgb(25,30,36),0,.39,.15)
+    for i=0,19 do
+        block('BeltTread',Vector3.new(4.0,.045,.11),rgb(48,55,61),0,.515,-4.25+i*.46)
+    end
+    for _,z in ipairs({-4.75,4.85}) do
+        cyl(m,'BeltRoller',Vector3.new(4.5,.55,.55),dark,CFrame.new(0,.26,z),Enum.Material.Metal)
+    end
+    for _,side in ipairs({-1,1}) do
+        local x=side*2.55
+        block('SideStep',Vector3.new(.68,.34,10.3),shell,x,.27,.05).TopSurface=Enum.SurfaceType.Studs
+        block('BeltLightStrip',Vector3.new(.11,.1,9.7),light,side*2.16,.53,.1,NEON)
+        block('SideAccent',Vector3.new(.16,.24,9.5),accent,side*2.88,.22,.1)
+        beam('FrontRailSupport',Vector3.new(x,.55,3.3),Vector3.new(x,1.75,2.8),.25,shell)
+        beam('RearRailSupport',Vector3.new(x,.55,-3.8),Vector3.new(x,3.45,-3.8),.32,shell)
+        beam('LowerHandrail',Vector3.new(x,1.75,2.8),Vector3.new(x,2.1,1.9),.3,shell)
+        beam('RisingHandrail',Vector3.new(x,2.1,1.9),Vector3.new(x,3.45,-2.7),.3,shell)
+        beam('RearHandrail',Vector3.new(x,3.45,-2.7),Vector3.new(x,3.45,-3.8),.3,shell)
+        beam('RailGlow',Vector3.new(x-side*.06,2.15,1.8),Vector3.new(x-side*.06,3.43,-2.7),.095,light,NEON)
+        block('FrontFoot',Vector3.new(.82,.45,1.05),dark,x,-.36,4.25)
+        block('RearFoot',Vector3.new(.82,.45,1.05),dark,x,-.36,-4.25)
+    end
+    block('RearConsole',Vector3.new(3.8,4.2,.58),dark,0,3.35,-4.35)
+    block('ConsoleDisplay',Vector3.new(2.9,3.45,.12),rgb(14,23,28),0,3.48,-3.98)
+    for _,y in ipairs({2.7,3.65}) do
+        beam('SpeedArrow',Vector3.new(-.8,y,-3.88),Vector3.new(0,y+.48,-3.88),.19,light,NEON)
+        beam('SpeedArrow',Vector3.new(0,y+.48,-3.88),Vector3.new(.8,y,-3.88),.19,light,NEON)
+    end
+    if not crocodile then
+        -- White rabbit face, red armor, tall ears and blue eyes.
+        for _,side in ipairs({-1,1}) do
+            block('ConsoleArmor',Vector3.new(.46,4.5,.9),accent,side*2.0,3.4,-4.18)
+            block('ConsoleEdgeLight',Vector3.new(.10,3.5,.12),light,side*1.77,3.3,-3.66,NEON)
+            wedge(m,'ShoulderArmor',Vector3.new(1.15,1.2,1.1),accent,CFrame.new(side*2.0,5.4,-4.2)*CFrame.Angles(0,0,math.rad(side*20)),MAT)
+            ball(m,'RabbitEar',Vector3.new(1.0,3.0,.7),shell,CFrame.new(side*1.05,8.0,-4.15)*CFrame.Angles(0,0,math.rad(-side*20)),MAT)
+            ball(m,'EarInset',Vector3.new(.58,2.35,.2),accent,CFrame.new(side*1.05,8.05,-3.76)*CFrame.Angles(0,0,math.rad(-side*20)),MAT)
+            block('ArmorFoot',Vector3.new(1.0,.8,1.0),shell,side*2.5,.68,4.55)
+            block('FootRedTrim',Vector3.new(.84,.18,.2),accent,side*2.5,.37,5.12)
+            ball(m,'PawPad',Vector3.new(.42,.34,.13),light,CFrame.new(side*2.5,.65,5.1),NEON)
+            for toe=-1,1 do
+                ball(m,'PawToe',Vector3.new(.19,.2,.12),light,CFrame.new(side*2.5+toe*.19,.95,5.1),NEON)
+            end
+        end
+        ball(m,'RabbitHead',Vector3.new(3.8,2.1,1.85),shell,CFrame.new(0,6.05,-4.0),MAT)
+        ball(m,'RabbitMuzzle',Vector3.new(2.1,.86,.8),rgb(220,228,232),CFrame.new(0,5.62,-3.08),MAT)
+        for _,side in ipairs({-1,1}) do
+            ball(m,'EyeSocket',Vector3.new(1.12,.72,.25),dark,CFrame.new(side*.95,6.12,-3.1),MAT)
+            ball(m,'BlueEye',Vector3.new(.66,.54,.19),light,CFrame.new(side*.95,6.12,-2.94),NEON)
+            ball(m,'Pupil',Vector3.new(.23,.45,.13),rgb(8,17,27),CFrame.new(side*.95,6.12,-2.83),MAT)
+            beam('RedBrow',Vector3.new(side*.3,6.53,-2.99),Vector3.new(side*1.65,6.4,-3.0),.18,accent)
+        end
+        ball(m,'Nose',Vector3.new(.42,.27,.2),dark,CFrame.new(0,5.86,-2.59),MAT)
+        beam('Smile',Vector3.new(-.52,5.49,-2.65),Vector3.new(0,5.37,-2.62),.06,dark)
+        beam('Smile',Vector3.new(0,5.37,-2.62),Vector3.new(.52,5.49,-2.65),.06,dark)
+    else
+        -- Stone portal, explorer crocodile, jungle plants and side waterfalls.
+        for _,side in ipairs({-1,1}) do
+            for row=0,4 do
+                local p=block('PortalStone',Vector3.new(.88,.86,1.0),row%2==0 and stone or shell,side*2.02,1.3+row*.86,-4.1)
+                p.TopSurface=Enum.SurfaceType.Studs
+            end
+            for step=0,2 do
+                local x=side*(1.55-step*.55)
+                part(m,'ArchStone',Vector3.new(.88,.72,1),stone,CFrame.new(x,5.3+step*.22,-4.1)*CFrame.Angles(0,0,math.rad(-side*(24-step*8))),MAT)
+            end
+            for _,z in ipairs({-3.7,3.7}) do
+                block('CrystalPlinth',Vector3.new(.72,.34,.72),stone,side*2.65,.9,z)
+                ball(m,'EmeraldCrystal',Vector3.new(.4,.85,.4),light,CFrame.new(side*2.65,1.48,z),NEON)
+                for leaf=1,3 do
+                    wedge(m,'JungleLeaf',Vector3.new(.25,.9,.75),rgb(26,130+leaf*18,44),CFrame.new(side*(2.68+leaf*.14),.9,-2.3+leaf*.3)*CFrame.Angles(math.rad(18),math.rad(side*leaf*25),math.rad(-side*35)),MAT)
+                end
+            end
+            block('WaterfallChannel',Vector3.new(.78,.25,1.6),stone,side*2.75,1.85,-2.4)
+            block('Waterfall',Vector3.new(.56,1.12,.14),rgb(62,223,249),side*2.75,1.22,-1.6,NEON,.22)
+            block('PoolRim',Vector3.new(1.0,.18,1.3),stone,side*2.75,.6,-1.0)
+            block('WaterPool',Vector3.new(.76,.08,1.05),rgb(56,217,237),side*2.75,.72,-1.0,NEON,.18)
+        end
+        ball(m,'CrocodileHead',Vector3.new(3.9,2.1,2.0),rgb(113,183,45),CFrame.new(0,6.65,-4.0),MAT)
+        block('CrocodileSnout',Vector3.new(3.1,.68,1.65),rgb(133,199,57),0,6.26,-2.95)
+        block('LowerJaw',Vector3.new(2.8,.22,1.2),rgb(225,220,150),0,5.85,-2.8)
+        for _,side in ipairs({-1,1}) do
+            ball(m,'CrocodileEye',Vector3.new(1.04,1.12,.5),rgb(250,250,232),CFrame.new(side*1.03,7.12,-3.08),MAT)
+            ball(m,'CrocodilePupil',Vector3.new(.55,.75,.24),rgb(9,16,13),CFrame.new(side*1.03,7.12,-2.81),MAT)
+            ball(m,'EyeShine',Vector3.new(.17,.2,.09),rgb(255,255,255),CFrame.new(side*1.03-.10,7.31,-2.65),MAT)
+            ball(m,'Nostril',Vector3.new(.24,.13,.12),dark,CFrame.new(side*.79,6.55,-2.1),MAT)
+            for tooth=0,2 do
+                wedge(m,'CrocodileTooth',Vector3.new(.26,.33,.19),rgb(250,245,217),CFrame.new(side*(.45+tooth*.4),5.98,-2.07),MAT)
+            end
+        end
+        block('ExplorerHatBrim',Vector3.new(4.5,.18,2.7),rgb(37,64,40),0,7.91,-4.1)
+        block('ExplorerHatCrown',Vector3.new(2.9,.83,1.95),rgb(43,77,44),0,8.37,-4.1)
+        block('HatBand',Vector3.new(3.0,.18,2.0),rgb(73,88,48),0,8.1,-4.1)
+        block('HatBadge',Vector3.new(.67,.32,.09),rgb(244,210,101),0,8.37,-3.09)
+    end
+    m:SetAttribute('SAE_TREADMILL',true)
+    m:SetAttribute('SAE_REFERENCE_DETAIL','CustomTreadmill')
+    return finalize(m,root)
+end
+
+
 local Built={['Unicorn Egg']=refEgg('Unicorn Egg'),['Kitsune Egg']=refEgg('Kitsune Egg'),['Night Flame Egg']=refEgg('Night Flame Egg'),['Archangel Egg']=refEgg('Archangel Egg'),['World Burner Egg']=refEgg('World Burner Egg'),['Aetheron Egg']=refEgg('Aetheron Egg'),['Cthulhu Egg']=refEgg('Cthulhu Egg'),['Luminous Cthulhu Egg']=refEgg('Luminous Cthulhu Egg'),['Sabertooth Egg']=refEgg('Sabertooth Egg'),['Skeletal Sabertooth Egg']=refEgg('Skeletal Sabertooth Egg'),['Octophant Egg']=refEgg('Octophant Egg'),['Mecha Scrambler Egg']=refEgg('Mecha Scrambler Egg'),['Night Flame']=nightPet,['Luminous Cthulhu']=luminousPet,['Star']=star}
 
 local cache={}
@@ -3871,7 +3991,10 @@ local function hit(o,want)if want[norm(o.Name)]then return 1000 end local n=norm
 local function source(cat,name)local key=cat..'|'..name if cache[key]and cache[key].Parent then return cache[key]end local want={}for _,a in ipairs(Aliases[name]or{name})do want[norm(a)]=true end local best,bs=nil,-1 local function scan(o,bonus)if not(o:IsA('Model')or o:IsA('Tool'))then return end if P.Character and o:IsDescendantOf(P.Character)then return end if o:IsDescendantOf(Placed)then return end if cat=='Pets'and badPet(o)then return end local h=hit(o,want)if h<=0 then return end local count=0 for _,d in ipairs(o:GetDescendants())do if d:IsA('BasePart')then count+=1 end end if count<1 then return end local sc=h+bonus+math.min(count,100)if sc>bs then best,bs=o,sc end end for _,r in ipairs({{RS,220},{workspace,80}})do local list=r[1]:GetDescendants()for i,o in ipairs(list)do scan(o,r[2])if i%1500==0 then task.wait()end end end if type(getnilinstances)=='function'then local ok,list=pcall(getnilinstances)if ok then for i,o in ipairs(list)do if typeof(o)=='Instance'then scan(o,120)end if i%1500==0 then task.wait()end end end end cache[key]=best return best end
 local function clone(src,name)if not src then return nil end local ok,c=pcall(function()return src:Clone()end)if not ok or not c then return nil end local m=c if c:IsA('Tool')then m=Instance.new('Model')m.Name=name for _,q in ipairs(c:GetChildren())do if not(q:IsA('Script')or q:IsA('LocalScript')or q:IsA('ModuleScript'))then q.Parent=m end end c:Destroy()end if not m:IsA('Model')then return nil end local kill={}for _,d in ipairs(m:GetDescendants())do if d:IsA('Script')or d:IsA('LocalScript')or d:IsA('ModuleScript')or d:IsA('Humanoid')or d:IsA('Animator')or d:IsA('ProximityPrompt')or d:IsA('ClickDetector')or d:IsA('SurfaceGui')or d:IsA('BillboardGui')then kill[#kill+1]=d end end for _,d in ipairs(kill)do d:Destroy()end if not m:FindFirstChildWhichIsA('BasePart',true)then m:Destroy()return nil end m.Name=name return m end
 local function fit(m,target)local ok,s=pcall(function()return m:GetExtentsSize()end)if ok then local mx=math.max(s.X,s.Y,s.Z)if mx>.01 then pcall(function()m:ScaleTo(target/mx)end)end end end
-local function buildModel(cat,name)if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end if cat=='Pets' and (name=='Night Flame' or name=='Luminous Cthulhu') then local f=Built[name] if f then local m=f() fit(m,16) return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
+local function buildModel(cat,name)
+    if name=="Ben's Treadmill" then return customTreadmill(name,false),false end
+    if name=="Brocodile's Treadmill" then return customTreadmill(name,true),false end
+    if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end if cat=='Pets' and (name=='Night Flame' or name=='Luminous Cthulhu') then local f=Built[name] if f then local m=f() fit(m,16) return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
 -- Keep the prepared geometry between spawns; each Tool receives its own clone.
 local preparedModels={}
 local preparingModels={}
@@ -4087,7 +4210,12 @@ local function showInventoryToast(name)
     end)
 end
 
-local function spawnTool(cat,name)local image=itemImage(cat,name) if not image then return false,'Exact item image is not ready'end local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=image t:SetAttribute('SAE_EXACT_REFERENCE_ICON',image) t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP showInventoryToast(name) return true,(cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
+local function spawnTool(cat,name)local image=itemImage(cat,name) if not image then return false,'Exact item image is not ready'end local m,exact=model(cat,name)if not m then return false,'No 3D model available'end local t=Instance.new('Tool')t.Name=name t.TextureId=image t:SetAttribute('SAE_EXACT_REFERENCE_ICON',image) t.RequiresHandle=true t.CanBeDropped=false t:SetAttribute('SAE_V7_TOOL',true)t:SetAttribute('SAE_ID',Http:GenerateGUID(false))local h=part(t,'Handle',Vector3.new(.45,.45,.45),Color3.new(),CFrame.new(),MAT,1)h.CanQuery=false if m:GetAttribute('SAE_TREADMILL') then
+    t.ToolTip='Equip and click a spot to place this treadmill.'
+    t.Grip=CFrame.new(0,-.5,0)
+    weld(t,m,CFrame.new(0,-1.2,-7.2))
+    t.Activated:Connect(function() if t.Parent==P.Character then place(t,m) end end)
+elseif cat=='Eggs'then t.Grip=CFrame.new(0,-.1,-.25)*CFrame.Angles(math.rad(-12),math.rad(180),0)weld(t,m,CFrame.new(0,.45,-.75)*CFrame.Angles(0,math.rad(180),0))elseif cat=='Star'then t.Grip=CFrame.new(0,0,0)*CFrame.Angles(0,math.rad(180),0)weld(t,m,CFrame.new(0,.5,-1.55)*CFrame.Angles(0,math.rad(180),0))else weld(t,m,CFrame.new(0,2,-4.4))t.Activated:Connect(function()if t.Parent==P.Character then place(t,m)end end)end t.Parent=BP showInventoryToast(name) return true,(m:GetAttribute('SAE_TREADMILL') and 'Custom 3D treadmill') or (cat=='Eggs' and '3D reference model') or (exact and 'Exact loaded 3D model' or 'True 3D reference build')end
 
 local C={bg=rgb(8,8,14),head=rgb(15,11,23),card=rgb(24,18,34),card2=rgb(37,25,50),border=rgb(84,57,110),p=rgb(142,51,236),p2=rgb(184,83,255),w=Color3.new(1,1,1),m=rgb(168,162,181),g=rgb(105,245,135),o=rgb(255,188,82),r=rgb(255,90,90)}
 local function corner(o,r)local x=Instance.new('UICorner')x.CornerRadius=UDim.new(0,r or 8)x.Parent=o end
@@ -4120,7 +4248,7 @@ grid:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()content.C
 local status=label(win,'Select an item',UDim2.new(0,16,1,-61),UDim2.new(1,-200,0,18),10,C.m)
 local cat,sel='Eggs',nil local tabButtons={}
 local function paint()for n,b in pairs(tabButtons)do b.BackgroundColor3=(n==cat)and C.p or C.card2 end end
-local function render()for _,c in ipairs(content:GetChildren())do if c:IsA('TextButton')then c:Destroy()end end local list=cat=='Eggs'and Eggs or cat=='Pets'and Pets or{'Star'}for i,name in ipairs(list)do local b=button(content,name,UDim2.new(),UDim2.new())b.LayoutOrder=i b.BackgroundColor3=(sel==name and C.p2 or C.card2)b.MouseButton1Click:Connect(function()sel=name prepareSelectedItem(cat,name) status.Text='Selected: '..name status.TextColor3=C.w render()end)end end
+local function render()for _,c in ipairs(content:GetChildren())do if c:IsA('TextButton')then c:Destroy()end end local list=cat=='Eggs'and Eggs or cat=='Pets'and Pets or GiftCatalog.Star for i,name in ipairs(list)do local b=button(content,name,UDim2.new(),UDim2.new())b.LayoutOrder=i b.BackgroundColor3=(sel==name and C.p2 or C.card2)b.MouseButton1Click:Connect(function()sel=name prepareSelectedItem(cat,name) status.Text='Selected: '..name status.TextColor3=C.w render()end)end end
 for i,n in ipairs({'Eggs','Pets','Star'})do local b=button(tabs,n:upper(),UDim2.new((i-1)/3,4,0,0),UDim2.new(1/3,-8,1,0))tabButtons[n]=b b.MouseButton1Click:Connect(function()cat=n sel=nil paint()render()status.Text='Select an item' status.TextColor3=C.m end)end
 paint()render()
 local spawn=button(win,'SPAWN SELECTED',UDim2.new(1,-176,1,-67),UDim2.fromOffset(160,34))
@@ -5133,6 +5261,8 @@ for category,products in pairs(GiftProducts) do
     end
 end
 inventoryProducts.Star={category='Others',product={imageKey='1-star'}}
+inventoryProducts["Ben's Treadmill"]={category='Others',product={imageKey='ben-treadmill'}}
+inventoryProducts["Brocodile's Treadmill"]={category='Others',product={imageKey='brockodile-treadmill'}}
 E.SAE_ITEM_ICON_RESOLVER=function(name)
     local entry=inventoryProducts[name]
     if not entry then return nil end
@@ -5719,6 +5849,8 @@ local backpack=player:FindFirstChildOfClass('Backpack') or player:WaitForChild('
 if not playerGui or not backpack then return end
 
 local VALID={
+    ["Ben's Treadmill"]=true,
+    ["Brocodile's Treadmill"]=true,
     ['Unicorn Egg']=true,['Unicorn']=true,
     ['Kitsune Egg']=true,['Kitsune']=true,
     ['Night Flame Egg']=true,['Night Flame']=true,
@@ -6084,6 +6216,8 @@ local BP=P:FindFirstChildOfClass('Backpack') or P:WaitForChild('Backpack',10)
 if not PG or not BP then return end
 
 local IMAGE_KEY={
+    ["Ben's Treadmill"]='ben-treadmill',
+    ["Brocodile's Treadmill"]='brockodile-treadmill',
     ['Unicorn Egg']='unicorn_egg',
     ['Unicorn']='unicorn_pet',
     ['Kitsune Egg']='kitsune_egg',
