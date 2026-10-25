@@ -4638,6 +4638,9 @@ local function createTreadmillRuntime()
     if previous and type(previous.Destroy)=='function' then pcall(function() previous:Destroy() end) end
     local api={}
     local entries,connections,tracks={},{},setmetatable({},{__mode='k'})
+    local popups={}
+    local popupSerial=0
+    local popupClock=0
     local active=nil
     local dismounted=nil
     local cooldown=0
@@ -4659,6 +4662,8 @@ local function createTreadmillRuntime()
         if jump then dismounted=state.entry.model end
         if state.track then pcall(function() state.track:Stop(.18) end) end
         if state.headphones then state.headphones:Destroy() end
+        if state.aura then state.aura:Destroy() end
+        for _,popup in ipairs(popups) do popup.started=nil popup.gui.Enabled=false end
         for joint,original in pairs(state.joints or {}) do
             if joint.Parent then joint.Transform=original end
         end
@@ -4738,6 +4743,98 @@ local function createTreadmillRuntime()
         return track
     end
 
+    -- Pooled visual step gains. These never write to the game's stats.
+    local function makeStepPopup()
+        local gui=Instance.new('BillboardGui')
+        gui.Name='SAE_TREADMILL_STEP_POPUP' gui.Size=UDim2.fromOffset(206,66)
+        gui.AlwaysOnTop=true gui.LightInfluence=0 gui.MaxDistance=85 gui.Enabled=false gui.Parent=PG
+        local canvas=Instance.new('Frame')
+        canvas.AnchorPoint=Vector2.new(.5,.5) canvas.Position=UDim2.fromScale(.5,.5)
+        canvas.Size=UDim2.fromScale(1,1) canvas.BackgroundTransparency=1 canvas.Parent=gui
+        local scale=Instance.new('UIScale') scale.Parent=canvas
+        local fade={}
+        local icon=Instance.new('Frame')
+        icon.Size=UDim2.fromOffset(48,48) icon.Position=UDim2.fromOffset(2,8)
+        icon.BackgroundTransparency=1 icon.Rotation=-18 icon.Parent=canvas
+        local function shoePiece(pos,size,color,rotation,radius)
+            local p=Instance.new('Frame') p.Position=pos p.Size=size p.BorderSizePixel=0
+            p.BackgroundColor3=color p.Rotation=rotation or 0 p.Parent=icon
+            local corner=Instance.new('UICorner') corner.CornerRadius=UDim.new(0,radius or 4) corner.Parent=p
+            fade[#fade+1]={object=p,property='BackgroundTransparency',base=0}
+            return p
+        end
+        local sole=shoePiece(UDim2.fromOffset(5,31),UDim2.fromOffset(40,10),rgb(238,253,255),0,5)
+        local outline=Instance.new('UIStroke') outline.Color=rgb(15,43,71) outline.Thickness=2 outline.Parent=sole
+        fade[#fade+1]={object=outline,property='Transparency',base=0}
+        shoePiece(UDim2.fromOffset(8,19),UDim2.fromOffset(34,17),rgb(29,150,241),0,6)
+        shoePiece(UDim2.fromOffset(7,10),UDim2.fromOffset(14,22),rgb(62,197,255),-10,4)
+        shoePiece(UDim2.fromOffset(10,11),UDim2.fromOffset(8,8),rgb(24,73,123),0,3)
+        shoePiece(UDim2.fromOffset(28,25),UDim2.fromOffset(15,10),rgb(83,215,255),0,5)
+        for i=0,2 do
+            shoePiece(UDim2.fromOffset(19+i*5,18+i*3),UDim2.fromOffset(9,3),rgb(255,255,255),-25,1)
+        end
+        local number=Instance.new('TextLabel')
+        number.Position=UDim2.fromOffset(50,0) number.Size=UDim2.fromOffset(156,66)
+        number.BackgroundTransparency=1 number.Font=Enum.Font.FredokaOne number.TextSize=41
+        number.Text='+10 T' number.TextXAlignment=Enum.TextXAlignment.Left
+        number.TextColor3=rgb(255,68,62) number.TextStrokeColor3=rgb(15,20,28)
+        number.TextStrokeTransparency=0 number.Parent=canvas
+        local edge=Instance.new('UIStroke') edge.Color=rgb(15,20,28) edge.Thickness=1.6 edge.Parent=number
+        fade[#fade+1]={object=number,property='TextTransparency',base=0}
+        fade[#fade+1]={object=number,property='TextStrokeTransparency',base=0}
+        fade[#fade+1]={object=edge,property='Transparency',base=0}
+        return {gui=gui,scale=scale,number=number,fade=fade}
+    end
+    local function emitStep(state,now)
+        if #popups<6 then popups[#popups+1]=makeStepPopup() end
+        popupSerial+=1
+        local popup=popups[(popupSerial-1)%#popups+1]
+        local side=popupSerial%2==0 and 1 or -1
+        popup.started=now popup.x=side*(.45+(popupSerial%3)*.33)
+        popup.drift=side*.50 popup.y=.15+(popupSerial%3)*.22
+        popup.gui.Adornee=state.character:FindFirstChild('Head') or state.root
+        popup.number.TextColor3=state.entry.rewardColor
+        popup.scale.Scale=.66
+        popup.gui.StudsOffset=Vector3.new(popup.x,popup.y,0)
+        for _,item in ipairs(popup.fade) do item.object[item.property]=item.base end
+        popup.gui.Enabled=true
+    end
+    local function updateSteps(now)
+        for _,popup in ipairs(popups) do
+            if popup.started then
+                local t=(now-popup.started)/1.15
+                if t>=1 then popup.started=nil popup.gui.Enabled=false
+                else
+                    local fade=math.clamp((t-.52)/.48,0,1)
+                    local settle=math.min(1,t/.17)
+                    popup.scale.Scale=.66+.42*math.sin(settle*math.pi/2)-.10*t
+                    popup.gui.StudsOffset=Vector3.new(popup.x+popup.drift*t,popup.y+t*2.85,0)
+                    for _,item in ipairs(popup.fade) do
+                        item.object[item.property]=item.base+(1-item.base)*fade
+                    end
+                end
+            end
+        end
+    end
+    local function runningAura(root,standing,color)
+        local attachment=Instance.new('Attachment')
+        attachment.Name='SAE_RUNNING_STEP_AURA' attachment.Position=Vector3.new(0,-standing+.12,0)
+        attachment.Parent=root
+        local emitter=Instance.new('ParticleEmitter')
+        emitter.Texture='rbxasset://textures/particles/sparkles_main.dds'
+        emitter.Color=ColorSequence.new(color,color:Lerp(rgb(255,255,255),.70))
+        emitter.LightEmission=1 emitter.LightInfluence=0 emitter.Rate=7
+        emitter.Lifetime=NumberRange.new(.5,.9) emitter.Speed=NumberRange.new(.7,1.5)
+        emitter.SpreadAngle=Vector2.new(65,65) emitter.EmissionDirection=Enum.NormalId.Top
+        emitter.Acceleration=Vector3.new(0,.5,0) emitter.Drag=.6
+        emitter.Size=NumberSequence.new({
+            NumberSequenceKeypoint.new(0,.03),NumberSequenceKeypoint.new(.25,.19),NumberSequenceKeypoint.new(1,0)})
+        emitter.Transparency=NumberSequence.new({
+            NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(.2,.10),NumberSequenceKeypoint.new(1,1)})
+        emitter.Parent=attachment
+        return attachment
+    end
+
     local function startRunning(entry,character,humanoid,root)
         if active or humanoid.Health<=0 or root.Anchored then return end
         local scale=entry.model:GetAttribute('SAE_TREADMILL_MODEL_SCALE') or 1
@@ -4765,7 +4862,9 @@ local function createTreadmillRuntime()
         root.AssemblyLinearVelocity=Vector3.zero root.AssemblyAngularVelocity=Vector3.zero
         root.CFrame=CFrame.lookAt(position,toward)
         root.Anchored=true
+        popupClock=0
         state.headphones=headphones(character,entry.color)
+        state.aura=runningAura(root,standing,entry.rewardColor)
         state.track=runTrack(character,humanoid)
         if active~=state then return end
         if state.track then pcall(function() state.track:Play(.18,1,1.35) end) end
@@ -4796,7 +4895,8 @@ local function createTreadmillRuntime()
         surface.MaxDistance=110 surface.ZOffset=.025 surface.Parent=plane
         local canvas=Instance.new('Frame')
         canvas.Size=UDim2.fromScale(1,1) canvas.BackgroundTransparency=1 canvas.ClipsDescendants=true canvas.Parent=surface
-        local entry={model=model,belt=belt,plane=plane,surface=surface,rows={},sparks={},gradients={},emitters={},color=color}
+        local entry={model=model,belt=belt,plane=plane,surface=surface,rows={},sparks={},gradients={},emitters={},color=color,
+            rewardColor=model.Name=="Brocodile's Treadmill" and rgb(69,255,83) or rgb(255,61,64)}
         for i=1,4 do
             local row=Instance.new('Frame')
             row.AnchorPoint=Vector2.new(.5,.5) row.Size=UDim2.fromScale(1,.15)
@@ -4830,7 +4930,7 @@ local function createTreadmillRuntime()
             end
             entry.rows[#entry.rows+1]={frame=row,pieces=pieces}
         end
-        for i=1,8 do
+        for i=1,10 do
             local star=Instance.new('ImageLabel')
             star.BackgroundTransparency=1 star.Image='rbxasset://textures/particles/sparkles_main.dds'
             star.ImageColor3=rgb(222,255,255) star.AnchorPoint=Vector2.new(.5,.5)
@@ -4848,13 +4948,13 @@ local function createTreadmillRuntime()
                 emitter.Texture='rbxasset://textures/particles/sparkles_main.dds'
                 emitter.Color=ColorSequence.new(color:Lerp(rgb(255,255,255),.70))
                 emitter.LightEmission=1 emitter.LightInfluence=0
-                emitter.Rate=2 emitter.Lifetime=NumberRange.new(.45,.85)
+                emitter.Rate=3 emitter.Lifetime=NumberRange.new(.45,.95)
                 emitter.Speed=NumberRange.new(.18,.48) emitter.Drag=1
                 emitter.EmissionDirection=Enum.NormalId.Front
                 emitter.SpreadAngle=Vector2.new(18,18)
                 emitter.Size=NumberSequence.new({
                     NumberSequenceKeypoint.new(0,.035*scale),
-                    NumberSequenceKeypoint.new(.25,.16*scale),
+                    NumberSequenceKeypoint.new(.25,.19*scale),
                     NumberSequenceKeypoint.new(1,0)})
                 emitter.Transparency=NumberSequence.new({
                     NumberSequenceKeypoint.new(0,1),
@@ -4944,7 +5044,7 @@ local function createTreadmillRuntime()
                             piece.frame.BackgroundTransparency=piece.alpha+(1-piece.alpha)*fade
                         end
                     end
-                    local sweep=Vector2.new(((now*.48)%1)*2.8-1.4,0)
+                    local sweep=Vector2.new(((now*.58)%1)*2.8-1.4,0)
                     for _,gradient in ipairs(entry.gradients) do gradient.Offset=sweep end
                     for i,spark in ipairs(entry.sparks) do
                         local phase=(now*.21+i*.137)%1
@@ -4959,9 +5059,14 @@ local function createTreadmillRuntime()
                 end
             end
         end
+        updateSteps(now)
         if active then
             if active.character~=character or not root or not humanoid or humanoid.Health<=0 or
-                not active.entry.model.Parent or not active.root.Parent then stopRunning(false) end
+                not active.entry.model.Parent or not active.root.Parent then stopRunning(false)
+            else
+                popupClock-=dt
+                if popupClock<=0 then emitStep(active,now) popupClock=.22 end
+            end
             return
         end
         sample+=dt
@@ -4997,6 +5102,7 @@ local function createTreadmillRuntime()
         for _,connection in ipairs(connections) do connection:Disconnect() end
         for _,entry in pairs(entries) do if entry.plane.Parent then entry.plane:Destroy() end end
         for _,track in pairs(tracks) do pcall(function() track:Stop(0); track:Destroy() end) end
+        for _,popup in ipairs(popups) do popup.gui:Destroy() end
     end
     E.SAE_TREADMILL_RUNTIME=api
     return api
