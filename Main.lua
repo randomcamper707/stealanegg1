@@ -2896,7 +2896,7 @@ local function showAdminPage(name,push)
     -- Size each branch to its controls instead of leaving a tall empty window.
     local heights={
         Home=118,
-        Announcements=336,
+        Announcements=312, Preset=336,
         Names=286, ["Avatar Name"]=330, ["Announcements Profile"]=384
     }
     Main.Size=UDim2.fromOffset(344,heights[name] or 398)
@@ -2979,26 +2979,131 @@ local function intSlider(parent,y,minv,maxv,step,initial,title,onChange)
 end
 
 function Builders.Announcements()
--- ANNOUNCEMENTS
 section(AnnouncePage,"ANNOUNCEMENTS",4)
 local annBox=textbox(AnnouncePage,"Type your announcement...",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,42),"")
 local annSend=button(AnnouncePage,"Send announcement",UDim2.fromOffset(5,78),UDim2.new(1,-10,0,34),false)
-local annGlobal=button(AnnouncePage,"Send global announcement",UDim2.fromOffset(5,118),UDim2.new(1,-10,0,32),true)
-local annClear=button(AnnouncePage,"Clear announcement",UDim2.fromOffset(5,156),UDim2.new(1,-10,0,30),true)
-local annStatus=label(AnnouncePage,"Uses the name and picture saved in Names.",UDim2.fromOffset(7,194),UDim2.new(1,-14,0,32),11); annStatus.TextWrapped=true; annStatus.TextColor3=C.muted
-local function sendAnnouncement(global)
-    local msg=annBox.Text
-    if msg=="" then annStatus.Text="Type an announcement first."; annStatus.TextColor3=C.orange; return end
-    callRemote(global and "GlobalAnnouncement" or "Announcement",msg)
-    notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,global and ": sent a" or ": sent an",global and "GLOBAL ANNOUNCEMENT" or "ANNOUNCEMENT","- "..msg,Enum.Font.FredokaOne)
-    annStatus.Text=global and "Global announcement displayed." or "Announcement shown."
-    annStatus.TextColor3=C.green
-end
-annSend.MouseButton1Click:Connect(function() sendAnnouncement(false) end)
-annGlobal.MouseButton1Click:Connect(function() sendAnnouncement(true) end)
-annClear.MouseButton1Click:Connect(function() annBox.Text=""; annStatus.Text="Announcement cleared."; annStatus.TextColor3=C.muted end)
-annBox.FocusLost:Connect(function(enter) if enter then sendAnnouncement(false) end end)
+local presetMenu=button(AnnouncePage,"Preset",UDim2.fromOffset(5,120),UDim2.new(1,-10,0,34),true)
+local annStatus=label(AnnouncePage,"Uses the name and picture saved in Names.",UDim2.fromOffset(7,162),UDim2.new(1,-14,0,32),11)
+annStatus.TextWrapped=true
+annStatus.TextColor3=C.muted
 
+local presetPage=newAdminPage("Preset",false)
+section(presetPage,"PRESET",4)
+local presetInput=textbox(presetPage,"Type a preset and press Enter",UDim2.fromOffset(5,28),UDim2.new(1,-10,0,36),"")
+local presetList=Instance.new("ScrollingFrame")
+presetList.Name="SavedPresets"
+presetList.Position=UDim2.fromOffset(5,76)
+presetList.Size=UDim2.new(1,-10,1,-108)
+presetList.BackgroundColor3=C.card
+presetList.BorderSizePixel=0
+presetList.CanvasSize=UDim2.new()
+presetList.AutomaticCanvasSize=Enum.AutomaticSize.Y
+presetList.ScrollBarThickness=4
+presetList.ScrollBarImageColor3=C.purple
+presetList.ScrollingDirection=Enum.ScrollingDirection.Y
+presetList.Parent=presetPage
+corner(presetList,8)
+local listLayout=Instance.new("UIListLayout")
+listLayout.SortOrder=Enum.SortOrder.LayoutOrder
+listLayout.Padding=UDim.new(0,6)
+listLayout.Parent=presetList
+local listPadding=Instance.new("UIPadding")
+listPadding.PaddingTop=UDim.new(0,6)
+listPadding.PaddingBottom=UDim.new(0,6)
+listPadding.PaddingLeft=UDim.new(0,6)
+listPadding.Parent=presetList
+local presetStatus=label(presetPage,"Enter saves. Click a preset to announce it.",UDim2.new(0,7,1,-28),UDim2.new(1,-14,0,26),11)
+presetStatus.TextColor3=C.muted
+presetStatus.TextWrapped=true
+
+-- Presets are private local data, separated by Roblox account.
+local presetEnv=(getgenv and getgenv()) or _G
+if type(presetEnv.SAE_ANNOUNCEMENT_PRESETS_BY_USER)~="table" then presetEnv.SAE_ANNOUNCEMENT_PRESETS_BY_USER={} end
+local accountKey=tostring(P.UserId)
+local presetFile="SAE_AnnouncementPresets_"..accountKey..".json"
+local codec=game:GetService("HttpService")
+local saved=presetEnv.SAE_ANNOUNCEMENT_PRESETS_BY_USER[accountKey]
+if type(saved)~="table" then
+    saved={}
+    if type(readfile)=="function" then
+        local ok,data=pcall(function() return codec:JSONDecode(readfile(presetFile)) end)
+        if ok and type(data)=="table" and data.version==1 and type(data.messages)=="table" then
+            for _,message in ipairs(data.messages) do
+                if type(message)=="string" and message:match("%S") then saved[#saved+1]=message end
+            end
+        end
+    end
+    presetEnv.SAE_ANNOUNCEMENT_PRESETS_BY_USER[accountKey]=saved
+end
+local function persistPresets()
+    if type(writefile)~="function" then return false end
+    return pcall(function()
+        writefile(presetFile,codec:JSONEncode({version=1,messages=saved}))
+    end)
+end
+local function sendAnnouncement(message,targetStatus)
+    local msg=(message or annBox.Text):match("^%s*(.-)%s*$")
+    local feedback=targetStatus or annStatus
+    if msg=="" then
+        feedback.Text="Type an announcement first."
+        feedback.TextColor3=C.orange
+        return
+    end
+    callRemote("Announcement",msg)
+    notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent an","ANNOUNCEMENT","- "..msg,Enum.Font.FredokaOne)
+    feedback.Text="Announcement shown."
+    feedback.TextColor3=C.green
+end
+local function renderPresets()
+    for _,child in ipairs(presetList:GetChildren()) do
+        if child:IsA("TextButton") or child.Name=="EmptyPresetHint" then child:Destroy() end
+    end
+    if #saved==0 then
+        local empty=label(presetList,"Your saved announcements appear here.",UDim2.new(),UDim2.new(1,-12,0,42),11)
+        empty.Name="EmptyPresetHint"
+        empty.TextColor3=C.muted
+        empty.TextWrapped=true
+        return
+    end
+    for index,message in ipairs(saved) do
+        local presetMessage=message
+        local entry=button(presetList,message,UDim2.new(),UDim2.new(1,-12,0,38),true)
+        entry.Name="Preset"..index
+        entry.LayoutOrder=index
+        entry.TextSize=12
+        entry.TextWrapped=true
+        entry.TextTruncate=Enum.TextTruncate.AtEnd
+        entry.MouseButton1Click:Connect(function()
+            sendAnnouncement(presetMessage,presetStatus)
+        end)
+    end
+end
+local function savePreset()
+    local message=presetInput.Text:match("^%s*(.-)%s*$")
+    if message=="" then
+        presetStatus.Text="Type a preset before pressing Enter."
+        presetStatus.TextColor3=C.orange
+        return
+    end
+    for _,existing in ipairs(saved) do
+        if existing:lower()==message:lower() then
+            presetStatus.Text="That preset is already saved."
+            presetStatus.TextColor3=C.muted
+            return
+        end
+    end
+    saved[#saved+1]=message
+    local persisted=persistPresets()
+    presetInput.Text=""
+    renderPresets()
+    presetStatus.Text=persisted and "Preset saved. Click it to announce." or "Saved for this session. Click it to announce."
+    presetStatus.TextColor3=C.green
+end
+annSend.MouseButton1Click:Connect(function() sendAnnouncement() end)
+annBox.FocusLost:Connect(function(enter) if enter then sendAnnouncement() end end)
+presetMenu.MouseButton1Click:Connect(function() showAdminPage("Preset",true) end)
+presetInput.FocusLost:Connect(function(enter) if enter then savePreset() end end)
+renderPresets()
 end
 Builders.Announcements()
 Builders.Announcements=nil
