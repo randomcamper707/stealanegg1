@@ -4213,7 +4213,7 @@ local giftLogoHighlight=Instance.new('Frame')
 giftLogoHighlight.Name='LogoShimmer'
 giftLogoHighlight.Size=UDim2.fromScale(1,1)
 giftLogoHighlight.BackgroundColor3=Color3.new(1,1,1)
-giftLogoHighlight.BackgroundTransparency=.85
+giftLogoHighlight.BackgroundTransparency=.6
 giftLogoHighlight.BorderSizePixel=0
 giftLogoHighlight.Active=false
 giftLogoHighlight.ZIndex=3
@@ -4223,14 +4223,14 @@ giftLogoShine.Rotation=18
 giftLogoShine.Offset=Vector2.new(-1.2,0)
 giftLogoShine.Transparency=NumberSequence.new({
     NumberSequenceKeypoint.new(0,1),
-    NumberSequenceKeypoint.new(.40,1),
-    NumberSequenceKeypoint.new(.5,.25),
-    NumberSequenceKeypoint.new(.60,1),
+    NumberSequenceKeypoint.new(.36,1),
+    NumberSequenceKeypoint.new(.5,.05),
+    NumberSequenceKeypoint.new(.64,1),
     NumberSequenceKeypoint.new(1,1)
 })
 giftLogoShine.Parent=giftLogoHighlight
 local giftLogoShineTween=game:GetService('TweenService'):Create(
-    giftLogoShine,TweenInfo.new(1.35,Enum.EasingStyle.Linear,Enum.EasingDirection.Out,-1,false,2.8),
+    giftLogoShine,TweenInfo.new(1.15,Enum.EasingStyle.Linear,Enum.EasingDirection.Out,-1,false,1.8),
     {Offset=Vector2.new(1.2,0)}
 )
 local function updateGiftLogoMotion()
@@ -4413,7 +4413,7 @@ local giftDetail=giftStepFrame('UsernamePage')
 -- Reference proportions, with a fixed image/name row and one full-width action.
 giftDetail.Size=UDim2.fromOffset(480,304)
 corner(giftDetail,18)
-local giftDetailClose=button(giftDetail,'‹ Back',UDim2.new(1,-84,0,10),UDim2.fromOffset(72,30))
+local giftDetailClose=button(giftDetail,'Back',UDim2.new(1,-84,0,10),UDim2.fromOffset(72,30))
 corner(giftDetailClose,16)
 giftButtonPaint(giftDetailClose,'cyan')
 giftDetailClose.TextColor3=Color3.new(1,1,1)
