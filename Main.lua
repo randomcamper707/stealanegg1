@@ -6073,39 +6073,41 @@ giftSearchingTitle.Font=Enum.Font.GothamBold
 local giftSearchingHint=label(giftSearching,'Looking for this user',UDim2.fromOffset(20,171),UDim2.new(1,-40,0,20),12,C.m)
 giftSearchingHint.TextXAlignment=Enum.TextXAlignment.Center
 local giftSearchCancel=button(giftSearching,'CANCEL SEARCH',UDim2.fromOffset(186,220),UDim2.fromOffset(148,30))
-giftSearchCancel.TextSize=12
+giftSearchCancel.TextSize=14
 giftButtonPaint(giftSearchCancel,'secondary')
+giftSearchCancel.TextColor3=Color3.new(1,1,1)
+giftSearchCancel.TextTransparency=0
 
 local giftFound=giftStepFrame('PlayerFoundPage')
-giftFound.Size=UDim2.fromOffset(666,304)
-local giftFoundTitle=label(giftFound,'IS THIS YOU?',UDim2.fromOffset(16,10),UDim2.new(1,-32,0,28),24)
+giftFound.Size=UDim2.fromOffset(480,304)
+local giftFoundTitle=label(giftFound,'Player Found',UDim2.fromOffset(16,112),UDim2.new(1,-32,0,25),22)
 giftFoundTitle.TextXAlignment=Enum.TextXAlignment.Center
 local giftRecipientAvatar=Instance.new('ImageLabel')
 giftRecipientAvatar.AnchorPoint=Vector2.new(.5,0)
-giftRecipientAvatar.Position=UDim2.fromOffset(120,42)
-giftRecipientAvatar.Size=UDim2.fromOffset(164,164)
+giftRecipientAvatar.Position=UDim2.new(.5,0,0,10)
+giftRecipientAvatar.Size=UDim2.fromOffset(94,100)
 giftRecipientAvatar.BackgroundColor3=C.head
 giftRecipientAvatar.ScaleType=Enum.ScaleType.Fit
 giftRecipientAvatar.Parent=giftFound
-corner(giftRecipientAvatar,82)
+corner(giftRecipientAvatar,14)
 local giftAvatarRim=stroke(giftRecipientAvatar)
 giftAvatarRim.Color=C.border
 giftAvatarRim.Thickness=2
 local giftFoundDisplayName=label(giftFound,'',UDim2.fromOffset(16,210),UDim2.fromOffset(208,26),23)
 giftFoundDisplayName.TextXAlignment=Enum.TextXAlignment.Center
 giftFoundDisplayName.TextTruncate=Enum.TextTruncate.AtEnd
-local giftFoundUsername=label(giftFound,'',UDim2.fromOffset(16,238),UDim2.fromOffset(208,18),15,C.m)
+giftFoundDisplayName.Visible=false
+local giftFoundUsername=label(giftFound,'',UDim2.fromOffset(16,140),UDim2.new(1,-32,0,20),15,C.m)
 giftFoundUsername.TextXAlignment=Enum.TextXAlignment.Center
 local giftFoundSummary=label(giftFound,'',UDim2.fromOffset(20,0),UDim2.new(1,-40,0,18),11,C.m)
 giftFoundSummary.Visible=false
-label(giftFound,'Choose quantity',UDim2.fromOffset(236,64),UDim2.fromOffset(400,26),19).TextXAlignment=Enum.TextXAlignment.Center
 local giftFoundQuantityCards={}
 for count=1,3 do
     local quantity=count
     local choice=Instance.new('TextButton')
     choice.Name='QuantityChoice'..count
-    choice.Position=UDim2.fromOffset(236+(count-1)*136,104)
-    choice.Size=UDim2.fromOffset(128,128)
+    choice.Position=UDim2.fromOffset(40+(count-1)*136,166)
+    choice.Size=UDim2.fromOffset(128,76)
     choice.BorderSizePixel=0
     choice.Text=''
     choice.Parent=giftFound
@@ -6117,16 +6119,16 @@ for count=1,3 do
         local image=Instance.new('ImageLabel')
         image.Name='Item'..i
         image.AnchorPoint=Vector2.new(.5,.5)
-        local spacing=count==1 and 0 or (count==2 and 34 or 28)
-        image.Position=UDim2.new(.5,(i-(count+1)/2)*spacing,0,44)
-        image.Size=UDim2.fromOffset(count==1 and 82 or 62,80)
+        local spacing=count==1 and 0 or (count==2 and 28 or 21)
+        image.Position=UDim2.new(.5,(i-(count+1)/2)*spacing,0,26)
+        image.Size=UDim2.fromOffset(count==1 and 62 or 43,46)
         image.BackgroundTransparency=1
         image.ScaleType=Enum.ScaleType.Fit
         image.ZIndex=choice.ZIndex+2
         image.Parent=choice
         images[i]=image
     end
-    local caption=label(choice,'',UDim2.fromOffset(4,86),UDim2.new(1,-8,0,36),11)
+    local caption=label(choice,'',UDim2.fromOffset(4,48),UDim2.new(1,-8,0,25),11)
     caption.TextXAlignment=Enum.TextXAlignment.Center
     caption.TextWrapped=true
     caption.ZIndex=choice.ZIndex+2
@@ -6144,17 +6146,11 @@ for count=1,3 do
         giftFoundSummary.Text=giftQty..'× '..giftSelected.name
     end)
 end
-local giftPreview=button(giftFound,"Yes, it's me!",UDim2.fromOffset(64,264),UDim2.fromOffset(258,30))
+local giftPreview=button(giftFound,'Send',UDim2.fromOffset(24,256),UDim2.fromOffset(432,36))
 giftPreview.TextSize=20
 giftPreview.TextColor3=Color3.new(1,1,1)
 giftPreview.TextStrokeColor3=Color3.fromRGB(54,123,29)
 giftPreview.TextStrokeTransparency=.6
-local giftFoundBack=button(giftFound,'No, go back',UDim2.fromOffset(344,264),UDim2.fromOffset(258,30))
-giftFoundBack.TextSize=20
-giftButtonPaint(giftFoundBack,'secondary')
-giftFoundBack.TextColor3=Color3.new(1,1,1)
-giftFoundBack:FindFirstChildOfClass('UIStroke').Color=C.border
-
 -- A gradient on a TextButton also tints its own glyphs. Draw white captions
 -- in a separate layer above the gradient and shimmer so they stay opaque.
 local function giftOpaqueWhiteCaption(target)
@@ -6186,7 +6182,7 @@ end
 giftLookup.TextColor3=C.ink
 giftPreview.TextColor3=C.ink
 giftButtonPaint(giftDetailClose,'secondary')
-for _,target in ipairs({giftLookup,giftPreview,giftFoundBack,giftClose,giftDetailClose,giftAllButton}) do
+for _,target in ipairs({giftLookup,giftPreview,giftSearchCancel,giftClose,giftDetailClose,giftAllButton}) do
     giftOpaqueWhiteCaption(target)
 end
 
@@ -6562,7 +6558,7 @@ local function refreshGiftFoundQuantity()
     local single=giftSelected.category=='Others' or giftSelected.bundle
     for count,card in ipairs(giftFoundQuantityCards) do
         card.button.Visible=not single or count==1
-        card.button.Position=UDim2.fromOffset(single and 372 or 236+(count-1)*136,104)
+        card.button.Position=UDim2.fromOffset(single and 176 or 40+(count-1)*136,166)
         card.caption.Text=single and giftSelected.name or (count..' '..giftSelected.name)
         local selected=count==(single and 1 or giftQty)
         giftGradient(card.button,selected and Color3.fromRGB(15,66,86) or C.head,selected and Color3.fromRGB(10,39,56) or C.card)
@@ -6704,7 +6700,7 @@ local function selectGiftItem(productData,productCategory)
     giftDetailMeta.Text=productData.bundle and (#giftBundleProducts..' shop items') or ('Divine  ·  '..productData.rate)
     giftDetailIcon.Image=''
     queueGiftImage(giftDetailIcon,productCategory,productData)
-    giftPreview.Text="Yes, it's me!"
+    giftPreview.Text='Send'
     setGiftPage('form')
 end
 giftAllButton.MouseButton1Click:Connect(function()
@@ -6901,7 +6897,7 @@ local function searchGiftRecipient()
         refreshGiftFoundQuantity()
         local count=giftSelected.category=='Others' and 1 or giftQty
         giftFoundSummary.Text=giftSelected.category=='Others' and giftSelected.name or (count..'× '..giftSelected.name)
-        giftPreview.Text="Yes, it\'s me!"
+        giftPreview.Text='Send'
         setGiftPage('found')
     end)
 end
@@ -6911,12 +6907,6 @@ giftRecipientInput.FocusLost:Connect(function(enterPressed)
 end)
 giftSearchCancel.MouseButton1Click:Connect(function()
     cancelGiftSearch()
-    giftDetailStatus.Text=''
-    setGiftPage('form')
-end)
-giftFoundBack.MouseButton1Click:Connect(function()
-    cancelGiftSearch()
-    giftRecipient=nil
     giftDetailStatus.Text=''
     setGiftPage('form')
 end)
