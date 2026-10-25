@@ -4199,30 +4199,44 @@ giftLogoShadow.Position=UDim2.new(.5,1, .5,1)
 giftLogoShadow.Size=giftLogo.Size
 giftLogoShadow.BackgroundTransparency=1
 giftLogoShadow.ImageColor3=Color3.new(0,0,0)
-giftLogoShadow.ImageTransparency=.55
+giftLogoShadow.ImageTransparency=.78
 giftLogoShadow.ScaleType=Enum.ScaleType.Fit
 giftLogoShadow.ZIndex=1
 giftLogoShadow.Parent=giftHead
 giftLogo:GetPropertyChangedSignal('Image'):Connect(function()
     giftLogoShadow.Image=giftLogo.Image
 end)
--- The moving brightness band follows the logo's alpha, leaving the header clean.
+-- Keep the original logo at full brightness; a separate light streak adds shine.
+giftLogo.ImageColor3=Color3.new(1,1,1)
+giftLogo.ImageTransparency=0
+local giftLogoHighlight=Instance.new('Frame')
+giftLogoHighlight.Name='LogoShimmer'
+giftLogoHighlight.Size=UDim2.fromScale(1,1)
+giftLogoHighlight.BackgroundColor3=Color3.new(1,1,1)
+giftLogoHighlight.BackgroundTransparency=.85
+giftLogoHighlight.BorderSizePixel=0
+giftLogoHighlight.Active=false
+giftLogoHighlight.ZIndex=3
+giftLogoHighlight.Parent=giftLogo
 local giftLogoShine=Instance.new('UIGradient')
 giftLogoShine.Rotation=18
 giftLogoShine.Offset=Vector2.new(-1.2,0)
-giftLogoShine.Color=ColorSequence.new({
-    ColorSequenceKeypoint.new(0,Color3.fromRGB(216,216,216)),
-    ColorSequenceKeypoint.new(.38,Color3.fromRGB(230,230,230)),
-    ColorSequenceKeypoint.new(.5,Color3.new(1,1,1)),
-    ColorSequenceKeypoint.new(.62,Color3.fromRGB(230,230,230)),
-    ColorSequenceKeypoint.new(1,Color3.fromRGB(216,216,216))
+giftLogoShine.Transparency=NumberSequence.new({
+    NumberSequenceKeypoint.new(0,1),
+    NumberSequenceKeypoint.new(.40,1),
+    NumberSequenceKeypoint.new(.5,.25),
+    NumberSequenceKeypoint.new(.60,1),
+    NumberSequenceKeypoint.new(1,1)
 })
-giftLogoShine.Parent=giftLogo
+giftLogoShine.Parent=giftLogoHighlight
 local giftLogoShineTween=game:GetService('TweenService'):Create(
     giftLogoShine,TweenInfo.new(1.35,Enum.EasingStyle.Linear,Enum.EasingDirection.Out,-1,false,2.8),
     {Offset=Vector2.new(1.2,0)}
 )
-giftLogoShineTween:Play()
+local function updateGiftLogoMotion()
+    if giftWin.Visible then giftLogoShineTween:Play() else giftLogoShineTween:Pause() end
+end
+giftWin:GetPropertyChangedSignal('Visible'):Connect(updateGiftLogoMotion)
 giftGui.Destroying:Connect(function() giftLogoShineTween:Cancel() end)
 local giftDragHandle=Instance.new('TextButton')
 giftDragHandle.Name='DragHeader'
@@ -4379,6 +4393,7 @@ giftStatus.TextYAlignment=Enum.TextYAlignment.Center
 local giftPage='catalog'
 local showGiftCatalog
 local resetGiftFlow
+local refreshGiftMotion
 local giftSearchSerial=0
 local function giftStepFrame(name)
     local frame=Instance.new('Frame')
@@ -4398,11 +4413,11 @@ local giftDetail=giftStepFrame('UsernamePage')
 -- Reference proportions, with a fixed image/name row and one full-width action.
 giftDetail.Size=UDim2.fromOffset(480,304)
 corner(giftDetail,18)
-local giftDetailClose=button(giftDetail,'×',UDim2.new(1,-44,0,10),UDim2.fromOffset(32,32))
+local giftDetailClose=button(giftDetail,'‹ Back',UDim2.new(1,-84,0,10),UDim2.fromOffset(72,30))
 corner(giftDetailClose,16)
 giftButtonPaint(giftDetailClose,'cyan')
 giftDetailClose.TextColor3=Color3.new(1,1,1)
-giftDetailClose.TextSize=27
+giftDetailClose.TextSize=14
 giftDetailClose.ZIndex=4
 local giftImageBorder=Instance.new('Frame')
 giftImageBorder.Name='ItemImageBorder'
@@ -4460,7 +4475,7 @@ giftDetailIcon:GetPropertyChangedSignal('Image'):Connect(function()
     for i=2,3 do giftStackIcons[i].Image=giftDetailIcon.Image end
 end)
 updateGiftQuantityImages()
-giftDetailName=label(giftDetail,'',UDim2.fromOffset(188,30),UDim2.fromOffset(240,78),26)
+giftDetailName=label(giftDetail,'',UDim2.fromOffset(188,46),UDim2.fromOffset(240,60),26)
 giftDetailName.Font=Enum.Font.GothamBold
 giftDetailName.TextWrapped=true
 giftDetailName.TextXAlignment=Enum.TextXAlignment.Left
@@ -4531,7 +4546,10 @@ giftBack.TextColor3=Color3.fromRGB(99,126,150)
 giftBack.Font=Enum.Font.GothamBold
 giftBack.Parent=giftDetail
 giftDetailClose.MouseButton1Click:Connect(function()
-    giftWin.Visible=false
+    giftRecipient=nil
+    giftSelected=nil
+    giftDetailStatus.Text=''
+    if showGiftCatalog then showGiftCatalog() end
 end)
 
 local giftSearching=giftStepFrame('SearchingPage')
@@ -4779,6 +4797,7 @@ local function setGiftPage(page)
     giftSpinnerTween:Cancel()
     giftSpinner.Rotation=0
     if page=='search' then giftSpinnerTween:Play() end
+    if refreshGiftMotion then task.defer(refreshGiftMotion) end
 end
 giftWin:GetPropertyChangedSignal('Visible'):Connect(function()
     if not giftWin.Visible then
@@ -4935,12 +4954,14 @@ local function queueGiftImage(target,category,product)
         montage.BackgroundTransparency=0
         montage.BackgroundColor3=C.card2
         corner(montage,10)
-        -- Four clean tiles, equal spacing, no overlap or decorative rotation.
+        -- Six evenly spaced references keep the bundle varied and readable.
         local placements={
-            {key='unicorn',x=.08,y=.04,w=.36,h=.42,z=1,rotation=0},
-            {key='nightflame-pet',x=.56,y=.04,w=.36,h=.42,z=1,rotation=0},
-            {key='brockodile-treadmill',x=.08,y=.54,w=.36,h=.42,z=1,rotation=0},
-            {key='3-stars',x=.56,y=.54,w=.36,h=.42,z=1,rotation=0}
+            {key='unicorn',x=.04,y=.06,w=.28,h=.40,z=1,rotation=0},
+            {key='kitsune',x=.36,y=.06,w=.28,h=.40,z=1,rotation=0},
+            {key='archangel-pet',x=.68,y=.06,w=.28,h=.40,z=1,rotation=0},
+            {key='nightflame-pet',x=.04,y=.54,w=.28,h=.40,z=1,rotation=0},
+            {key='brockodile-treadmill',x=.36,y=.54,w=.28,h=.40,z=1,rotation=0},
+            {key='3-stars',x=.68,y=.54,w=.28,h=.40,z=1,rotation=0}
         }
         for _,placement in ipairs(placements) do
             local item=nil
@@ -5003,7 +5024,7 @@ local function startGiftRain(product)
         return giftRainSerial==serial and giftGui.Parent and giftWin.Visible and giftPage=='sent'
     end
     task.spawn(function()
-        local rainProducts=product.bundle and giftBundleProducts or {product}
+        local rainProducts=product.bundle and giftBundleArt or {product}
         local rainAssets={}
         for _,item in ipairs(rainProducts) do
             if not active() then return end
@@ -5014,7 +5035,7 @@ local function startGiftRain(product)
         giftRainLayer.Visible=true
         local random=Random.new()
         local tweenService=game:GetService('TweenService')
-        for index=1,28 do
+        for index=1,20 do
             if not active() then return end
             local size=random:NextInteger(28,46)
             local horizontal=random:NextNumber(.02,.98)
@@ -5054,7 +5075,7 @@ local function startGiftRain(product)
                 giftRainTweens[fall]=nil
                 image:Destroy()
             end)
-            task.wait(.065)
+            task.wait(.085)
         end
         task.delay(2.6,function()
             if active() then stopGiftRain() end
@@ -5124,6 +5145,32 @@ local function addGiftButtonSymbol(target)
 end
 local giftTweenService=game:GetService('TweenService')
 local giftShimmerIndex=0
+local giftMotionEntries={}
+refreshGiftMotion=function()
+    for target,entry in pairs(giftMotionEntries) do
+        local visible=giftWin.Visible and target.Parent~=nil
+        local ancestor=target
+        while visible and ancestor and ancestor~=giftWin do
+            if ancestor:IsA('GuiObject') and not ancestor.Visible then visible=false end
+            ancestor=ancestor.Parent
+        end
+        if visible and target:IsDescendantOf(giftList) then
+            local top=target.AbsolutePosition.Y
+            visible=top+target.AbsoluteSize.Y>giftList.AbsolutePosition.Y
+                and top<giftList.AbsolutePosition.Y+giftList.AbsoluteSize.Y
+        end
+        if visible~=entry.playing then
+            entry.playing=visible
+            if visible then entry.tween:Play() else entry.tween:Pause() end
+        end
+    end
+end
+local giftMotionVisibility=giftWin:GetPropertyChangedSignal('Visible'):Connect(refreshGiftMotion)
+local giftMotionScroll=giftList:GetPropertyChangedSignal('CanvasPosition'):Connect(refreshGiftMotion)
+giftGui.Destroying:Connect(function()
+    giftMotionVisibility:Disconnect()
+    giftMotionScroll:Disconnect()
+end)
 local function addGiftShimmer(target)
     if not target:IsA('GuiButton') or target:GetAttribute('SAE_GiftShimmer') then return end
     -- Only primary actions shimmer; tabs, close icons, and quantity choices stay still.
@@ -5153,8 +5200,12 @@ local function addGiftShimmer(target)
     })
     gradient.Parent=shine
     local tween=giftTweenService:Create(gradient,TweenInfo.new(1.1,Enum.EasingStyle.Linear,Enum.EasingDirection.Out,-1,false,2.2+(giftShimmerIndex%4)*.2),{Offset=Vector2.new(1.4,0)})
-    tween:Play()
-    target.Destroying:Connect(function() tween:Cancel() end)
+    giftMotionEntries[target]={tween=tween,playing=false}
+    task.defer(refreshGiftMotion)
+    target.Destroying:Connect(function()
+        giftMotionEntries[target]=nil
+        tween:Cancel()
+    end)
 end
 for _,target in ipairs(giftGui:GetDescendants()) do addGiftShimmer(target) end
 local giftShimmerConnection=giftGui.DescendantAdded:Connect(addGiftShimmer)
@@ -5313,7 +5364,7 @@ giftRecipientInput:GetPropertyChangedSignal('Text'):Connect(function()
     giftRecipient=nil
     giftDetailStatus.Text=''
 end)
-giftLookup.MouseButton1Click:Connect(function()
+local function searchGiftRecipient()
     local username=giftRecipientInput.Text:match('^%s*(.-)%s*$'):gsub('^@+','')
     if username=='' then
         giftDetailStatus.Text='Enter a Roblox username first'
@@ -5372,6 +5423,10 @@ giftLookup.MouseButton1Click:Connect(function()
         giftPreview.Text="Yes, it\'s me!"
         setGiftPage('found')
     end)
+end
+giftLookup.MouseButton1Click:Connect(searchGiftRecipient)
+giftRecipientInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed and giftWin.Visible and giftPage=='form' then searchGiftRecipient() end
 end)
 giftSearchCancel.MouseButton1Click:Connect(function()
     cancelGiftSearch()
