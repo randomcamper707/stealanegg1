@@ -6849,7 +6849,7 @@ giftPreview.MouseButton1Click:Connect(function()
         return text:gsub('&','&amp;'):gsub('<','&lt;'):gsub('>','&gt;')
     end
     local quantityPrefix=(giftSelected.category=='Others' or giftSelected.bundle) and '' or (count..'× ')
-    giftSentSummary.Text=quantityPrefix..'<font color="#9228ed">'..escaped(giftSelected.name)..'</font> has been sent to\n'..escaped(giftRecipient.username)..'.'
+    giftSentSummary.Text=quantityPrefix..'<font color="#9228ed">'..escaped(giftSelected.name)..'</font>'
     setGiftPage('sent')
     startGiftRain(giftSelected)
 end)
