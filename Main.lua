@@ -6763,7 +6763,7 @@ showGiftCatalog=function()
             local icon=Instance.new('ImageLabel')
             icon.AnchorPoint=Vector2.new(.5,.5)
             icon.Position=UDim2.fromScale(.5,.5)
-            icon.Size=productCategory=='Others' and UDim2.fromOffset(86,71) or UDim2.fromOffset(78,64)
+            icon.Size=productCategory=='Others' and UDim2.fromOffset(86,71) or UDim2.fromOffset(62,51)
             local imageBounds=GiftArtworkBounds[product.imageKey]
             if imageBounds then
                 icon.ImageRectOffset=Vector2.new(imageBounds[1],imageBounds[2])
