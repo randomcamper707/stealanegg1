@@ -5665,61 +5665,6 @@ for row=0,1 do
         rim.Thickness=1
     end
 end
-local giftLogo=Instance.new('ImageLabel')
-giftLogo.Name='StealAnEggLogo'
-giftLogo.AnchorPoint=Vector2.new(0,.5)
-giftLogo.Position=UDim2.new(0,14,.5,0)
-giftLogo.Size=UDim2.fromOffset(120,50)
-giftLogo.BackgroundTransparency=1
-giftLogo.ScaleType=Enum.ScaleType.Fit
-giftLogo.Parent=giftHead
-giftLogo.ZIndex=2
-local giftLogoShadow=Instance.new('ImageLabel')
-giftLogoShadow.Name='LogoShadow'
-giftLogoShadow.AnchorPoint=giftLogo.AnchorPoint
-giftLogoShadow.Position=UDim2.new(0,15,.5,1)
-giftLogoShadow.Size=giftLogo.Size
-giftLogoShadow.BackgroundTransparency=1
-giftLogoShadow.ImageColor3=Color3.new(0,0,0)
-giftLogoShadow.ImageTransparency=.78
-giftLogoShadow.ScaleType=Enum.ScaleType.Fit
-giftLogoShadow.ZIndex=1
-giftLogoShadow.Parent=giftHead
-giftLogo:GetPropertyChangedSignal('Image'):Connect(function()
-    giftLogoShadow.Image=giftLogo.Image
-end)
--- Keep the original logo at full brightness; a separate light streak adds shine.
-giftLogo.ImageColor3=Color3.new(1,1,1)
-giftLogo.ImageTransparency=0
-local giftLogoHighlight=Instance.new('Frame')
-giftLogoHighlight.Name='LogoShimmer'
-giftLogoHighlight.Size=UDim2.fromScale(1,1)
-giftLogoHighlight.BackgroundColor3=Color3.new(1,1,1)
-giftLogoHighlight.BackgroundTransparency=.6
-giftLogoHighlight.BorderSizePixel=0
-giftLogoHighlight.Active=false
-giftLogoHighlight.ZIndex=3
-giftLogoHighlight.Parent=giftLogo
-local giftLogoShine=Instance.new('UIGradient')
-giftLogoShine.Rotation=18
-giftLogoShine.Offset=Vector2.new(-1.2,0)
-giftLogoShine.Transparency=NumberSequence.new({
-    NumberSequenceKeypoint.new(0,1),
-    NumberSequenceKeypoint.new(.36,1),
-    NumberSequenceKeypoint.new(.5,.05),
-    NumberSequenceKeypoint.new(.64,1),
-    NumberSequenceKeypoint.new(1,1)
-})
-giftLogoShine.Parent=giftLogoHighlight
-local giftLogoShineTween=game:GetService('TweenService'):Create(
-    giftLogoShine,TweenInfo.new(1.15,Enum.EasingStyle.Linear,Enum.EasingDirection.Out,-1,false,1.8),
-    {Offset=Vector2.new(1.2,0)}
-)
-local function updateGiftLogoMotion()
-    if giftWin.Visible then giftLogoShineTween:Play() else giftLogoShineTween:Pause() end
-end
-giftWin:GetPropertyChangedSignal('Visible'):Connect(updateGiftLogoMotion)
-giftGui.Destroying:Connect(function() giftLogoShineTween:Cancel() end)
 local giftDragHandle=Instance.new('TextButton')
 giftDragHandle.Name='DragHeader'
 giftDragHandle.BackgroundTransparency=1
@@ -5965,7 +5910,7 @@ giftDetailName.TextYAlignment=Enum.TextYAlignment.Center
 giftDetailMeta=label(giftDetail,'Divine',UDim2.fromOffset(192,112),UDim2.fromOffset(280,16),11,C.m)
 giftDetailMeta.Visible=false
 giftDetailMeta.TextXAlignment=Enum.TextXAlignment.Center
-local giftUsernameLabel=label(giftDetail,'Roblox username',UDim2.fromOffset(24,137),UDim2.fromOffset(430,26),22)
+local giftUsernameLabel=label(giftDetail,'Username',UDim2.fromOffset(24,137),UDim2.fromOffset(430,26),22)
 giftUsernameLabel.TextXAlignment=Enum.TextXAlignment.Left
 local giftRecipientInput=Instance.new('TextBox')
 giftRecipientInput.Position=UDim2.fromOffset(64,207)
@@ -5973,7 +5918,7 @@ giftRecipientInput.Size=UDim2.fromOffset(418,42)
 giftRecipientInput.BackgroundTransparency=1
 giftRecipientInput.BorderSizePixel=0
 giftRecipientInput.Text=''
-giftRecipientInput.PlaceholderText='Roblox username'
+giftRecipientInput.PlaceholderText='Username'
 giftRecipientInput.PlaceholderColor3=Color3.fromRGB(129,152,183)
 giftRecipientInput.TextColor3=C.w
 giftRecipientInput.Font=Enum.Font.GothamBold
@@ -6058,7 +6003,7 @@ local giftSpinnerTween=game:GetService('TweenService'):Create(giftSpinner,TweenI
 local giftSearchingTitle=label(giftSearching,'Searching...',UDim2.fromOffset(20,140),UDim2.new(1,-40,0,26),16)
 giftSearchingTitle.TextXAlignment=Enum.TextXAlignment.Center
 giftSearchingTitle.Font=Enum.Font.GothamBold
-local giftSearchingHint=label(giftSearching,'Looking up this Roblox player',UDim2.fromOffset(20,171),UDim2.new(1,-40,0,20),12,C.m)
+local giftSearchingHint=label(giftSearching,'Looking for this user',UDim2.fromOffset(20,171),UDim2.new(1,-40,0,20),12,C.m)
 giftSearchingHint.TextXAlignment=Enum.TextXAlignment.Center
 local giftSearchCancel=button(giftSearching,'CANCEL SEARCH',UDim2.fromOffset(186,220),UDim2.fromOffset(148,30))
 giftSearchCancel.TextSize=12
@@ -6474,7 +6419,6 @@ local function queueGiftImage(target,category,product)
         giftImageWorker=false
     end)
 end
-queueGiftImage(giftLogo,'UI',{imageKey='shop-wordmark'})
 queueGiftImage(giftSentPlane,'UI',{imageKey='send-button-symbol'})
 local function startGiftRain(product)
     stopGiftRain()
@@ -6826,7 +6770,7 @@ end)
 local function searchGiftRecipient()
     local username=giftRecipientInput.Text:match('^%s*(.-)%s*$'):gsub('^@+','')
     if username=='' then
-        giftDetailStatus.Text='Enter a Roblox username first'
+        giftDetailStatus.Text='Enter a username first'
         return
     end
     if giftBusy or not giftSelected then return end
