@@ -4187,10 +4187,43 @@ local giftLogo=Instance.new('ImageLabel')
 giftLogo.Name='StealAnEggLogo'
 giftLogo.AnchorPoint=Vector2.new(.5,.5)
 giftLogo.Position=UDim2.fromScale(.5,.5)
-giftLogo.Size=UDim2.fromOffset(108,49)
+giftLogo.Size=UDim2.fromOffset(120,50)
 giftLogo.BackgroundTransparency=1
 giftLogo.ScaleType=Enum.ScaleType.Fit
 giftLogo.Parent=giftHead
+giftLogo.ZIndex=2
+local giftLogoShadow=Instance.new('ImageLabel')
+giftLogoShadow.Name='LogoShadow'
+giftLogoShadow.AnchorPoint=giftLogo.AnchorPoint
+giftLogoShadow.Position=UDim2.new(.5,1, .5,1)
+giftLogoShadow.Size=giftLogo.Size
+giftLogoShadow.BackgroundTransparency=1
+giftLogoShadow.ImageColor3=Color3.new(0,0,0)
+giftLogoShadow.ImageTransparency=.55
+giftLogoShadow.ScaleType=Enum.ScaleType.Fit
+giftLogoShadow.ZIndex=1
+giftLogoShadow.Parent=giftHead
+giftLogo:GetPropertyChangedSignal('Image'):Connect(function()
+    giftLogoShadow.Image=giftLogo.Image
+end)
+-- The moving brightness band follows the logo's alpha, leaving the header clean.
+local giftLogoShine=Instance.new('UIGradient')
+giftLogoShine.Rotation=18
+giftLogoShine.Offset=Vector2.new(-1.2,0)
+giftLogoShine.Color=ColorSequence.new({
+    ColorSequenceKeypoint.new(0,Color3.fromRGB(216,216,216)),
+    ColorSequenceKeypoint.new(.38,Color3.fromRGB(230,230,230)),
+    ColorSequenceKeypoint.new(.5,Color3.new(1,1,1)),
+    ColorSequenceKeypoint.new(.62,Color3.fromRGB(230,230,230)),
+    ColorSequenceKeypoint.new(1,Color3.fromRGB(216,216,216))
+})
+giftLogoShine.Parent=giftLogo
+local giftLogoShineTween=game:GetService('TweenService'):Create(
+    giftLogoShine,TweenInfo.new(1.35,Enum.EasingStyle.Linear,Enum.EasingDirection.Out,-1,false,2.8),
+    {Offset=Vector2.new(1.2,0)}
+)
+giftLogoShineTween:Play()
+giftGui.Destroying:Connect(function() giftLogoShineTween:Cancel() end)
 local giftDragHandle=Instance.new('TextButton')
 giftDragHandle.Name='DragHeader'
 giftDragHandle.BackgroundTransparency=1
@@ -4900,17 +4933,14 @@ local function queueGiftImage(target,category,product)
         montage.ZIndex=target.ZIndex+1
         montage.Parent=target
         montage.BackgroundTransparency=0
-        giftGradient(montage,Color3.fromRGB(248,255,228),Color3.fromRGB(204,244,229),35)
+        montage.BackgroundColor3=C.card2
         corner(montage,10)
-        -- Layered hero arrangement: pets behind, eggs in front, equipment at the base.
+        -- Four clean tiles, equal spacing, no overlap or decorative rotation.
         local placements={
-            {key='archangel-pet',x=.02,y=.03,w=.42,h=.56,z=1,rotation=-8},
-            {key='nightflame-pet',x=.58,y=.02,w=.40,h=.58,z=1,rotation=7},
-            {key='3-stars',x=.38,y=.00,w=.26,h=.24,z=2,rotation=-7},
-            {key='unicorn',x=.24,y=.18,w=.34,h=.64,z=3,rotation=-9},
-            {key='kitsune',x=.48,y=.25,w=.34,h=.56,z=4,rotation=9},
-            {key='ben-treadmill',x=.01,y=.62,w=.38,h=.35,z=5,rotation=-6},
-            {key='brockodile-treadmill',x=.65,y=.63,w=.34,h=.35,z=5,rotation=5}
+            {key='unicorn',x=.08,y=.04,w=.36,h=.42,z=1,rotation=0},
+            {key='nightflame-pet',x=.56,y=.04,w=.36,h=.42,z=1,rotation=0},
+            {key='brockodile-treadmill',x=.08,y=.54,w=.36,h=.42,z=1,rotation=0},
+            {key='3-stars',x=.56,y=.54,w=.36,h=.42,z=1,rotation=0}
         }
         for _,placement in ipairs(placements) do
             local item=nil
