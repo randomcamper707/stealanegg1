@@ -4100,6 +4100,13 @@ local giftBundleProducts={}
 for _,category in ipairs({'Eggs','Pets','Others'}) do
     for _,product in ipairs(GiftProducts[category]) do giftBundleProducts[#giftBundleProducts+1]=product end
 end
+-- A small, balanced selection illustrates the complete bundle.
+local giftBundleArt={}
+for _,key in ipairs({'unicorn','archangel-pet','kitsune','nightflame-pet','ben-treadmill','3-stars','brockodile-treadmill','1-star'}) do
+    for _,product in ipairs(giftBundleProducts) do
+        if product.imageKey==key then giftBundleArt[#giftBundleArt+1]=product break end
+    end
+end
 local GiftAllProduct={imageKey='all-shop-items',name='Everything in the Shop',model='All Shop Items',rate='',bundle=true}
 local giftCategory='Eggs'
 local giftQuery=''
@@ -4190,13 +4197,18 @@ giftDragHandle.BackgroundTransparency=1
 giftDragHandle.Text=''
 giftDragHandle.AutoButtonColor=false
 giftDragHandle.Selectable=false
-giftDragHandle.Size=UDim2.new(1,-56,1,0)
+giftDragHandle.Size=UDim2.new(1,-156,1,0)
 giftDragHandle.ZIndex=2
 giftDragHandle.Parent=giftHead
 local giftClose=button(giftHead,'X',UDim2.new(1,-44,0,9),UDim2.fromOffset(32,32))
 giftClose.TextSize=16
 giftClose.ZIndex=3
 giftButtonPaint(giftClose,'cyan')
+local giftAllButton=button(giftHead,'Gift All',UDim2.new(1,-148,0,9),UDim2.fromOffset(96,32))
+giftAllButton.Name='GiftAll'
+giftAllButton.TextSize=14
+giftAllButton.ZIndex=3
+giftGradient(giftAllButton,Color3.fromRGB(255,111,87),Color3.fromRGB(224,42,25))
 giftLauncher.MouseButton1Click:Connect(function() giftWin.Visible=not giftWin.Visible end)
 giftClose.MouseButton1Click:Connect(function() giftWin.Visible=false end)
 
@@ -4625,7 +4637,7 @@ local function giftOpaqueWhiteCaption(target)
     target:GetPropertyChangedSignal('Font'):Connect(sync)
     target:GetPropertyChangedSignal('ZIndex'):Connect(sync)
 end
-for _,target in ipairs({giftLookup,giftPreview,giftFoundBack,giftClose,giftDetailClose}) do
+for _,target in ipairs({giftLookup,giftPreview,giftFoundBack,giftClose,giftDetailClose,giftAllButton}) do
     giftOpaqueWhiteCaption(target)
 end
 
@@ -4724,6 +4736,7 @@ local function setGiftPage(page)
     giftFound.Visible=page=='found'
     giftSent.Visible=page=='sent'
     giftTabs.Visible=page=='catalog'
+    giftAllButton.Visible=page=='catalog'
     giftSearch.Visible=page=='catalog'
     giftList.Visible=page=='catalog'
     giftStatus.Visible=false
@@ -4886,12 +4899,19 @@ local function queueGiftImage(target,category,product)
         montage.BackgroundTransparency=1
         montage.ZIndex=target.ZIndex+1
         montage.Parent=target
-        for index,item in ipairs(giftBundleProducts) do
+        giftGradient(montage,Color3.fromRGB(249,255,238),Color3.fromRGB(218,246,223))
+        corner(montage,8)
+        for index,item in ipairs(giftBundleArt) do
             local thumbnail=Instance.new('ImageLabel')
             thumbnail.Name=item.imageKey
             thumbnail.BackgroundTransparency=1
-            thumbnail.Position=UDim2.fromScale(((index-1)%6)/6,math.floor((index-1)/6)/5)
-            thumbnail.Size=UDim2.fromScale(1/6,1/5)
+            thumbnail.Position=UDim2.new(((index-1)%4)/4,2,math.floor((index-1)/4)/2,2)
+            thumbnail.Size=UDim2.new(1/4,-4,1/2,-4)
+            local bounds=GiftArtworkBounds[item.imageKey]
+            if bounds then
+                thumbnail.ImageRectOffset=Vector2.new(bounds[1],bounds[2])
+                thumbnail.ImageRectSize=Vector2.new(bounds[3]-bounds[1],bounds[4]-bounds[2])
+            end
             thumbnail.ScaleType=Enum.ScaleType.Fit
             thumbnail.ZIndex=montage.ZIndex
             thumbnail.Parent=montage
@@ -5113,30 +5133,28 @@ local function selectGiftItem(productData,productCategory)
     giftPreview.Text="Yes, it's me!"
     setGiftPage('form')
 end
+giftAllButton.MouseButton1Click:Connect(function()
+    selectGiftItem(GiftAllProduct,'All')
+end)
 showGiftCatalog=function()
     cancelGiftSearch()
     setGiftPage('catalog')
     for _,child in ipairs(giftList:GetChildren()) do
         if child:IsA('Frame') then child:Destroy() end
     end
-    for i,category in ipairs({'Eggs','Gift All','Pets','Others'}) do
+    for i,category in ipairs({'Eggs','Pets','Others'}) do
         local categoryName=category
         local b=giftTabButtons[categoryName]
         if not b then
-            b=button(giftTabs,category,UDim2.new((i-1)/4,3,0,0),UDim2.new(1/4,-6,1,0))
+            b=button(giftTabs,category,UDim2.new((i-1)/3,4,0,0),UDim2.new(1/3,-8,1,0))
             giftTabButtons[categoryName]=b
             b.TextSize=14
-            if categoryName=='Gift All' then giftOpaqueWhiteCaption(b) end
             b.MouseButton1Click:Connect(function()
-                if categoryName=='Gift All' then selectGiftItem(GiftAllProduct,'All') return end
                 giftCategory=categoryName
                 showGiftCatalog()
             end)
         end
         giftButtonPaint(b,category=='Pets' and 'cyan' or (category=='Others' and 'amber' or 'green'),category==giftCategory)
-        if categoryName=='Gift All' then
-            giftGradient(b,Color3.fromRGB(255,111,87),Color3.fromRGB(224,42,25))
-        end
     end
     local query=giftQuery:lower()
     local shown=0
