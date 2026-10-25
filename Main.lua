@@ -5666,7 +5666,8 @@ giftLauncher.TextSize=14
 giftButtonPaint(giftLauncher,'green')
 local giftCatalogSize=Vector2.new(690,380)
 local giftPanelSize=giftCatalogSize
-local giftWin=Instance.new('Frame')
+local giftWin=Instance.new('CanvasGroup')
+giftWin.GroupTransparency=.12
 giftWin.Name='GiftingPanel'
 giftWin.AnchorPoint=Vector2.new(.5,.5)
 giftWin.Position=UDim2.fromScale(.5,.5)
