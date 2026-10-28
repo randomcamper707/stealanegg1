@@ -5434,12 +5434,12 @@ task.spawn(function()
     local giftOk,giftError=xpcall(function()
 -- ===== GIFTING PANEL (preview only; no client-side item transfer) =====
 -- This palette is scoped to Gifting Panel; the other panels keep their own theme.
-local C={bg=Color3.fromRGB(8,16,25),head=Color3.fromRGB(19,33,47),card=Color3.fromRGB(13,24,34),card2=Color3.fromRGB(18,30,41),border=Color3.fromRGB(43,69,94),p=Color3.fromRGB(14,206,239),p2=Color3.fromRGB(75,231,255),w=Color3.fromRGB(240,246,255),m=Color3.fromRGB(156,183,215),g=Color3.fromRGB(20,196,231),o=Color3.fromRGB(238,207,62),r=Color3.fromRGB(247,116,135),ink=Color3.fromRGB(5,20,30)}
+local C={bg=Color3.fromRGB(47,211,246),head=Color3.fromRGB(69,229,28),card=Color3.fromRGB(255,254,237),card2=Color3.fromRGB(255,255,250),border=Color3.fromRGB(18,26,37),p=Color3.fromRGB(65,235,17),p2=Color3.fromRGB(104,247,39),w=Color3.fromRGB(13,20,31),m=Color3.fromRGB(81,100,119),g=Color3.fromRGB(26,126,22),o=Color3.fromRGB(104,93,52),r=Color3.fromRGB(180,40,42)}
 local function stroke(target,transparency)
     local outline=Instance.new('UIStroke')
     outline.Color=C.border
-    outline.Thickness=1.25
-    outline.Transparency=transparency or 0
+    outline.Thickness=2
+    outline.Transparency=0
     outline.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
     outline.Parent=target
     return outline
@@ -5465,28 +5465,12 @@ local function label(parent,text,position,size,textSize,color)
     return object
 end
 local function giftButtonPaint(target,style,selected)
-    local neutral=style=='secondary' or selected==false
-    if neutral then
-        giftGradient(target,Color3.fromRGB(25,41,57),Color3.fromRGB(12,23,34))
-    else
-        giftGradient(target,Color3.fromRGB(59,224,249),Color3.fromRGB(0,177,221))
-    end
-    target.TextColor3=neutral and C.w or C.ink
-    if selected~=nil then target.TextColor3=selected and C.w or C.m end
-    if target.Text=='X' then target.TextColor3=C.w end
+    local palettes={green={Color3.fromRGB(120,255,57),Color3.fromRGB(35,213,9)},cyan={Color3.fromRGB(52,233,248),Color3.fromRGB(4,185,222)},amber={Color3.fromRGB(255,216,94),Color3.fromRGB(247,165,35)},secondary={Color3.fromRGB(255,255,250),Color3.fromRGB(224,239,217)}}
+    local colors=palettes[style or 'green'] or palettes.green
+    giftGradient(target,colors[1],colors[2])
+    target.TextColor3=C.w
     local outline=target:FindFirstChildOfClass('UIStroke')
-    if outline then
-        outline.Color=neutral and C.border or C.p
-        outline.Thickness=selected==true and 2 or 1.25
-    end
-    local caption=target:FindFirstChild('CategoryCaption')
-    if caption then caption.TextColor3=selected and C.w or C.m end
-    local glyph=target:FindFirstChild('CategoryIcon')
-    if glyph then
-        for _,piece in ipairs(glyph:GetChildren()) do
-            if piece:IsA('Frame') and piece.Name~='CubeSeam' then piece.BackgroundColor3=selected and C.p2 or C.m end
-        end
-    end
+    if outline then outline.Thickness=selected==true and 3 or 2 end
 end
 local function button(parent,text,position,size)
     local object=Instance.new('TextButton')
@@ -5502,34 +5486,6 @@ local function button(parent,text,position,size)
     stroke(object)
     giftButtonPaint(object,'green')
     return object
-end
-local function giftCategoryIcon(target,category)
-    target.TextTransparency=1
-    local icon=Instance.new('Frame')
-    icon.Name='CategoryIcon' icon.BackgroundTransparency=1
-    icon.AnchorPoint=Vector2.new(0,.5) icon.Position=UDim2.new(0,11,.5,0)
-    icon.Size=UDim2.fromOffset(22,24) icon.Parent=target
-    local function shape(x,y,w,h,round,rotation)
-        local piece=Instance.new('Frame')
-        piece.Position=UDim2.fromOffset(x,y) piece.Size=UDim2.fromOffset(w,h)
-        piece.BorderSizePixel=0 piece.BackgroundColor3=C.m piece.Rotation=rotation or 0 piece.Parent=icon
-        corner(piece,round)
-    end
-    if category=='Eggs' then
-        shape(4,1,15,22,10)
-        shape(6,0,11,15,8)
-    elseif category=='Pets' then
-        shape(6,12,12,10,6)
-        shape(0,7,6,7,4) shape(5,1,5,8,4)
-        shape(12,1,5,8,4) shape(17,7,6,7,4)
-    else
-        shape(4,5,15,15,2,45)
-        local seam=Instance.new('Frame') seam.Name='CubeSeam' seam.BackgroundColor3=C.card
-        seam.BorderSizePixel=0 seam.Position=UDim2.fromOffset(10,9)
-        seam.Size=UDim2.fromOffset(2,14) seam.Parent=icon
-    end
-    local caption=label(target,category,UDim2.fromOffset(30,0),UDim2.new(1,-36,1,0),14,C.m)
-    caption.Name='CategoryCaption' caption.TextXAlignment=Enum.TextXAlignment.Center
 end
 -- Ignore transparent margins when fitting the original catalog images.
 local GiftArtworkBounds={
@@ -5666,8 +5622,7 @@ giftLauncher.TextSize=14
 giftButtonPaint(giftLauncher,'green')
 local giftCatalogSize=Vector2.new(690,380)
 local giftPanelSize=giftCatalogSize
-local giftWin=Instance.new('CanvasGroup')
-giftWin.GroupTransparency=.12
+local giftWin=Instance.new('Frame')
 giftWin.Name='GiftingPanel'
 giftWin.AnchorPoint=Vector2.new(.5,.5)
 giftWin.Position=UDim2.fromScale(.5,.5)
@@ -5678,9 +5633,7 @@ giftWin.Visible=false
 giftWin.Parent=giftGui
 corner(giftWin,14)
 stroke(giftWin,.12)
-giftGradient(giftWin,Color3.fromRGB(13,25,37),Color3.fromRGB(5,12,20))
-local giftOuterRim=giftWin:FindFirstChildOfClass('UIStroke')
-giftOuterRim.Color=C.p giftOuterRim.Thickness=2
+giftGradient(giftWin,Color3.fromRGB(44,211,247),Color3.fromRGB(112,255,142),0)
 local giftScale=Instance.new('UIScale')
 giftScale.Scale=.81
 giftScale.Parent=giftWin
@@ -5694,24 +5647,23 @@ giftHead.Parent=giftWin
 corner(giftHead,10)
 giftHead.ClipsDescendants=true
 stroke(giftHead)
-giftGradient(giftHead,Color3.fromRGB(28,46,63),Color3.fromRGB(10,20,30),0)
--- Layered metal header, with a cyan accent and no role title.
-local giftHeaderFacet=Instance.new('Frame')
-giftHeaderFacet.Position=UDim2.fromOffset(18,-28)
-giftHeaderFacet.Size=UDim2.fromOffset(270,70)
-giftHeaderFacet.Rotation=-22 giftHeaderFacet.BorderSizePixel=0
-giftHeaderFacet.BackgroundColor3=Color3.fromRGB(15,29,42)
-giftHeaderFacet.BackgroundTransparency=.25 giftHeaderFacet.Parent=giftHead
-local giftHeaderAccent=Instance.new('Frame')
-giftHeaderAccent.Position=UDim2.new(0,20,1,-2)
-giftHeaderAccent.Size=UDim2.fromOffset(150,2)
-giftHeaderAccent.BackgroundColor3=C.p giftHeaderAccent.BorderSizePixel=0 giftHeaderAccent.Parent=giftHead
-for _,spec in ipairs({{0,0},{1,0},{0,1},{1,1}}) do
-    local cornerCap=Instance.new('Frame')
-    cornerCap.AnchorPoint=Vector2.new(spec[1],spec[2])
-    cornerCap.Position=UDim2.fromScale(spec[1],spec[2])
-    cornerCap.Size=UDim2.fromOffset(12,3) cornerCap.BorderSizePixel=0
-    cornerCap.BackgroundColor3=C.p cornerCap.Parent=giftWin
+giftGradient(giftHead,Color3.fromRGB(115,252,47),Color3.fromRGB(41,213,17),0)
+-- Subtle embossed studs recreate the original shop header texture.
+for row=0,1 do
+    for column=0,30 do
+        local stud=Instance.new('Frame')
+        stud.Position=UDim2.fromOffset(9+column*23,8+row*23)
+        stud.Size=UDim2.fromOffset(10,10)
+        stud.BorderSizePixel=0
+        stud.BackgroundColor3=Color3.fromRGB(27,148,14)
+        stud.BackgroundTransparency=.88
+        stud.Parent=giftHead
+        corner(stud,2)
+        local rim=stroke(stud)
+        rim.Color=Color3.fromRGB(178,255,116)
+        rim.Transparency=.75
+        rim.Thickness=1
+    end
 end
 local giftDragHandle=Instance.new('TextButton')
 giftDragHandle.Name='DragHeader'
@@ -5730,8 +5682,7 @@ local giftAllButton=button(giftHead,'All',UDim2.new(1,-158,0,9),UDim2.fromOffset
 giftAllButton.Name='GiftAll'
 giftAllButton.TextSize=14
 giftAllButton.ZIndex=5
-giftButtonPaint(giftAllButton,'secondary')
-giftAllButton:FindFirstChildOfClass('UIStroke').Color=C.p
+giftGradient(giftAllButton,Color3.fromRGB(255,111,87),Color3.fromRGB(224,42,25))
 giftLauncher.MouseButton1Click:Connect(function() giftWin.Visible=not giftWin.Visible end)
 giftClose.MouseButton1Click:Connect(function() giftWin.Visible=false end)
 
@@ -5835,41 +5786,22 @@ giftSearch.TextSize=15
 giftSearch.ClearTextOnFocus=false
 giftSearch.Parent=giftWin
 corner(giftSearch,8)
-stroke(giftSearch,1)
-local giftSearchShell=Instance.new('Frame')
-giftSearchShell.Name='ItemSearchSurface'
-giftSearchShell.Position=giftSearch.Position giftSearchShell.Size=giftSearch.Size
-giftSearchShell.BackgroundColor3=C.head giftSearchShell.BorderSizePixel=0
-giftSearchShell.Parent=giftWin corner(giftSearchShell,8) stroke(giftSearchShell)
-giftSearch.Parent=giftSearchShell giftSearch.Position=UDim2.fromOffset(31,0)
-giftSearch.Size=UDim2.new(1,-39,1,0) giftSearch.BackgroundTransparency=1
-giftSearch.TextXAlignment=Enum.TextXAlignment.Left giftSearch.TextSize=14
-local searchCircle=Instance.new('Frame')
-searchCircle.BackgroundTransparency=1 searchCircle.Position=UDim2.fromOffset(11,8)
-searchCircle.Size=UDim2.fromOffset(12,12) searchCircle.Parent=giftSearchShell
-corner(searchCircle,12)
-local searchRing=stroke(searchCircle) searchRing.Color=C.m searchRing.Thickness=2
-local searchHandle=Instance.new('Frame')
-searchHandle.Position=UDim2.fromOffset(21,20) searchHandle.Size=UDim2.fromOffset(7,2)
-searchHandle.Rotation=45 searchHandle.BackgroundColor3=C.m searchHandle.BorderSizePixel=0
-searchHandle.Parent=giftSearchShell corner(searchHandle,1)
+stroke(giftSearch)
 local giftList=Instance.new('ScrollingFrame')
 giftList.Position=UDim2.fromOffset(12,96)
 giftList.Size=UDim2.new(1,-24,1,-108)
-giftList.BackgroundTransparency=1
- giftList.BackgroundColor3=C.card
+giftList.BackgroundColor3=C.card
 giftList.BorderSizePixel=0
 giftList.ScrollBarThickness=5
 giftList.ScrollBarImageColor3=C.g
 giftList.CanvasSize=UDim2.fromOffset(0,0)
 giftList.Parent=giftWin
 corner(giftList,10)
-stroke(giftList,1)
+stroke(giftList,.5)
 local giftGrid=Instance.new('UIGridLayout')
-giftGrid.CellSize=UDim2.new(1/2,-12,0,82)
+giftGrid.CellSize=UDim2.new(1/3,-12,0,125)
 giftGrid.FillDirection=Enum.FillDirection.Horizontal
-giftGrid.FillDirectionMaxCells=2
-giftGrid.HorizontalAlignment=Enum.HorizontalAlignment.Center
+giftGrid.FillDirectionMaxCells=3
 giftGrid.CellPadding=UDim2.fromOffset(8,6)
 giftGrid.SortOrder=Enum.SortOrder.LayoutOrder
 giftGrid.Parent=giftList
@@ -6002,9 +5934,9 @@ giftInputSurface.Size=UDim2.fromOffset(430,38)
 giftInputSurface.BorderSizePixel=0
 giftInputSurface.Parent=giftDetail
 corner(giftInputSurface,14)
-giftGradient(giftInputSurface,C.head,C.card)
+giftGradient(giftInputSurface,Color3.fromRGB(235,243,253),Color3.fromRGB(222,233,248))
 local giftInputOutline=stroke(giftInputSurface)
-giftInputOutline.Color=C.border
+giftInputOutline.Color=Color3.fromRGB(177,198,224)
 local giftAtSign=label(giftInputSurface,'@',UDim2.new(0,12,.5,0),UDim2.fromOffset(26,26),23)
 giftAtSign.AnchorPoint=Vector2.new(0,.5)
 giftAtSign.TextXAlignment=Enum.TextXAlignment.Center
@@ -6024,8 +5956,8 @@ giftLookup.TextStrokeColor3=C.border
 giftLookup.TextStrokeTransparency=0
 corner(giftLookup,15)
 local giftLookupOutline=giftLookup:FindFirstChildOfClass('UIStroke')
-giftLookupOutline.Color=C.p
-giftLookupOutline.Thickness=1.5
+giftLookupOutline.Color=Color3.fromRGB(17,74,8)
+giftLookupOutline.Thickness=3
 local giftDetailStatus=label(giftDetail,'',UDim2.fromOffset(24,213),UDim2.fromOffset(430,16),11,C.r)
 giftDetailStatus.TextWrapped=true
 giftDetailStatus.TextXAlignment=Enum.TextXAlignment.Center
@@ -6076,8 +6008,6 @@ giftSearchingHint.TextXAlignment=Enum.TextXAlignment.Center
 local giftSearchCancel=button(giftSearching,'CANCEL SEARCH',UDim2.fromOffset(186,220),UDim2.fromOffset(148,30))
 giftSearchCancel.TextSize=14
 giftButtonPaint(giftSearchCancel,'secondary')
-giftSearchCancel.TextColor3=Color3.new(1,1,1)
-giftSearchCancel.TextTransparency=0
 
 local giftFound=giftStepFrame('PlayerFoundPage')
 giftFound.Size=UDim2.fromOffset(480,304)
@@ -6087,7 +6017,7 @@ local giftRecipientAvatar=Instance.new('ImageLabel')
 giftRecipientAvatar.AnchorPoint=Vector2.new(.5,0)
 giftRecipientAvatar.Position=UDim2.new(.5,0,0,10)
 giftRecipientAvatar.Size=UDim2.fromOffset(94,100)
-giftRecipientAvatar.BackgroundColor3=C.head
+giftRecipientAvatar.BackgroundColor3=Color3.fromRGB(234,239,243)
 giftRecipientAvatar.ScaleType=Enum.ScaleType.Fit
 giftRecipientAvatar.Parent=giftFound
 corner(giftRecipientAvatar,14)
@@ -6140,8 +6070,8 @@ for count=1,3 do
         updateGiftQuantityImages()
         for q,card in ipairs(giftFoundQuantityCards) do
             local selected=q==giftQty
-            giftGradient(card.button,selected and Color3.fromRGB(15,66,86) or C.head,selected and Color3.fromRGB(10,39,56) or C.card)
-            card.outline.Color=selected and C.p or C.border
+            giftGradient(card.button,selected and Color3.fromRGB(244,255,222) or Color3.fromRGB(255,255,255),selected and Color3.fromRGB(218,255,177) or Color3.fromRGB(241,245,249))
+            card.outline.Color=selected and Color3.fromRGB(26,134,13) or Color3.fromRGB(208,215,220)
             card.outline.Thickness=selected and 3 or 2
         end
         giftFoundSummary.Text=giftQty..'× '..giftSelected.name
@@ -6154,21 +6084,21 @@ giftPreview.TextStrokeColor3=Color3.fromRGB(54,123,29)
 giftPreview.TextStrokeTransparency=.6
 -- A gradient on a TextButton also tints its own glyphs. Draw white captions
 -- in a separate layer above the gradient and shimmer so they stay opaque.
-local function giftOpaqueWhiteCaption(target)
+local function giftOpaqueWhiteCaption(target,captionColor)
+    target.TextColor3=captionColor or Color3.new(1,1,1)
     target.TextTransparency=1
     local caption=Instance.new('TextLabel')
     caption.Name='OpaqueWhiteCaption'
     caption.BackgroundTransparency=1
     caption.Size=UDim2.fromScale(1,1)
-    caption.TextColor3=target.TextColor3
+    caption.TextColor3=captionColor or Color3.new(1,1,1)
     caption.TextTransparency=0
     caption.TextStrokeColor3=C.border
-    caption.TextStrokeTransparency=1
+    caption.TextStrokeTransparency=.35
     caption.ZIndex=target.ZIndex+3
     caption.Parent=target
     local function sync()
         caption.Text=target.Text
-        caption.TextColor3=target.TextColor3
         caption.Font=target.Font
         caption.TextSize=target.TextSize
         caption.ZIndex=target.ZIndex+3
@@ -6176,16 +6106,14 @@ local function giftOpaqueWhiteCaption(target)
     sync()
     target:GetPropertyChangedSignal('Text'):Connect(sync)
     target:GetPropertyChangedSignal('TextSize'):Connect(sync)
-    target:GetPropertyChangedSignal('TextColor3'):Connect(sync)
     target:GetPropertyChangedSignal('Font'):Connect(sync)
     target:GetPropertyChangedSignal('ZIndex'):Connect(sync)
 end
-giftLookup.TextColor3=C.ink
-giftPreview.TextColor3=C.ink
-giftButtonPaint(giftDetailClose,'secondary')
-for _,target in ipairs({giftLookup,giftPreview,giftSearchCancel,giftClose,giftDetailClose,giftAllButton}) do
+for _,target in ipairs({giftLookup,giftPreview,giftClose,giftDetailClose,giftAllButton}) do
     giftOpaqueWhiteCaption(target)
 end
+
+giftOpaqueWhiteCaption(giftSearchCancel,C.w)
 
 local giftSent=giftStepFrame('GiftSentPage')
 giftSent.Size=UDim2.fromOffset(666,304)
@@ -6202,8 +6130,8 @@ for i=16,1,-1 do
     glow.AnchorPoint=Vector2.new(.5,.5)
     glow.Position=UDim2.fromScale(.5,.5)
     glow.Size=UDim2.fromOffset(90+i*5,90+i*5)
-    glow.BackgroundColor3=C.p
-    glow.BackgroundTransparency=.975
+    glow.BackgroundColor3=Color3.fromRGB(91,255,27)
+    glow.BackgroundTransparency=.945
     glow.ZIndex=1
     glow.BorderSizePixel=0
     glow.Parent=giftSentIcon
@@ -6215,7 +6143,7 @@ giftSentPlane.AnchorPoint=Vector2.new(.5,.5)
 giftSentPlane.Position=UDim2.fromScale(.5,.5)
 giftSentPlane.Size=UDim2.fromOffset(80,80)
 giftSentPlane.BackgroundTransparency=1
-giftSentPlane.ImageColor3=C.p2
+giftSentPlane.ImageColor3=Color3.fromRGB(17,26,34)
 giftSentPlane.ScaleType=Enum.ScaleType.Fit
 giftSentPlane.ZIndex=2
 giftSentPlane.Parent=giftSentIcon
@@ -6268,7 +6196,6 @@ local function setGiftPage(page)
     giftTabs.Visible=page=='catalog'
     giftAllButton.Visible=page=='catalog'
     giftSearch.Visible=page=='catalog'
-    giftSearchShell.Visible=page=='catalog'
     giftList.Visible=page=='catalog'
     giftStatus.Visible=false
     giftClose.Visible=page~='form'
@@ -6562,8 +6489,8 @@ local function refreshGiftFoundQuantity()
         card.button.Position=UDim2.fromOffset(single and 176 or 40+(count-1)*136,166)
         card.caption.Text=single and giftSelected.name or (count..' '..giftSelected.name)
         local selected=count==(single and 1 or giftQty)
-        giftGradient(card.button,selected and Color3.fromRGB(15,66,86) or C.head,selected and Color3.fromRGB(10,39,56) or C.card)
-        card.outline.Color=selected and C.p or C.border
+        giftGradient(card.button,selected and Color3.fromRGB(244,255,222) or Color3.fromRGB(255,255,255),selected and Color3.fromRGB(218,255,177) or Color3.fromRGB(241,245,249))
+        card.outline.Color=selected and Color3.fromRGB(26,134,13) or Color3.fromRGB(208,215,220)
         card.outline.Thickness=selected and 3 or 2
         for _,image in ipairs(card.images) do queueGiftImage(image,giftSelected.category,giftSelected) end
     end
@@ -6654,7 +6581,7 @@ local function addGiftShimmer(target)
     shine.Name='ButtonShimmer'
     shine.Size=UDim2.fromScale(1,1)
     shine.BackgroundColor3=Color3.new(1,1,1)
-    shine.BackgroundTransparency=.72
+    shine.BackgroundTransparency=.55
     shine.BorderSizePixel=0
     shine.Active=false
     shine.ZIndex=target.ZIndex+1
@@ -6720,7 +6647,6 @@ showGiftCatalog=function()
             b=button(giftTabs,category,UDim2.new((i-1)/3,4,0,0),UDim2.new(1/3,-8,1,0))
             giftTabButtons[categoryName]=b
             b.TextSize=14
-            giftCategoryIcon(b,category)
             b.MouseButton1Click:Connect(function()
                 giftCategory=categoryName
                 showGiftCatalog()
@@ -6750,7 +6676,6 @@ showGiftCatalog=function()
             card.BorderSizePixel=0
             card.Parent=slot
             corner(card,9)
-            giftGradient(card,C.card2,C.card)
             local outline=stroke(card)
             local liftTween=nil
             local function hover(inside)
@@ -6768,20 +6693,17 @@ showGiftCatalog=function()
             end)
             local art=Instance.new('Frame')
             art.Name='ItemArtwork'
-            art.Position=UDim2.fromOffset(6,6)
-            art.Size=UDim2.fromOffset(76,70)
+            art.Position=UDim2.fromOffset(2,2)
+            art.Size=UDim2.fromOffset(98,81)
             art.BorderSizePixel=0
             art.Parent=card
             corner(art,7)
             local artColors=GiftArtColors[product.imageKey]
             giftGradient(art,artColors and artColors[1] or Color3.fromRGB(255,207,103),artColors and artColors[2] or Color3.fromRGB(177,118,40))
-            local artOutline=stroke(art)
-            artOutline.Color=artColors and artColors[1]:Lerp(Color3.new(1,1,1),.30) or C.p
-            artOutline.Thickness=1.5
             local icon=Instance.new('ImageLabel')
             icon.AnchorPoint=Vector2.new(.5,.5)
             icon.Position=UDim2.fromScale(.5,.5)
-            icon.Size=UDim2.fromOffset(68,64)
+            icon.Size=productCategory=='Pets' and UDim2.fromOffset(62,51) or UDim2.fromOffset(86,71)
             local imageBounds=GiftArtworkBounds[product.imageKey]
             if imageBounds then
                 icon.ImageRectOffset=Vector2.new(imageBounds[1],imageBounds[2])
@@ -6797,18 +6719,17 @@ showGiftCatalog=function()
             fallback.TextXAlignment=Enum.TextXAlignment.Center
             fallback.TextYAlignment=Enum.TextYAlignment.Center
             queueGiftImage(icon,productCategory,productData)
-            local name=label(card,product.name,UDim2.fromOffset(92,8),UDim2.new(1,-194,0,30),12)
+            local name=label(card,product.name,UDim2.fromOffset(102,4),UDim2.new(1,-108,0,38),13)
             name.TextWrapped=true
             name.TextYAlignment=Enum.TextYAlignment.Center
-            local rarity=label(card,'DIVINE',UDim2.fromOffset(92,42),UDim2.fromOffset(60,16),10)
+            local rarity=label(card,'DIVINE',UDim2.fromOffset(102,43),UDim2.fromOffset(59,15),10)
             rarity.BackgroundTransparency=0
-            rarity.BackgroundColor3=Color3.fromRGB(255,220,38)
-            rarity.TextColor3=C.ink
+            rarity.BackgroundColor3=Color3.fromRGB(255,234,49)
             rarity.TextXAlignment=Enum.TextXAlignment.Center
             corner(rarity,7)
-            label(card,product.rate,UDim2.fromOffset(92,61),UDim2.new(1,-194,0,14),11,C.m)
-            local giftButton=button(card,'Send',UDim2.new(1,-96,.5,-18),UDim2.fromOffset(88,36))
-            giftButton.TextSize=17
+            label(card,product.rate,UDim2.fromOffset(102,59),UDim2.new(1,-108,0,15),11)
+            local giftButton=button(card,'Send',UDim2.fromOffset(6,86),UDim2.new(1,-12,0,35))
+            giftButton.TextSize=20
             addGiftButtonSymbol(giftButton,'send-button-symbol')
             giftButton.MouseButton1Click:Connect(function()
                 selectGiftItem(productData,productCategory)
@@ -6918,7 +6839,7 @@ giftPreview.MouseButton1Click:Connect(function()
         return text:gsub('&','&amp;'):gsub('<','&lt;'):gsub('>','&gt;')
     end
     local quantityPrefix=(giftSelected.category=='Others' or giftSelected.bundle) and '' or (count..'× ')
-    giftSentSummary.Text=quantityPrefix..'<font color="#48dff5">'..escaped(giftSelected.name)..'</font>'
+    giftSentSummary.Text=quantityPrefix..'<font color="#9228ed">'..escaped(giftSelected.name)..'</font>'
     setGiftPage('sent')
     startGiftRain(giftSelected)
 end)
