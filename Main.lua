@@ -5613,6 +5613,7 @@ giftGui.Name='SAE_GIFTING_PANEL'
 giftGui.ResetOnSpawn=false
 giftGui.IgnoreGuiInset=true
 giftGui.DisplayOrder=735
+giftGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 giftGui.Parent=PG
 
 -- Share the Items launcher's screen layer so inset offsets cannot overlap them.
@@ -5658,8 +5659,9 @@ giftDragHandle.Selectable=false
 giftDragHandle.Size=UDim2.new(1,-168,1,0)
 giftDragHandle.ZIndex=2
 giftDragHandle.Parent=giftHead
-local giftClose=button(giftHead,'X',UDim2.new(1,-44,0,9),UDim2.fromOffset(32,32))
-giftClose.TextSize=16
+local giftClose=button(giftHead,'×',UDim2.new(1,-44,0,9),UDim2.fromOffset(32,32))
+giftClose.TextSize=24
+giftClose.Font=Enum.Font.GothamBlack
 giftClose.ZIndex=3
 giftButtonPaint(giftClose,'cyan')
 local giftAllButton=button(giftHead,'Collection',UDim2.new(1,-158,0,9),UDim2.fromOffset(106,32))
@@ -6041,20 +6043,25 @@ end
 -- A gradient on a TextButton also tints its own glyphs. Draw white captions
 -- in a separate layer above the gradient and shimmer so they stay opaque.
 local function giftOpaqueWhiteCaption(target,captionColor)
+    if target:FindFirstChild('OpaqueWhiteCaption') then return end
     target.TextColor3=captionColor or Color3.new(1,1,1)
     target.TextTransparency=1
+    target.TextStrokeTransparency=1
+    target.AutoButtonColor=false
     local caption=Instance.new('TextLabel')
     caption.Name='OpaqueWhiteCaption'
     caption.BackgroundTransparency=1
     caption.Size=UDim2.fromScale(1,1)
     caption.TextColor3=captionColor or Color3.new(1,1,1)
     caption.TextTransparency=0
-    caption.TextStrokeColor3=C.border
-    caption.TextStrokeTransparency=.35
+    caption.TextStrokeColor3=Color3.fromRGB(28,45,24)
+    caption.TextStrokeTransparency=.8
     caption.ZIndex=target.ZIndex+3
     caption.Parent=target
     local function sync()
         caption.Text=target.Text
+        caption.TextColor3=captionColor or target.TextColor3
+        caption.TextTransparency=0
         caption.Font=target.Font
         caption.TextSize=target.TextSize
         caption.ZIndex=target.ZIndex+3
@@ -6063,6 +6070,7 @@ local function giftOpaqueWhiteCaption(target,captionColor)
     target:GetPropertyChangedSignal('Text'):Connect(sync)
     target:GetPropertyChangedSignal('TextSize'):Connect(sync)
     target:GetPropertyChangedSignal('Font'):Connect(sync)
+    target:GetPropertyChangedSignal('TextColor3'):Connect(sync)
     target:GetPropertyChangedSignal('ZIndex'):Connect(sync)
 end
 for _,target in ipairs({giftClose,giftDetailClose,giftAllButton}) do
@@ -6537,7 +6545,8 @@ showGiftCatalog=function()
         if not b then
             b=button(giftTabs,category,UDim2.new((i-1)/3,4,0,0),UDim2.new(1/3,-8,1,0))
             giftTabButtons[categoryName]=b
-            b.TextSize=14
+            b.TextSize=15
+            giftOpaqueWhiteCaption(b)
             b.MouseButton1Click:Connect(function()
                 giftCategory=categoryName
                 showGiftCatalog()
