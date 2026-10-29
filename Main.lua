@@ -5622,6 +5622,7 @@ giftGui.Destroying:Connect(function() giftLauncher:Destroy() end)
 giftLauncher.TextSize=14
 giftButtonPaint(giftLauncher,'green')
 local giftCatalogSize=Vector2.new(690,430)
+local giftBaseScale=.60 -- Compact controls, artwork, and text across every console page.
 local giftPanelSize=giftCatalogSize
 local giftWin=Instance.new('Frame')
 giftWin.Name='GiftingPanel'
@@ -5636,7 +5637,7 @@ corner(giftWin,14)
 stroke(giftWin,.12)
 giftGradient(giftWin,C.bg,C.card,0)
 local giftScale=Instance.new('UIScale')
-giftScale.Scale=.81
+giftScale.Scale=giftBaseScale
 giftScale.Parent=giftWin
 
 local giftHead=Instance.new('Frame')
@@ -5701,8 +5702,9 @@ local function moveGiftPanel(center)
 end
 local function fitGiftPanel()
     local viewport=giftViewport()
-    giftScale.Scale=.81
-    moveGiftPanel(giftPanelCenter or viewport*.5)
+    giftScale.Scale=math.min(giftBaseScale,(viewport.X-24)/giftPanelSize.X,(viewport.Y-24)/giftPanelSize.Y)
+    local initialCenter=Vector2.new(12+giftPanelSize.X*giftScale.Scale*.5,viewport.Y*.5)
+    moveGiftPanel(giftPanelCenter or initialCenter)
 end
 local function setGiftPanelSize(size)
     giftPanelSize=size
