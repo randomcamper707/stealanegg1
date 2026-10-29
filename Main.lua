@@ -6088,21 +6088,13 @@ giftSentIcon.Position=UDim2.new(.5,0,0,40)
 giftSentIcon.Size=UDim2.fromOffset(94,94)
 giftSentIcon.BackgroundTransparency=1
 giftSentIcon.Parent=giftSent
--- Rounded, solid strokes keep the completion check bold at every UI scale.
-do
-    for _,segment in ipairs({{30.5,56.5,27,45},{58.5,47.5,52,-45}}) do
-        local arm=Instance.new('Frame')
-        arm.Name='CompletionCheckStroke'
-        arm.AnchorPoint=Vector2.new(.5,.5)
-        arm.Position=UDim2.fromOffset(segment[1],segment[2])
-        arm.Size=UDim2.fromOffset(segment[3],13)
-        arm.Rotation=segment[4]
-        arm.BackgroundColor3=C.p
-        arm.BorderSizePixel=0
-        arm.Parent=giftSentIcon
-        corner(arm,6)
-    end
-end
+-- A single heavy glyph avoids seams between separately rotated strokes.
+local giftSelectedMark=label(giftSentIcon,'✔',UDim2.fromScale(0,0),UDim2.fromScale(1,1),64,C.p)
+giftSelectedMark.Font=Enum.Font.GothamBlack
+giftSelectedMark.TextXAlignment=Enum.TextXAlignment.Center
+giftSelectedMark.TextYAlignment=Enum.TextYAlignment.Center
+giftSelectedMark.TextStrokeColor3=C.p
+giftSelectedMark.TextStrokeTransparency=0
 local giftSelectedHeading=label(giftSent,'Done',UDim2.fromOffset(30,136),UDim2.new(1,-60,0,28),22)
 giftSelectedHeading.TextXAlignment=Enum.TextXAlignment.Center
 local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,168),UDim2.new(1,-60,0,32),19)
