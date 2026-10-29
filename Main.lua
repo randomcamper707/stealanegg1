@@ -5813,7 +5813,7 @@ local giftPage='catalog'
 local showGiftCatalog
 local resetGiftFlow
 local refreshGiftMotion
-local giftSearchSerial=0
+local giftSendSerial=0
 local function giftStepFrame(name)
     local frame=Instance.new('Frame')
     frame.Name=name
@@ -5984,38 +5984,6 @@ giftDetailClose.MouseButton1Click:Connect(function()
     if showGiftCatalog then showGiftCatalog() end
 end)
 
-local giftSearching=giftStepFrame('SearchingPage')
-local giftSpinner=Instance.new('Frame')
-giftSpinner.AnchorPoint=Vector2.new(.5,.5)
-giftSpinner.Position=UDim2.new(.5,0,0,96)
-giftSpinner.Size=UDim2.fromOffset(48,48)
-giftSpinner.BackgroundTransparency=1
-giftSpinner.Parent=giftSearching
-corner(giftSpinner,24)
-local giftSpinnerStroke=Instance.new('UIStroke')
-giftSpinnerStroke.Thickness=4
-giftSpinnerStroke.Color=C.p2
-giftSpinnerStroke.Parent=giftSpinner
-local giftSpinnerGradient=Instance.new('UIGradient')
-giftSpinnerGradient.Transparency=NumberSequence.new({
-    NumberSequenceKeypoint.new(0,1),
-    NumberSequenceKeypoint.new(.35,.85),
-    NumberSequenceKeypoint.new(.7,0),
-    NumberSequenceKeypoint.new(1,0)
-})
-giftSpinnerGradient.Parent=giftSpinnerStroke
-local giftSpinnerTween=game:GetService('TweenService'):Create(giftSpinner,TweenInfo.new(.85,Enum.EasingStyle.Linear,Enum.EasingDirection.InOut,-1),{Rotation=360})
-local giftSearchingTitle=label(giftSearching,'Searching...',UDim2.fromOffset(20,140),UDim2.new(1,-40,0,26),16)
-giftSearchingTitle.TextXAlignment=Enum.TextXAlignment.Center
-giftSearchingTitle.Font=Enum.Font.GothamBold
-local giftSearchingHint=label(giftSearching,'Looking for this user',UDim2.fromOffset(20,171),UDim2.new(1,-40,0,20),12,C.m)
-giftSearchingHint.TextXAlignment=Enum.TextXAlignment.Center
-local giftSearchCancel=button(giftSearching,'CANCEL SEARCH',UDim2.fromOffset(186,220),UDim2.fromOffset(148,30))
-giftSearchCancel.TextSize=14
-giftSearchCancel.AnchorPoint=Vector2.new(.5,0)
-giftSearchCancel.Position=UDim2.new(.5,0,0,220)
-giftButtonPaint(giftSearchCancel,'secondary')
-
 local giftFoundQuantityCards={}
 for count=1,3 do
     local quantity=count
@@ -6084,100 +6052,35 @@ for _,target in ipairs({giftClose,giftDetailClose,giftAllButton}) do
     giftOpaqueWhiteCaption(target)
 end
 
-giftOpaqueWhiteCaption(giftSearchCancel,C.w)
-
-local giftSent=giftStepFrame('GiftSentPage')
-giftSent.Size=UDim2.fromOffset(666,334)
-local giftSentIcon=Instance.new('Frame')
-giftSentIcon.Name='SentSymbol'
-giftSentIcon.AnchorPoint=Vector2.new(.5,0)
-giftSentIcon.Position=UDim2.new(.5,0,0,40)
-giftSentIcon.Size=UDim2.fromOffset(94,94)
-giftSentIcon.BackgroundTransparency=1
-giftSentIcon.Parent=giftSent
--- A single heavy glyph avoids seams between separately rotated strokes.
-local giftSelectedMark=label(giftSentIcon,'✔',UDim2.fromScale(0,0),UDim2.fromScale(1,1),64,C.p)
-giftSelectedMark.Font=Enum.Font.GothamBlack
-giftSelectedMark.TextXAlignment=Enum.TextXAlignment.Center
-giftSelectedMark.TextYAlignment=Enum.TextYAlignment.Center
-giftSelectedMark.TextStrokeColor3=C.p
-giftSelectedMark.TextStrokeTransparency=0
-local giftSelectedHeading=label(giftSent,'Done',UDim2.fromOffset(30,136),UDim2.new(1,-60,0,28),22)
-giftSelectedHeading.TextXAlignment=Enum.TextXAlignment.Center
-local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,168),UDim2.new(1,-60,0,32),19)
-giftSentSummary.RichText=true
-giftSentSummary.TextWrapped=true
-giftSentSummary.TextXAlignment=Enum.TextXAlignment.Center
-giftSentSummary.TextYAlignment=Enum.TextYAlignment.Center
-local giftSentRecipient=label(giftSent,'',UDim2.new(.5,-150,0,205),UDim2.fromOffset(300,26),15,C.m)
-giftSentRecipient.TextXAlignment=Enum.TextXAlignment.Center
-giftSentRecipient.TextYAlignment=Enum.TextYAlignment.Center
-giftSentRecipient.TextTruncate=Enum.TextTruncate.AtEnd
-giftSentRecipient.BackgroundTransparency=0
-giftSentRecipient.BackgroundColor3=C.card2
-corner(giftSentRecipient,8)
-local giftSentDone=button(giftSent,'Done',UDim2.new(.5,-105,0,236),UDim2.fromOffset(210,40))
-giftSentDone.TextSize=22
-giftOpaqueWhiteCaption(giftSentDone)
-local giftRainLayer=Instance.new('Frame')
-giftRainLayer.Name='GiftItemRain'
-giftRainLayer.Size=UDim2.fromScale(1,1)
-giftRainLayer.BackgroundTransparency=1
-giftRainLayer.ClipsDescendants=true
-giftRainLayer.Active=false
-giftRainLayer.ZIndex=20
-giftRainLayer.Visible=false
--- Clip the shower to the fixed panel, including while it is dragged.
-giftRainLayer.Parent=giftWin
-local giftRainSerial=0
-local giftRainTweens={}
-local function stopGiftRain()
-    giftRainSerial+=1
-    for tween in pairs(giftRainTweens) do tween:Cancel() end
-    table.clear(giftRainTweens)
-    giftRainLayer:ClearAllChildren()
-    giftRainLayer.Visible=false
-end
-
-local function cancelGiftSearch()
-    giftSearchSerial+=1
+local function cancelGiftSend()
+    giftSendSerial+=1
     giftBusy=false
     giftLookup.Text='Send'
     giftLookup.Active=true
 end
 local function setGiftPage(page)
-    stopGiftRain()
     giftPage=page
     giftDetail.Visible=page=='form'
     consoleIdle.Visible=page=='catalog'
-    giftSearching.Visible=page=='search'
-    giftSent.Visible=page=='sent'
     giftTabs.Visible=page=='catalog' or page=='form'
     giftAllButton.Visible=page=='catalog' or page=='form'
     giftSearch.Visible=page=='catalog' or page=='form'
     giftList.Visible=page=='catalog' or page=='form'
     giftStatus.Visible=false
     giftClose.Visible=true
-    -- Every page uses the original 690 × 380 outer panel.
+    -- Keep the compact item browser and recipient form at the same size.
     setGiftPanelSize(giftCatalogSize)
-    giftSpinnerTween:Cancel()
-    giftSpinner.Rotation=0
-    if page=='search' then giftSpinnerTween:Play() end
     if refreshGiftMotion then task.defer(refreshGiftMotion) end
 end
 giftWin:GetPropertyChangedSignal('Visible'):Connect(function()
     if not giftWin.Visible then
-        stopGiftRain()
-        cancelGiftSearch()
-        giftSpinnerTween:Cancel()
+        cancelGiftSend()
         if resetGiftFlow then resetGiftFlow() else setGiftPage('catalog') end
     end
 end)
 giftGui.Destroying:Connect(function()
-    stopGiftRain()
-    giftSearchSerial+=1
+    giftSendSerial+=1
     giftBusy=false
-    giftSpinnerTween:Cancel()
 end)
 
 local GiftImageData={
@@ -6511,7 +6414,7 @@ addGiftButtonSymbol(giftLauncher,'send-button-symbol')
 addGiftButtonSymbol(giftLookup,'send-button-symbol')
 
 local function selectGiftItem(productData,productCategory)
-    cancelGiftSearch()
+    cancelGiftSend()
     giftSelected={
         imageKey=productData.imageKey,name=productData.name,model=productData.model,
         rate=productData.rate,imageCategory=productData.imageCategory,
@@ -6533,7 +6436,7 @@ giftAllButton.MouseButton1Click:Connect(function()
     selectGiftItem(GiftAllProduct,'All')
 end)
 showGiftCatalog=function()
-    cancelGiftSearch()
+    cancelGiftSend()
     setGiftPage('catalog')
     for _,child in ipairs(giftList:GetChildren()) do
         if child:IsA('Frame') then child:Destroy() end
@@ -6640,7 +6543,7 @@ showGiftCatalog=function()
     giftStatus.TextColor3=C.m
 end
 resetGiftFlow=function()
-    cancelGiftSearch()
+    cancelGiftSend()
     giftSelected=nil
     giftRecipient=nil
     giftQty=1
@@ -6657,70 +6560,49 @@ giftSearch:GetPropertyChangedSignal('Text'):Connect(function()
     showGiftCatalog()
 end)
 giftRecipientInput:GetPropertyChangedSignal('Text'):Connect(function()
+    cancelGiftSend()
     giftRecipient=nil
     giftDetailStatus.Text=''
 end)
-local function finishGiftPreview()
-    if not giftSelected or not giftRecipient then return end
-    local count=giftSelected.category=='Others' and 1 or giftQty
-    local function escaped(text)
-        return text:gsub('&','&amp;'):gsub('<','&lt;'):gsub('>','&gt;')
-    end
-    local quantityPrefix=(giftSelected.category=='Others' or giftSelected.bundle) and '' or (count..'× ')
-    giftSentSummary.Text=quantityPrefix..'<font color="#c29ae5">'..escaped(giftSelected.name)..'</font>'
-    giftSentRecipient.Text='@'..giftRecipient.username
-    setGiftPage('sent')
-    giftSent.BackgroundTransparency=.1
-    giftTweenService:Create(giftSent,TweenInfo.new(.2,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{BackgroundTransparency=0}):Play()
-end
-
-local function searchGiftRecipient()
+local function submitGiftAnnouncement()
     local username=giftRecipientInput.Text:match('^%s*(.-)%s*$'):gsub('^@+','')
     if username=='' then
         giftDetailStatus.Text='Enter a username first'
         return
     end
     if giftBusy or not giftSelected then return end
-    cancelGiftSearch()
-    local serial=giftSearchSerial
-    local selectedAtLookup=giftSelected
-    local startedAt=os.clock()
+    cancelGiftSend()
+    local serial=giftSendSerial
+    local selectedAtSend=giftSelected
+    local count=(selectedAtSend.category=='Others' or selectedAtSend.bundle) and 1 or giftQty
     giftBusy=true
     giftLookup.Active=false
-    giftSearchingTitle.Text='Searching for @'..username
-    setGiftPage('search')
+    giftDetailStatus.Text=''
+    -- Validate in the background without a searching page or artificial delay.
     task.spawn(function()
         local ok,userId=pcall(function() return Players:GetUserIdFromNameAsync(username) end)
-        local canonicalName=username
-        local remaining=3.5-(os.clock()-startedAt)
-        if remaining>0 then task.wait(remaining) end
-        if giftSearchSerial~=serial or not giftGui.Parent or not giftWin.Visible or giftSelected~=selectedAtLookup then return end
+        if giftSendSerial~=serial or not giftGui.Parent or not giftWin.Visible or giftSelected~=selectedAtSend then return end
         giftBusy=false
         giftLookup.Active=true
         if not ok or type(userId)~='number' or userId<=0 then
             giftRecipient=nil
             giftDetailStatus.Text='Player not found. Check the username and try again.'
-            setGiftPage('form')
             return
         end
-        giftRecipient={username=canonicalName,userId=userId}
-        finishGiftPreview()
+        giftRecipient={username=username,userId=userId}
+        local quantityPrefix=(selectedAtSend.category=='Others' or selectedAtSend.bundle) and '' or (count..'× ')
+        -- Read the live profile so edits in Announcements Profile apply immediately.
+        local profile=CFG.AnnouncementProfile
+        notice(profile.UserId,profile.Name,'has sent','',quantityPrefix..selectedAtSend.name..' to @'..username,Enum.Font.FredokaOne)
+        resetGiftFlow()
     end)
 end
-giftLookup.MouseButton1Click:Connect(searchGiftRecipient)
+giftLookup.MouseButton1Click:Connect(submitGiftAnnouncement)
 giftRecipientInput.FocusLost:Connect(function(enterPressed)
-    if enterPressed and giftWin.Visible and giftPage=='form' then searchGiftRecipient() end
-end)
-giftSearchCancel.MouseButton1Click:Connect(function()
-    cancelGiftSearch()
-    giftDetailStatus.Text=''
-    setGiftPage('form')
-end)
-giftSentDone.MouseButton1Click:Connect(function()
-    resetGiftFlow()
+    if enterPressed and giftWin.Visible and giftPage=='form' then submitGiftAnnouncement() end
 end)
 giftBack.MouseButton1Click:Connect(function()
-    cancelGiftSearch()
+    cancelGiftSend()
     giftRecipient=nil
     giftSelected=nil
     showGiftCatalog()
