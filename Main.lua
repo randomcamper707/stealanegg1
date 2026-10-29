@@ -5434,7 +5434,7 @@ task.spawn(function()
     local giftOk,giftError=xpcall(function()
 -- ===== GIFTING PANEL (preview only; no client-side item transfer) =====
 -- This palette is scoped to Gifting Panel; the other panels keep their own theme.
-local C={bg=Color3.fromRGB(19,21,28),head=Color3.fromRGB(27,31,34),card=Color3.fromRGB(23,25,33),card2=Color3.fromRGB(30,33,43),border=Color3.fromRGB(65,74,78),p=Color3.fromRGB(62,142,91),p2=Color3.fromRGB(106,195,132),w=Color3.fromRGB(245,246,250),m=Color3.fromRGB(179,183,199),g=Color3.fromRGB(93,175,120),o=Color3.fromRGB(185,147,226),r=Color3.fromRGB(246,130,131)}
+local C={bg=Color3.fromRGB(8,8,10),head=Color3.fromRGB(14,12,18),card=Color3.fromRGB(13,13,16),card2=Color3.fromRGB(23,20,29),border=Color3.fromRGB(67,47,87),p=Color3.fromRGB(111,61,166),p2=Color3.fromRGB(185,132,245),w=Color3.fromRGB(245,242,250),m=Color3.fromRGB(171,160,185),g=Color3.fromRGB(166,108,229),o=Color3.fromRGB(195,151,242),r=Color3.fromRGB(246,130,151)}
 local function stroke(target,transparency)
     local outline=Instance.new('UIStroke')
     outline.Color=C.border
@@ -5624,7 +5624,7 @@ local giftLauncher=button(gui,'Items  ·  Q',UDim2.new(0,12,1,-64),UDim2.fromOff
 giftGui.Destroying:Connect(function() giftLauncher:Destroy() end)
 giftLauncher.TextSize=14
 giftButtonPaint(giftLauncher,'green')
-local giftCatalogSize=Vector2.new(720,174)
+local giftCatalogSize=Vector2.new(720,198)
 local giftBaseScale=.80 -- A shallow dock with readable thumbnail and recipient controls.
 local giftPanelSize=giftCatalogSize
 local giftWin=Instance.new('Frame')
@@ -5643,7 +5643,23 @@ local giftScale=Instance.new('UIScale')
 giftScale.Scale=giftBaseScale
 giftScale.Parent=giftWin
 
+-- A dedicated full-width rail stays draggable on both dock pages.
+local giftMoveRail=Instance.new('TextButton')
+giftMoveRail.Name='DragDock'
+giftMoveRail.Size=UDim2.new(1,0,0,24)
+giftMoveRail.BackgroundColor3=C.head
+giftMoveRail.BorderSizePixel=0
+giftMoveRail.Text='⋮⋮  Drag to move'
+giftMoveRail.TextColor3=C.p2
+giftMoveRail.Font=Enum.Font.GothamBold
+giftMoveRail.TextSize=12
+giftMoveRail.AutoButtonColor=false
+giftMoveRail.Selectable=false
+giftMoveRail.Active=true
+giftMoveRail.Parent=giftWin
+corner(giftMoveRail,8)
 local giftHead=Instance.new('Frame')
+giftHead.Position=UDim2.fromOffset(0,24)
 giftHead.Size=UDim2.new(1,0,0,42)
 giftHead.BackgroundColor3=C.head
 giftHead.BorderSizePixel=0
@@ -5732,6 +5748,7 @@ local function beginGiftDrag(input)
     end
 end
 giftTrack(giftDragHandle.InputBegan:Connect(beginGiftDrag))
+giftTrack(giftMoveRail.InputBegan:Connect(beginGiftDrag))
 giftTrack(UIS.InputChanged:Connect(function(input)
     if not giftDragInput or not giftWin.Visible then return end
     local isTouch=giftDragInput.UserInputType==Enum.UserInputType.Touch
@@ -5784,7 +5801,7 @@ giftSearch.Parent=giftHead
 corner(giftSearch,8)
 stroke(giftSearch)
 local giftList=Instance.new('ScrollingFrame')
-giftList.Position=UDim2.fromOffset(48,48)
+giftList.Position=UDim2.fromOffset(48,72)
 giftList.Size=UDim2.fromOffset(624,104)
 giftList.BackgroundColor3=C.card
 giftList.BorderSizePixel=0
@@ -5810,9 +5827,9 @@ giftPadding.Parent=giftList
 giftGrid:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
     giftList.CanvasSize=UDim2.fromOffset(giftGrid.AbsoluteContentSize.X+4,0)
 end)
-local giftStatus=label(giftWin,'Select an item to begin',UDim2.fromOffset(48,156),UDim2.fromOffset(624,16),11,C.m)
-local giftScrollLeft=button(giftWin,'‹',UDim2.fromOffset(12,78),UDim2.fromOffset(28,36))
-local giftScrollRight=button(giftWin,'›',UDim2.fromOffset(680,78),UDim2.fromOffset(28,36))
+local giftStatus=label(giftWin,'Select an item to begin',UDim2.fromOffset(48,180),UDim2.fromOffset(624,16),11,C.m)
+local giftScrollLeft=button(giftWin,'‹',UDim2.fromOffset(12,102),UDim2.fromOffset(28,36))
+local giftScrollRight=button(giftWin,'›',UDim2.fromOffset(680,102),UDim2.fromOffset(28,36))
 for _,arrow in ipairs({giftScrollLeft,giftScrollRight}) do arrow.TextSize=26; giftButtonPaint(arrow,'secondary') end
 local function scrollGiftItems(direction)
     local maximum=math.max(0,giftList.AbsoluteCanvasSize.X-giftList.AbsoluteSize.X)
@@ -5830,7 +5847,7 @@ local giftSendSerial=0
 local function giftStepFrame(name)
     local frame=Instance.new('Frame')
     frame.Name=name
-    frame.Position=UDim2.fromOffset(12,48)
+    frame.Position=UDim2.fromOffset(12,72)
     frame.Size=UDim2.fromOffset(696,110)
     frame.BackgroundColor3=C.card
     frame.BorderSizePixel=0
@@ -5926,7 +5943,7 @@ giftRecipientInput.BackgroundTransparency=1
 giftRecipientInput.BorderSizePixel=0
 giftRecipientInput.Text=''
 giftRecipientInput.PlaceholderText='Username'
-giftRecipientInput.PlaceholderColor3=Color3.fromRGB(129,152,183)
+giftRecipientInput.PlaceholderColor3=C.m
 giftRecipientInput.TextColor3=C.w
 giftRecipientInput.Font=Enum.Font.GothamBold
 giftRecipientInput.TextSize=15
@@ -5977,7 +5994,7 @@ giftBack.BackgroundTransparency=1
 giftBack.Text='Cancel'
 giftBack.Visible=false
 giftBack.TextSize=18
-giftBack.TextColor3=Color3.fromRGB(99,126,150)
+giftBack.TextColor3=C.m
 giftBack.Font=Enum.Font.GothamBold
 giftBack.Parent=giftDetail
 giftDetailClose.MouseButton1Click:Connect(function()
@@ -6013,7 +6030,7 @@ for count=1,3 do
         updateGiftQuantityImages()
         for q,card in ipairs(giftFoundQuantityCards) do
             local selected=q==giftQty
-            giftGradient(card.button,selected and Color3.fromRGB(40,79,55) or C.card2,selected and Color3.fromRGB(33,62,46) or C.card2)
+            giftGradient(card.button,selected and C.p or C.card2,selected and Color3.fromRGB(62,32,94) or C.card2)
             card.outline.Color=selected and C.p2 or C.border
             card.outline.Thickness=1
         end
@@ -6295,7 +6312,7 @@ local function refreshGiftFoundQuantity()
         card.button.Position=UDim2.fromOffset(456+(count-1)*42,22)
         card.caption.Text=single and '1' or tostring(count)
         local selected=count==(single and 1 or giftQty)
-        giftGradient(card.button,selected and Color3.fromRGB(40,79,55) or C.card2,selected and Color3.fromRGB(33,62,46) or C.card2)
+        giftGradient(card.button,selected and C.p or C.card2,selected and Color3.fromRGB(62,32,94) or C.card2)
         card.outline.Color=selected and C.p2 or C.border
         card.outline.Thickness=1
         for i,image in ipairs(card.images) do
