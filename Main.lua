@@ -5624,7 +5624,7 @@ local giftLauncher=button(gui,'Items  ·  Q',UDim2.new(0,12,1,-64),UDim2.fromOff
 giftGui.Destroying:Connect(function() giftLauncher:Destroy() end)
 giftLauncher.TextSize=14
 giftButtonPaint(giftLauncher,'green')
-local giftCatalogSize=Vector2.new(720,198)
+local giftCatalogSize=Vector2.new(720,190)
 local giftBaseScale=.80 -- A shallow dock with readable thumbnail and recipient controls.
 local giftPanelSize=giftCatalogSize
 local giftWin=Instance.new('Frame')
@@ -5646,20 +5646,25 @@ giftScale.Parent=giftWin
 -- A dedicated full-width rail stays draggable on both dock pages.
 local giftMoveRail=Instance.new('TextButton')
 giftMoveRail.Name='DragDock'
-giftMoveRail.Size=UDim2.new(1,0,0,24)
-giftMoveRail.BackgroundColor3=C.head
+giftMoveRail.Size=UDim2.new(1,0,0,16)
+giftMoveRail.BackgroundTransparency=1
 giftMoveRail.BorderSizePixel=0
-giftMoveRail.Text='⋮⋮  Drag to move'
-giftMoveRail.TextColor3=C.p2
-giftMoveRail.Font=Enum.Font.GothamBold
-giftMoveRail.TextSize=12
+giftMoveRail.Text=''
 giftMoveRail.AutoButtonColor=false
 giftMoveRail.Selectable=false
 giftMoveRail.Active=true
 giftMoveRail.Parent=giftWin
-corner(giftMoveRail,8)
+local giftGrip=Instance.new('Frame')
+giftGrip.Name='DockGrip'
+giftGrip.Position=UDim2.new(.5,-18,0,6)
+giftGrip.Size=UDim2.fromOffset(36,3)
+giftGrip.BackgroundColor3=C.p2
+giftGrip.BackgroundTransparency=.4
+giftGrip.BorderSizePixel=0
+giftGrip.Parent=giftMoveRail
+corner(giftGrip,2)
 local giftHead=Instance.new('Frame')
-giftHead.Position=UDim2.fromOffset(0,24)
+giftHead.Position=UDim2.fromOffset(0,16)
 giftHead.Size=UDim2.new(1,0,0,42)
 giftHead.BackgroundColor3=C.head
 giftHead.BorderSizePixel=0
@@ -5801,7 +5806,7 @@ giftSearch.Parent=giftHead
 corner(giftSearch,8)
 stroke(giftSearch)
 local giftList=Instance.new('ScrollingFrame')
-giftList.Position=UDim2.fromOffset(48,72)
+giftList.Position=UDim2.fromOffset(48,64)
 giftList.Size=UDim2.fromOffset(624,104)
 giftList.BackgroundColor3=C.card
 giftList.BorderSizePixel=0
@@ -5827,9 +5832,9 @@ giftPadding.Parent=giftList
 giftGrid:GetPropertyChangedSignal('AbsoluteContentSize'):Connect(function()
     giftList.CanvasSize=UDim2.fromOffset(giftGrid.AbsoluteContentSize.X+4,0)
 end)
-local giftStatus=label(giftWin,'Select an item to begin',UDim2.fromOffset(48,180),UDim2.fromOffset(624,16),11,C.m)
-local giftScrollLeft=button(giftWin,'‹',UDim2.fromOffset(12,102),UDim2.fromOffset(28,36))
-local giftScrollRight=button(giftWin,'›',UDim2.fromOffset(680,102),UDim2.fromOffset(28,36))
+local giftStatus=label(giftWin,'Select an item to begin',UDim2.fromOffset(48,172),UDim2.fromOffset(624,16),11,C.m)
+local giftScrollLeft=button(giftWin,'‹',UDim2.fromOffset(12,94),UDim2.fromOffset(28,36))
+local giftScrollRight=button(giftWin,'›',UDim2.fromOffset(680,94),UDim2.fromOffset(28,36))
 for _,arrow in ipairs({giftScrollLeft,giftScrollRight}) do arrow.TextSize=26; giftButtonPaint(arrow,'secondary') end
 local function scrollGiftItems(direction)
     local maximum=math.max(0,giftList.AbsoluteCanvasSize.X-giftList.AbsoluteSize.X)
@@ -5847,7 +5852,7 @@ local giftSendSerial=0
 local function giftStepFrame(name)
     local frame=Instance.new('Frame')
     frame.Name=name
-    frame.Position=UDim2.fromOffset(12,72)
+    frame.Position=UDim2.fromOffset(12,64)
     frame.Size=UDim2.fromOffset(696,110)
     frame.BackgroundColor3=C.card
     frame.BorderSizePixel=0
@@ -5859,10 +5864,8 @@ local function giftStepFrame(name)
 end
 local giftDetail=giftStepFrame('UsernamePage')
 -- One horizontal row: selected item, recipient, quantity, and paper plane.
-corner(giftDetail,18)
+corner(giftDetail,10)
 local giftDetailClose=button(giftHead,'‹',UDim2.fromOffset(12,7),UDim2.fromOffset(30,28))
-local giftFormHeading=label(giftHead,'Item  →  Recipient',UDim2.fromOffset(54,7),UDim2.fromOffset(260,28),15,C.m)
-giftFormHeading.Visible=false
 local giftFormDragHandle=Instance.new('TextButton')
 giftFormDragHandle.Name='DragRecipientHeader'
 giftFormDragHandle.Text=''
@@ -6092,7 +6095,6 @@ local function setGiftPage(page)
     giftStatus.Visible=browsing
     collectionHeading.Visible=browsing
     giftDetailClose.Visible=not browsing
-    giftFormHeading.Visible=not browsing
     giftFormDragHandle.Visible=not browsing
     giftClose.Visible=true
     -- Keep the compact item browser and recipient form at the same size.
