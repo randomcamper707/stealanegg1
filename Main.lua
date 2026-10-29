@@ -6413,13 +6413,11 @@ local function addGiftButtonSymbol(target,symbolKey)
     layout.Padding=UDim.new(0,6)
     layout.SortOrder=Enum.SortOrder.LayoutOrder
     layout.Parent=content
-    local symbol=Instance.new('TextLabel')
-    symbol.Name='SelectionMark'
-    symbol.Size=UDim2.fromOffset(22,22)
+    local symbol=Instance.new('ImageLabel')
+    symbol.Name='PaperPlaneIcon'
+    symbol.Size=target==giftLookup and UDim2.fromOffset(22,22) or UDim2.fromOffset(18,18)
     symbol.BackgroundTransparency=1
-    symbol.Text=target==giftLauncher and '>' or '➤'
-    symbol.Font=Enum.Font.GothamBold
-    symbol.TextSize=18
+    symbol.ScaleType=Enum.ScaleType.Fit
     symbol.LayoutOrder=1
     symbol.ZIndex=content.ZIndex
     symbol.Parent=content
@@ -6436,12 +6434,13 @@ local function addGiftButtonSymbol(target,symbolKey)
         caption.TextSize=target.TextSize
         caption.TextColor3=target.TextColor3
         caption.Font=target.Font
-        symbol.TextColor3=target.TextColor3
+        symbol.ImageColor3=target.TextColor3
     end
     syncCaption()
     target:GetPropertyChangedSignal('Text'):Connect(syncCaption)
     target:GetPropertyChangedSignal('TextColor3'):Connect(syncCaption)
     target:GetPropertyChangedSignal('TextSize'):Connect(syncCaption)
+    queueGiftImage(symbol,'UI',{imageKey='send-button-symbol'})
 end
 local giftTweenService=game:GetService('TweenService')
 local giftShimmerIndex=0
