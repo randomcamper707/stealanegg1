@@ -6092,7 +6092,7 @@ giftSent.Size=UDim2.fromOffset(666,304)
 local giftSentIcon=Instance.new('Frame')
 giftSentIcon.Name='SentSymbol'
 giftSentIcon.AnchorPoint=Vector2.new(.5,0)
-giftSentIcon.Position=UDim2.new(.5,0,0,70)
+giftSentIcon.Position=UDim2.new(.5,0,0,40)
 giftSentIcon.Size=UDim2.fromOffset(94,94)
 giftSentIcon.BackgroundTransparency=1
 giftSentIcon.Parent=giftSent
@@ -6120,11 +6120,18 @@ giftSentPlane.ScaleType=Enum.ScaleType.Fit
 giftSentPlane.ZIndex=2
 giftSentPlane.Parent=giftSentIcon
 
-local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,180),UDim2.new(1,-60,0,54),21)
+local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,144),UDim2.new(1,-60,0,40),21)
 giftSentSummary.RichText=true
 giftSentSummary.TextWrapped=true
 giftSentSummary.TextXAlignment=Enum.TextXAlignment.Center
 giftSentSummary.TextYAlignment=Enum.TextYAlignment.Center
+local giftSentRecipient=label(giftSent,'',UDim2.fromOffset(30,190),UDim2.new(1,-60,0,24),18,C.m)
+giftSentRecipient.TextXAlignment=Enum.TextXAlignment.Center
+giftSentRecipient.TextYAlignment=Enum.TextYAlignment.Center
+giftSentRecipient.TextTruncate=Enum.TextTruncate.AtEnd
+local giftSentDone=button(giftSent,'Done',UDim2.new(.5,-105,0,236),UDim2.fromOffset(210,40))
+giftSentDone.TextSize=22
+giftOpaqueWhiteCaption(giftSentDone)
 local giftRainLayer=Instance.new('Frame')
 giftRainLayer.Name='GiftItemRain'
 giftRainLayer.Size=UDim2.fromScale(1,1)
@@ -6737,6 +6744,7 @@ local function finishGiftPreview()
     end
     local quantityPrefix=(giftSelected.category=='Others' or giftSelected.bundle) and '' or (count..'× ')
     giftSentSummary.Text=quantityPrefix..'<font color="#9228ed">'..escaped(giftSelected.name)..'</font>'
+    giftSentRecipient.Text='to @'..giftRecipient.username
     setGiftPage('sent')
     startGiftRain(giftSelected)
 end
@@ -6782,6 +6790,9 @@ giftSearchCancel.MouseButton1Click:Connect(function()
     cancelGiftSearch()
     giftDetailStatus.Text=''
     setGiftPage('form')
+end)
+giftSentDone.MouseButton1Click:Connect(function()
+    resetGiftFlow()
 end)
 giftBack.MouseButton1Click:Connect(function()
     cancelGiftSearch()
