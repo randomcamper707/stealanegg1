@@ -5650,8 +5650,6 @@ giftHead.ClipsDescendants=true
 stroke(giftHead)
 giftGradient(giftHead,C.head,C.head,0)
 local collectionHeading=label(giftHead,'ITEM CONSOLE',UDim2.fromOffset(16,9),UDim2.fromOffset(240,32),20)
-local consoleDisclosure=label(giftWin,'Visual simulation — no items transferred',UDim2.new(0,14,1,-25),UDim2.new(1,-28,0,18),12,C.m)
-consoleDisclosure.TextXAlignment=Enum.TextXAlignment.Center
 local consoleKey=label(giftHead,'Q',UDim2.new(1,-84,0,9),UDim2.fromOffset(30,32),15,C.w)
 consoleKey.TextXAlignment=Enum.TextXAlignment.Center
 corner(consoleKey,7)
@@ -6088,8 +6086,6 @@ giftOpaqueWhiteCaption(giftSearchCancel,C.w)
 
 local giftSent=giftStepFrame('GiftSentPage')
 giftSent.Size=UDim2.fromOffset(666,334)
-local consoleSentDisclosure=label(giftSent,'Simulation complete — no items transferred',UDim2.fromOffset(16,302),UDim2.new(1,-32,0,20),13,C.m)
-consoleSentDisclosure.TextXAlignment=Enum.TextXAlignment.Center
 local giftSentIcon=Instance.new('Frame')
 giftSentIcon.Name='SentSymbol'
 giftSentIcon.AnchorPoint=Vector2.new(.5,0)
@@ -6430,7 +6426,7 @@ local function addGiftButtonSymbol(target,symbolKey)
     caption.Parent=content
     local function syncCaption()
         caption.Text=target.Text
-        caption.Visible=target.Text~='➤'
+        caption.Visible=target~=giftLookup and target.Text~='➤'
         caption.TextSize=target.TextSize
         caption.TextColor3=target.TextColor3
         caption.Font=target.Font
