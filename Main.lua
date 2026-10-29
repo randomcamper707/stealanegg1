@@ -5434,7 +5434,7 @@ task.spawn(function()
     local giftOk,giftError=xpcall(function()
 -- ===== GIFTING PANEL (preview only; no client-side item transfer) =====
 -- This palette is scoped to Gifting Panel; the other panels keep their own theme.
-local C={bg=Color3.fromRGB(225,233,239),head=Color3.fromRGB(215,228,239),card=Color3.fromRGB(250,249,242),card2=Color3.fromRGB(255,254,249),border=Color3.fromRGB(149,169,188),p=Color3.fromRGB(81,126,166),p2=Color3.fromRGB(107,149,185),w=Color3.fromRGB(33,47,61),m=Color3.fromRGB(94,113,131),g=Color3.fromRGB(81,126,166),o=Color3.fromRGB(104,93,52),r=Color3.fromRGB(180,40,42)}
+local C={bg=Color3.fromRGB(230,237,226),head=Color3.fromRGB(219,234,211),card=Color3.fromRGB(250,249,242),card2=Color3.fromRGB(255,254,249),border=Color3.fromRGB(150,173,141),p=Color3.fromRGB(65,119,61),p2=Color3.fromRGB(99,148,83),w=Color3.fromRGB(36,48,32),m=Color3.fromRGB(99,117,91),g=Color3.fromRGB(65,119,61),o=Color3.fromRGB(104,93,52),r=Color3.fromRGB(180,40,42)}
 local function stroke(target,transparency)
     local outline=Instance.new('UIStroke')
     outline.Color=C.border
@@ -5465,7 +5465,7 @@ local function label(parent,text,position,size,textSize,color)
     return object
 end
 local function giftButtonPaint(target,style,selected)
-    local palettes={green={Color3.fromRGB(116,156,191),Color3.fromRGB(77,119,157)},cyan={Color3.fromRGB(128,164,194),Color3.fromRGB(87,128,165)},amber={Color3.fromRGB(116,156,191),Color3.fromRGB(77,119,157)},secondary={Color3.fromRGB(248,250,251),Color3.fromRGB(226,234,241)}}
+    local palettes={green={Color3.fromRGB(105,156,83),Color3.fromRGB(66,119,52)},cyan={Color3.fromRGB(117,166,94),Color3.fromRGB(77,131,61)},amber={Color3.fromRGB(105,156,83),Color3.fromRGB(66,119,52)},secondary={Color3.fromRGB(249,251,246),Color3.fromRGB(229,237,221)}}
     local colors=palettes[style or 'green'] or palettes.green
     giftGradient(target,colors[1],colors[2])
     target.TextColor3=Color3.new(1,1,1)
@@ -5633,7 +5633,7 @@ giftWin.Visible=false
 giftWin.Parent=giftGui
 corner(giftWin,14)
 stroke(giftWin,.12)
-giftGradient(giftWin,Color3.fromRGB(221,232,241),Color3.fromRGB(238,242,245),0)
+giftGradient(giftWin,Color3.fromRGB(227,237,220),Color3.fromRGB(241,245,236),0)
 local giftScale=Instance.new('UIScale')
 giftScale.Scale=.81
 giftScale.Parent=giftWin
@@ -5647,9 +5647,8 @@ giftHead.Parent=giftWin
 corner(giftHead,10)
 giftHead.ClipsDescendants=true
 stroke(giftHead)
-giftGradient(giftHead,Color3.fromRGB(221,233,243),Color3.fromRGB(203,222,237),0)
+giftGradient(giftHead,Color3.fromRGB(227,239,217),Color3.fromRGB(208,229,194),0)
 local collectionHeading=label(giftHead,'Items',UDim2.fromOffset(16,9),UDim2.fromOffset(100,32),22)
-local collectionPreview=label(giftHead,'Preview',UDim2.fromOffset(116,15),UDim2.fromOffset(80,22),12,C.m)
 local giftDragHandle=Instance.new('TextButton')
 giftDragHandle.Name='DragHeader'
 giftDragHandle.BackgroundTransparency=1
@@ -6033,8 +6032,8 @@ for count=1,3 do
         updateGiftQuantityImages()
         for q,card in ipairs(giftFoundQuantityCards) do
             local selected=q==giftQty
-            giftGradient(card.button,selected and Color3.fromRGB(229,239,248) or Color3.fromRGB(255,255,255),selected and Color3.fromRGB(210,228,243) or Color3.fromRGB(241,245,249))
-            card.outline.Color=selected and Color3.fromRGB(81,126,166) or Color3.fromRGB(208,215,220)
+            giftGradient(card.button,selected and Color3.fromRGB(233,244,224) or Color3.fromRGB(255,255,255),selected and Color3.fromRGB(213,233,197) or Color3.fromRGB(241,245,249))
+            card.outline.Color=selected and Color3.fromRGB(65,119,61) or Color3.fromRGB(208,215,220)
             card.outline.Thickness=selected and 3 or 2
         end
     end)
@@ -6084,7 +6083,7 @@ giftSentIcon.Parent=giftSent
 local giftSelectedMark=label(giftSentIcon,'✓',UDim2.fromScale(0,0),UDim2.fromScale(1,1),62,C.p)
 giftSelectedMark.TextXAlignment=Enum.TextXAlignment.Center
 giftSelectedMark.TextYAlignment=Enum.TextYAlignment.Center
-local giftSelectedHeading=label(giftSent,'Selected',UDim2.fromOffset(30,136),UDim2.new(1,-60,0,28),22)
+local giftSelectedHeading=label(giftSent,'Done',UDim2.fromOffset(30,136),UDim2.new(1,-60,0,28),22)
 giftSelectedHeading.TextXAlignment=Enum.TextXAlignment.Center
 local giftSentSummary=label(giftSent,'',UDim2.fromOffset(30,168),UDim2.new(1,-60,0,32),19)
 giftSentSummary.RichText=true
@@ -6096,7 +6095,7 @@ giftSentRecipient.TextXAlignment=Enum.TextXAlignment.Center
 giftSentRecipient.TextYAlignment=Enum.TextYAlignment.Center
 giftSentRecipient.TextTruncate=Enum.TextTruncate.AtEnd
 giftSentRecipient.BackgroundTransparency=0
-giftSentRecipient.BackgroundColor3=Color3.fromRGB(232,238,243)
+giftSentRecipient.BackgroundColor3=Color3.fromRGB(233,240,226)
 corner(giftSentRecipient,8)
 local giftSentDone=button(giftSent,'Done',UDim2.new(.5,-105,0,236),UDim2.fromOffset(210,40))
 giftSentDone.TextSize=22
@@ -6363,8 +6362,8 @@ local function refreshGiftFoundQuantity()
         card.button.Position=UDim2.fromOffset(single and 176 or 40+(count-1)*136,210)
         card.caption.Text=single and '' or (count..'×')
         local selected=count==(single and 1 or giftQty)
-        giftGradient(card.button,selected and Color3.fromRGB(229,239,248) or Color3.fromRGB(255,255,255),selected and Color3.fromRGB(210,228,243) or Color3.fromRGB(241,245,249))
-        card.outline.Color=selected and Color3.fromRGB(81,126,166) or Color3.fromRGB(208,215,220)
+        giftGradient(card.button,selected and Color3.fromRGB(233,244,224) or Color3.fromRGB(255,255,255),selected and Color3.fromRGB(213,233,197) or Color3.fromRGB(241,245,249))
+        card.outline.Color=selected and Color3.fromRGB(65,119,61) or Color3.fromRGB(208,215,220)
         card.outline.Thickness=selected and 3 or 2
         for i,image in ipairs(card.images) do
             image.Position=UDim2.fromOffset(single and 64 or (52+(i-(count+1)/2)*16),20)
@@ -6580,7 +6579,7 @@ showGiftCatalog=function()
             art.Parent=card
             corner(art,7)
             local artColors=GiftArtColors[product.imageKey]
-            giftGradient(art,Color3.fromRGB(235,240,244),Color3.fromRGB(218,229,238))
+            giftGradient(art,Color3.fromRGB(238,243,231),Color3.fromRGB(222,234,210))
             local icon=Instance.new('ImageLabel')
             icon.AnchorPoint=Vector2.new(.5,.5)
             icon.Position=UDim2.fromScale(.5,.5)
@@ -6605,7 +6604,7 @@ showGiftCatalog=function()
             name.TextYAlignment=Enum.TextYAlignment.Center
             local rarity=label(card,'DIVINE',UDim2.fromOffset(102,43),UDim2.fromOffset(59,15),10)
             rarity.BackgroundTransparency=0
-            rarity.BackgroundColor3=Color3.fromRGB(218,231,242)
+            rarity.BackgroundColor3=Color3.fromRGB(223,236,211)
             rarity.TextXAlignment=Enum.TextXAlignment.Center
             corner(rarity,7)
             label(card,product.rate,UDim2.fromOffset(102,59),UDim2.new(1,-108,0,15),11)
@@ -6648,7 +6647,7 @@ local function finishGiftPreview()
         return text:gsub('&','&amp;'):gsub('<','&lt;'):gsub('>','&gt;')
     end
     local quantityPrefix=(giftSelected.category=='Others' or giftSelected.bundle) and '' or (count..'× ')
-    giftSentSummary.Text=quantityPrefix..'<font color="#517ea6">'..escaped(giftSelected.name)..'</font>'
+    giftSentSummary.Text=quantityPrefix..'<font color="#41773d">'..escaped(giftSelected.name)..'</font>'
     giftSentRecipient.Text='Username  ·  @'..giftRecipient.username
     setGiftPage('sent')
     giftSent.BackgroundTransparency=.25
