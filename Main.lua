@@ -3474,15 +3474,26 @@ end
 local shortcuts={
     "/announcements", "/givetreadmill", "/giveeggs", "/givepets", "/givestars", "/giveps"
 }
-local actions={
-    ["/givetreadmill"]={"GiveTreadmill","TREADMILL"},
-    ["/giveeggs"]={"GiveEggs","EGGS"},
-    ["/givepets"]={"GivePets","PETS"},
-    ["/givestars"]={"GiveStars","STARS"},
-    ["/giveps"]={"GiveVPS","PRIVATE SERVER"}
+local itemNames={
+    "Mecha Scrambler", "Octophant", "Unicorn", "Kitsune", "Nightflame",
+    "ArchAngel", "World Burner", "Luminous Cthulhu", "Skeletal Sabertooth"
 }
+local branchItems={
+    ["/givepets"]=itemNames,
+    ["/giveeggs"]=itemNames,
+    ["/givetreadmill"]={"Ben's Treadmill","Brockodile Treadmill"}
+}
+local remoteActions={
+    ["/givetreadmill"]="GiveTreadmill", ["/giveeggs"]="GiveEggs",
+    ["/givepets"]="GivePets", ["/givestars"]="GiveStars"
+}
+local showCommands,chooseItem,chooseQuantity
+local function trim(value)
+    return tostring(value or ""):match("^%s*(.-)%s*$")
+end
 local function findPlayer(s)
-    s=string.lower(tostring(s)):gsub("^@","")
+    s=string.lower(trim(s)):gsub("^@","")
+    if s=="" then return nil end
     for _,p in ipairs(Players:GetPlayers()) do
         if string.lower(p.Name)==s or string.lower(p.DisplayName)==s then return p end
     end
@@ -3490,43 +3501,159 @@ local function findPlayer(s)
         if string.sub(string.lower(p.Name),1,string.len(s))==s then return p end
     end
 end
+local function clearChoices()
+    for _,child in ipairs(quick:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    quick.CanvasPosition=Vector2.zero
+end
+local function choice(text,callback)
+    local b=q(text)
+    b.MouseButton1Click:Connect(callback)
+end
+local function prefill(text)
+    ci.Text=text
+    ci:CaptureFocus()
+end
+local function itemPrefix(cmd,item)
+    return cmd..' "'..item..'" '
+end
+local function recipientChoices(cmd,item,quantity)
+    clearChoices()
+    if branchItems[cmd] then
+        choice("Change item",function() chooseItem(cmd) end)
+    end
+    if cmd~="/givetreadmill" then
+        choice("Change quantity",function() chooseQuantity(cmd,item) end)
+    end
+    choice("Cancel",function() ci.Text=""; showCommands() end)
+    local prefix=cmd=="/givestars" and (cmd.." ") or itemPrefix(cmd,item)
+    if cmd~="/givetreadmill" then prefix=prefix..quantity.." " end
+    prefill(prefix)
+    line("Type the recipient's username, then press Enter.",consoleMuted)
+end
+chooseQuantity=function(cmd,item)
+    clearChoices()
+    ci.Text=cmd=="/givestars" and (cmd.." ") or itemPrefix(cmd,item)
+    line("Choose how many: 1, 2, or 3.",consoleMuted)
+    for count=1,3 do
+        local quantity=count
+        choice(tostring(quantity),function() recipientChoices(cmd,item,quantity) end)
+    end
+    choice("Back",function()
+        if branchItems[cmd] then chooseItem(cmd) else ci.Text=""; showCommands() end
+    end)
+end
+chooseItem=function(cmd)
+    clearChoices()
+    ci.Text=cmd.." "
+    line(cmd=="/givetreadmill" and "Choose a treadmill below." or "Choose an item below.",consoleMuted)
+    for _,name in ipairs(branchItems[cmd]) do
+        local item=name
+        local caption=cmd=="/giveeggs" and (item.." Egg") or item
+        choice(caption,function()
+            if cmd=="/givetreadmill" then recipientChoices(cmd,item,1)
+            else chooseQuantity(cmd,item) end
+        end)
+    end
+    choice("Back",function() ci.Text=""; showCommands() end)
+end
+showCommands=function()
+    clearChoices()
+    for _,shortcut in ipairs(shortcuts) do
+        local cmd=shortcut
+        choice(cmd,function()
+            if branchItems[cmd] then chooseItem(cmd)
+            elseif cmd=="/givestars" then chooseQuantity(cmd,nil)
+            else prefill(cmd.." ") end
+        end)
+    end
+end
+local function canonicalItem(cmd,value)
+    for _,item in ipairs(branchItems[cmd] or {}) do
+        if item:lower()==value:lower() then return item end
+    end
+end
 local function command(raw)
-    raw=tostring(raw or ""):match("^%s*(.-)%s*$")
+    raw=trim(raw)
     if raw=="" then return end
     line("> "..raw,consoleText)
     local cmd,rest=raw:match("^(%S+)%s*(.*)$")
     cmd=string.lower(cmd or "")
-    rest=rest or ""
+    rest=trim(rest)
     if cmd=="/announcements" or cmd=="/announcement" then
         if rest=="" then line("Enter a message.",C.red); return end
         callRemote("Announcement",rest)
         notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,":","",rest,Enum.Font.FredokaOne)
         line("Announcement shown.")
+        showCommands()
         return
     end
-    local action=actions[cmd]
-    if action then
+    if cmd=="/giveps" then
         if rest=="" then line("Enter a player.",C.red); return end
         local pl=findPlayer(rest)
         local target=pl and pl.DisplayName or rest
-        callRemote(action[1],rest)
-        notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent",action[2],"to "..target)
-        line(action[2].." -> "..target)
+        callRemote("GiveVPS",rest)
+        notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent","PRIVATE SERVER","to "..target)
+        line("PRIVATE SERVER -> "..target)
+        showCommands()
         return
     end
-    line("Unknown command. Choose a shortcut below.",C.red)
+    if not remoteActions[cmd] then
+        line("Unknown command. Choose a shortcut below.",C.red)
+        return
+    end
+    local item,quantity,recipient
+    if branchItems[cmd] then
+        if rest=="" then chooseItem(cmd); return end
+        local supplied,tail=rest:match('^"([^"]+)"%s*(.*)$')
+        if not supplied then chooseItem(cmd); return end
+        item=canonicalItem(cmd,supplied)
+        if not item then line("Choose one of the listed items.",C.red); chooseItem(cmd); return end
+        if cmd=="/givetreadmill" then
+            quantity=1
+            recipient=trim(tail)
+        else
+            if trim(tail)=="" then chooseQuantity(cmd,item); return end
+            local number,target=tail:match("^(%d+)%s*(.*)$")
+            quantity=tonumber(number)
+            recipient=trim(target)
+        end
+    else
+        if rest=="" then chooseQuantity(cmd,nil); return end
+        local number,target=rest:match("^(%d+)%s*(.*)$")
+        quantity=tonumber(number)
+        recipient=trim(target)
+    end
+    if not quantity or quantity<1 or quantity>3 then
+        line("Choose a quantity from 1 to 3.",C.red)
+        chooseQuantity(cmd,item)
+        return
+    end
+    if recipient=="" then recipientChoices(cmd,item,quantity); return end
+    recipient=recipient:gsub("^@+","")
+    if recipient=="" then
+        line("Enter a player.",C.red)
+        recipientChoices(cmd,item,quantity)
+        return
+    end
+    local pl=findPlayer(recipient)
+    local target=pl and pl.DisplayName or recipient
+    local description
+    if cmd=="/giveeggs" then description=item..(quantity==1 and " Egg" or " Eggs")
+    elseif cmd=="/givepets" then description=item..(quantity==1 and " Pet" or " Pets")
+    elseif cmd=="/givestars" then description=quantity==1 and "Star" or "Stars"
+    else description=item end
+    local sent=quantity.."× "..description
+    callRemote(remoteActions[cmd],recipient,item,quantity)
+    notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent",sent,"to "..target)
+    line(sent.." -> "..target)
+    showCommands()
 end
 ci.FocusLost:Connect(function(enter)
     if enter then local t=ci.Text; ci.Text=""; command(t) end
 end)
-for _,shortcut in ipairs(shortcuts) do
-    local commandName=shortcut
-    local shortcutButton=q(commandName)
-    shortcutButton.MouseButton1Click:Connect(function()
-        ci.Text=commandName.." "
-        ci:CaptureFocus()
-    end)
-end
+showCommands()
 line(P.Name.." has joined the server.")
 line("Enter a command or choose a shortcut below.",consoleMuted)
 end
