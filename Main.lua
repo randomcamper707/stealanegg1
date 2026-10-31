@@ -2217,6 +2217,7 @@ local TagTextColor=Color3.fromRGB(245,245,250)
 local RoleLabels={OWNER="Owner",["CO-OWNER"]="Co-Owner",ADMIN="Admin",["CONTENT CREATOR"]="Content Creator",DEVELOPER="Developer"}
 local RoleIcons={OWNER="👑",["CO-OWNER"]="👑",ADMIN="⚙️",["CONTENT CREATOR"]="🎬",DEVELOPER="🔨"}
 local Role="OWNER"; local Display=P.DisplayName; local Username=P.Name
+local consoleJoinLabel
 local TagAdornee=nil
 local TagShineTween=nil
 local function setTagAdornee(part)
@@ -3226,7 +3227,7 @@ section(avatarNamesPage,"CUSTOM USERNAME LABEL",76)
 local usernameInput=textbox(avatarNamesPage,"Username",UDim2.fromOffset(5,100),UDim2.new(1,-10,0,36),Username)
 local applyNameBtn=button(avatarNamesPage,"Apply names",UDim2.fromOffset(5,146),UDim2.new(1,-10,0,34),false)
 local nameStatus=label(avatarNamesPage,"Updates the name and label above your avatar.",UDim2.fromOffset(7,190),UDim2.new(1,-14,0,30),11); nameStatus.TextWrapped=true; nameStatus.TextColor3=C.muted
-applyNameBtn.MouseButton1Click:Connect(function() if displayInput.Text~="" then Display=displayInput.Text end; if usernameInput.Text~="" then Username=usernameInput.Text:gsub("^@","") end; applyTag(); nameStatus.Text="Custom display updated."; nameStatus.TextColor3=C.green end)
+applyNameBtn.MouseButton1Click:Connect(function() if displayInput.Text~="" then Display=displayInput.Text end; if usernameInput.Text~="" then Username=usernameInput.Text:gsub("^@","") end; applyTag(); if consoleJoinLabel and consoleJoinLabel.Parent then consoleJoinLabel.Text=Display.." has joined the server." end; nameStatus.Text="Custom display updated."; nameStatus.TextColor3=C.green end)
 
 -- Announcement identity is independent of the character's overhead identity.
 local profile=CFG.AnnouncementProfile
@@ -3430,6 +3431,7 @@ local function line(t,col)
     x.Font=Enum.Font.Code; x.TextColor3=col or consoleText
     x.TextWrapped=true; x.AutomaticSize=Enum.AutomaticSize.Y
     x.TextYAlignment=Enum.TextYAlignment.Top; x.LayoutOrder=entryCount
+    return x
 end
 OL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     out.CanvasSize=UDim2.fromOffset(0,OL.AbsoluteContentSize.Y+6)
@@ -3620,13 +3622,22 @@ local function command(raw)
     callRemote(remoteActions[cmd],recipient,item,quantity)
     notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent",sent,"to "..target)
     line(sent.." -> "..target)
+    local delivery=((getgenv and getgenv()) or _G).SAE_PACKAGE_DELIVERY
+    if type(delivery)=="function" then
+        local shippingUser=pl and pl.Name or recipient
+        delivery(cmd,item,shippingUser,quantity,pl and pl.UserId,function(message)
+            if Console.Parent then line("Parcel animation: "..message,C.red) end
+        end)
+    else
+        line("Parcel animation is still loading. Try again in a moment.",C.red)
+    end
     showCommands()
 end
 ci.FocusLost:Connect(function(enter)
     if enter then local t=ci.Text; ci.Text=""; command(t) end
 end)
 showCommands()
-line(P.Name.." has joined the server.")
+consoleJoinLabel=line(Display.." has joined the server.")
 line("Enter a command or choose a shortcut below.",consoleMuted)
 end
 Builders.Console()
@@ -4763,6 +4774,293 @@ local function model(cat,name)
     end
     return entry.template:Clone(),entry.exact
 end
+
+-- Cinematic parcels use isolated clones of the same 3D inventory models.
+do
+    local previous=E.SAE_PACKAGE_RUNTIME
+    if previous and type(previous.Destroy)=='function' then pcall(function() previous:Destroy() end) end
+    local runtime={queue={},dead=false,active=nil}
+    E.SAE_PACKAGE_RUNTIME=runtime
+    local TS=game:GetService('TweenService')
+    local Run=game:GetService('RunService')
+    local Debris=game:GetService('Debris')
+    local purple=Color3.fromRGB(175,73,255)
+    local cardboard=Color3.fromRGB(171,119,65)
+    local function clamp01(value) return math.clamp(value,0,1) end
+    local function smooth(value) value=clamp01(value); return value*value*(3-2*value) end
+    local function resolveModel(cmd,item)
+        local aliases={Nightflame='Night Flame',ArchAngel='Archangel',
+            ['Brockodile Treadmill']="Brocodile's Treadmill"}
+        local name=aliases[item] or item
+        if cmd=='/giveeggs' then return 'Eggs',name..' Egg' end
+        if cmd=='/givepets' then return 'Pets',name end
+        if cmd=='/givetreadmill' then return 'Star',name end
+        if cmd=='/givestars' then return 'Star','Star' end
+        error('Unsupported parcel item')
+    end
+    local function makePart(parent,name,size,color,material)
+        local p=Instance.new('Part')
+        p.Name=name p.Size=size p.Color=color p.Material=material or Enum.Material.SmoothPlastic
+        p.Anchored=true p.CanCollide=false p.CanTouch=false p.CanQuery=false
+        p.CastShadow=true p.TopSurface=Enum.SurfaceType.Smooth p.BottomSurface=Enum.SurfaceType.Smooth
+        p.Parent=parent
+        return p
+    end
+    local function restoreCamera(state)
+        local camera=state.camera
+        if camera and workspace.CurrentCamera==camera and camera.CameraType==Enum.CameraType.Scriptable then
+            camera.CFrame=state.cframe camera.Focus=state.focus camera.FieldOfView=state.fov
+            camera.CameraSubject=state.subject camera.CameraType=state.cameraType
+        end
+    end
+    local function cleanup(state)
+        if state.cleaned then return end
+        state.cleaned=true
+        if state.connection then state.connection:Disconnect() end
+        restoreCamera(state)
+        if state.console and state.console.Parent then state.console.Visible=state.consoleVisible end
+        if state.scene then state.scene:Destroy() end
+        if state.finished then state.finished:Fire() end
+    end
+    function runtime:Destroy()
+        if self.dead then return end
+        self.dead=true table.clear(self.queue)
+        if self.active then cleanup(self.active) end
+        if self.guiConnection then self.guiConnection:Disconnect() end
+        if E.SAE_PACKAGE_RUNTIME==self then
+            E.SAE_PACKAGE_DELIVERY=nil E.SAE_PACKAGE_RUNTIME=nil
+        end
+    end
+    runtime.guiConnection=Gui.Destroying:Connect(function() runtime:Destroy() end)
+    local function dispatchCaption()
+        local sg=Instance.new('ScreenGui')
+        sg.Name='SAE_PACKAGE_DISPATCH' sg.ResetOnSpawn=false sg.IgnoreGuiInset=true
+        sg.DisplayOrder=960 sg.Parent=PG
+        local caption=Instance.new('TextLabel')
+        caption.AnchorPoint=Vector2.new(.5,1) caption.Position=UDim2.new(.5,0,1,-72)
+        caption.Size=UDim2.fromOffset(300,30) caption.BackgroundTransparency=1
+        caption.Text='PACKAGE ON ITS WAY' caption.Font=Enum.Font.GothamBold caption.TextSize=16
+        caption.TextColor3=Color3.fromRGB(232,208,255)
+        caption.TextStrokeColor3=Color3.fromRGB(20,8,30) caption.TextStrokeTransparency=.25
+        caption.Parent=sg
+        TS:Create(caption,TweenInfo.new(.9,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+            Position=UDim2.new(.5,0,1,-92),TextTransparency=1,TextStrokeTransparency=1
+        }):Play()
+        Debris:AddItem(sg,1.2)
+    end
+    local function play(request)
+        local character=P.Character
+        local root=character and character:FindFirstChild('HumanoidRootPart')
+        local camera=workspace.CurrentCamera
+        if not root or not camera then error('Character or camera is unavailable') end
+        local category,name=resolveModel(request.cmd,request.item)
+        local template=model(category,name)
+        if not template then error('3D model unavailable: '..tostring(name)) end
+        -- The preparatory clone is never parented into the live world.
+        for _,object in ipairs(template:GetDescendants()) do
+            if object:IsA('LuaSourceContainer') or object:IsA('Humanoid') or object:IsA('AnimationController')
+                or object:IsA('BillboardGui') or object:IsA('SurfaceGui') or object:IsA('Sound') then
+                object:Destroy()
+            elseif object:IsA('BasePart') then
+                object.Anchored=true object.CanCollide=false object.CanTouch=false object.CanQuery=false
+            end
+        end
+        local bounds=template:GetExtentsSize()
+        local maxSize=math.max(bounds.X,bounds.Y,bounds.Z)
+        if maxSize<=.001 then template:Destroy(); error('Empty parcel model') end
+        template:ScaleTo(template:GetScale()*(request.quantity==1 and 2 or 1.35)/maxSize)
+        local recipientId=request.userId
+        if not recipientId then
+            local ok,id=pcall(function() return Players:GetUserIdFromNameAsync(request.recipient) end)
+            if not ok or type(id)~='number' or id<=0 then
+                template:Destroy(); error('Recipient account could not be found')
+            end
+            recipientId=id
+        end
+        if runtime.dead then template:Destroy(); return end
+        -- Place the scene on the floor in front of the sender, excluding their character.
+        local forward=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
+        if forward.Magnitude<.01 then forward=Vector3.new(0,0,-1) else forward=forward.Unit end
+        local point=root.Position+forward*9
+        local params=RaycastParams.new()
+        params.FilterType=Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances={character,Placed}
+        local hit=workspace:Raycast(point+Vector3.new(0,20,0),Vector3.new(0,-128,0),params)
+        if not hit then template:Destroy(); error('No floor found for parcel landing') end
+        local floor=hit.Position+Vector3.new(0,.06,0)
+        local base=CFrame.lookAt(floor,floor-forward)
+        local scene=Instance.new('Model') scene.Name='SAE_DELIVERY_PARCEL' scene.Parent=workspace
+        local state={scene=scene,camera=camera,cframe=camera.CFrame,focus=camera.Focus,
+            fov=camera.FieldOfView,subject=camera.CameraSubject,cameraType=camera.CameraType,
+            console=Console,consoleVisible=Console.Visible,
+            finished=Instance.new('BindableEvent')}
+        runtime.active=state
+        -- Any construction or frame failure is caught by the queue worker and restores the camera.
+        local pieces,flaps,contents,portal={},{},{},{}
+        local function piece(name,size,offset,color)
+            local object=makePart(scene,name,size,color or cardboard)
+            pieces[#pieces+1]={part=object,offset=offset}
+            return object
+        end
+        piece('BoxBase',Vector3.new(5,.18,3.8),CFrame.new(0,.09,0))
+        piece('FrontWall',Vector3.new(5,2.4,.13),CFrame.new(0,1.3,-1.9))
+        piece('BackWall',Vector3.new(5,2.4,.13),CFrame.new(0,1.3,1.9))
+        piece('LeftWall',Vector3.new(.13,2.4,3.8),CFrame.new(-2.5,1.3,0))
+        piece('RightWall',Vector3.new(.13,2.4,3.8),CFrame.new(2.5,1.3,0))
+        -- Thin kraft-paper edges make the parcel read as folded cardboard.
+        for _,x in ipairs({-2.45,2.45}) do
+            piece('FoldedEdge',Vector3.new(.06,2.4,.06),CFrame.new(x,1.3,-1.98),Color3.fromRGB(208,154,89))
+        end
+        for _,side in ipairs({-1,1}) do
+            local lid=makePart(scene,'LongFlap',Vector3.new(5,.10,1.9),cardboard)
+            flaps[#flaps+1]={part=lid,side=side,axis='x'}
+            local endLid=makePart(scene,'EndFlap',Vector3.new(2.5,.08,3.8),Color3.fromRGB(153,103,57))
+            flaps[#flaps+1]={part=endLid,side=side,axis='z'}
+        end
+        for index=1,request.quantity do
+            local item=template:Clone() item.Name='ParcelItem'..index item.Parent=scene
+            local boxCf,size=item:GetBoundingBox()
+            local pivotToBounds=item:GetPivot():ToObjectSpace(boxCf)
+            contents[#contents+1]={model=item,size=size,correction=pivotToBounds:Inverse(),
+                x=(index-(request.quantity+1)/2)*1.5}
+        end
+        template:Destroy()
+        local glow=makePart(scene,'RevealGlow',Vector3.new(.1,.1,.1),purple,Enum.Material.Neon)
+        glow.Transparency=1
+        local light=Instance.new('PointLight') light.Color=purple light.Range=11 light.Brightness=0 light.Parent=glow
+        for index=1,40 do
+            local angle=(index-1)/40*math.pi*2
+            local segment=makePart(scene,'PortalArc',Vector3.new(.18,.12,.57),purple,Enum.Material.Neon)
+            segment.CastShadow=false
+            portal[#portal+1]={part=segment,angle=angle}
+        end
+        local portalLight=Instance.new('PointLight')
+        portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=2.5 portalLight.Parent=portal[1].part
+        local tape=piece('YellowSealTape',Vector3.new(1.15,.06,3.88),CFrame.new(0,2.57,0),Color3.fromRGB(255,208,48))
+        tape.Transparency=1
+        local sticker=makePart(scene,'CourierSticker',Vector3.new(4.25,1.35,.03),Color3.fromRGB(255,212,52))
+        sticker.Transparency=1
+        local shipping=Instance.new('SurfaceGui')
+        shipping.Name='RecipientLabel' shipping.Face=Enum.NormalId.Front
+        shipping.CanvasSize=Vector2.new(680,216) shipping.LightInfluence=0
+        shipping.Enabled=false shipping.Parent=sticker
+        local avatar=Instance.new('ImageLabel')
+        avatar.BackgroundTransparency=1 avatar.Position=UDim2.fromOffset(24,22)
+        avatar.Size=UDim2.fromOffset(172,172)
+        avatar.Image='rbxthumb://type=AvatarHeadShot&id='..recipientId..'&w=150&h=150'
+        avatar.Parent=shipping
+        local to=Instance.new('TextLabel')
+        to.BackgroundTransparency=1 to.Position=UDim2.fromOffset(220,24) to.Size=UDim2.fromOffset(430,42)
+        to.Text='DELIVER TO' to.TextColor3=Color3.fromRGB(61,37,12)
+        to.Font=Enum.Font.GothamBold to.TextSize=28 to.TextXAlignment=Enum.TextXAlignment.Left to.Parent=shipping
+        local user=to:Clone() user.Position=UDim2.fromOffset(220,76) user.Size=UDim2.fromOffset(430,112)
+        user.Text='@'..request.recipient user.TextSize=42 user.TextWrapped=true user.Parent=shipping
+        local started=os.clock()
+        local dispatched=false
+        Console.Visible=false
+        camera.CameraType=Enum.CameraType.Scriptable
+        state.connection=Run.RenderStepped:Connect(function()
+            local ok,err=xpcall(function()
+                if runtime.dead or not scene.Parent or not character.Parent or P.Character~=character
+                    or not root.Parent or workspace.CurrentCamera~=camera or camera.CameraType~=Enum.CameraType.Scriptable then
+                    cleanup(state) return
+                end
+                local t=os.clock()-started
+                local drop=clamp01((t-.4)/.95)
+                local y=t<1.35 and 8.6*(1-drop*drop) or 0
+                if t>=1.35 and t<1.65 then y=math.sin((t-1.35)/.3*math.pi)*.22 end
+                if t>=5.05 then y=9*smooth((t-5.05)/.75) end
+                local parcel=base*CFrame.new(0,y,0)
+                local opening=smooth((t-1.65)/.5)*(1-smooth((t-3.65)/.4))
+                for _,entry in ipairs(pieces) do entry.part.CFrame=parcel*entry.offset end
+                for _,flap in ipairs(flaps) do
+                    local angle=opening*math.rad(108)
+                    if flap.axis=='x' then
+                        flap.part.CFrame=parcel*CFrame.new(0,2.5,flap.side*1.9)
+                            *CFrame.Angles(flap.side*angle,0,0)*CFrame.new(0,0,-flap.side*.95)
+                    else
+                        flap.part.CFrame=parcel*CFrame.new(flap.side*2.5,2.43,0)
+                            *CFrame.Angles(0,0,-flap.side*angle)*CFrame.new(-flap.side*1.25,0,0)
+                    end
+                end
+                local reveal=smooth((t-2.05)/.45)*(1-smooth((t-3.25)/.4))
+                for _,entry in ipairs(contents) do
+                    local position=Vector3.new(entry.x,.28+entry.size.Y*.5+reveal*2.2,0)
+                    entry.model:PivotTo(parcel*CFrame.new(position)*CFrame.Angles(0,reveal*.25,0)*entry.correction)
+                end
+                glow.CFrame=parcel*CFrame.new(0,1.8,0) light.Brightness=reveal*1.6
+                local portalAmount=smooth(t/.4)*(1-smooth((t-1.4)/.45))+smooth((t-4.9)/.35)
+                portalAmount=clamp01(portalAmount)
+                for _,entry in ipairs(portal) do
+                    local angle=entry.angle+t*.7
+                    local radius=3.6*math.max(.05,portalAmount)
+                    entry.part.CFrame=base*CFrame.new(math.cos(angle)*radius,8.6,math.sin(angle)*radius)
+                        *CFrame.Angles(0,-angle,0)
+                    entry.part.Transparency=1-portalAmount*.92
+                end
+                portalLight.Brightness=portalAmount*2.5
+                local sealed=t>=4.05
+                tape.Transparency=sealed and 0 or 1
+                sticker.Transparency=sealed and 0 or 1
+                shipping.Enabled=sealed
+                local slap=1-smooth((t-4.05)/.35)
+                sticker.CFrame=parcel*CFrame.new(0,1.35,-2.01-slap*1.2)*CFrame.Angles(0,0,slap*-.14)
+                if t>5.52 then
+                    local fade=clamp01((t-5.52)/.28)
+                    for _,object in ipairs(scene:GetDescendants()) do
+                        if object:IsA('BasePart') and object.Name~='PortalArc' and object~=glow then
+                            object.LocalTransparencyModifier=fade
+                        end
+                    end
+                end
+                local viewCenter=floor+Vector3.new(0,3.6-1.95*smooth((t-1.3)/.7),0)
+                local wide=CFrame.lookAt(floor+base.LookVector*13+Vector3.new(4,7,0),viewCenter)
+                local close=CFrame.lookAt(floor+base.LookVector*7.5+Vector3.new(1,3.4,0),floor+Vector3.new(0,1.4,0))
+                local shot=wide:Lerp(close,smooth((t-3.35)/.6))
+                camera.CFrame=state.cframe:Lerp(shot,smooth(t/.55))
+                camera.FieldOfView=state.fov+(48-state.fov)*smooth(t/.6)
+                camera.Focus=CFrame.new(floor+Vector3.new(0,1.5,0))
+                if t>5.4 then
+                    local back=smooth((t-5.4)/.4)
+                    camera.CFrame=camera.CFrame:Lerp(state.cframe,back)
+                    camera.FieldOfView=48+(state.fov-48)*back
+                end
+                if t>=5.05 and not dispatched then dispatched=true; dispatchCaption() end
+                if t>=5.8 then cleanup(state) end
+            end,debug.traceback)
+            if not ok then state.error=err; cleanup(state) end
+        end)
+        state.finished.Event:Wait()
+        state.finished:Destroy()
+        runtime.active=nil
+        if state.error then error(state.error) end
+    end
+    E.SAE_PACKAGE_DELIVERY=function(cmd,item,recipient,quantity,userId,onError)
+        if runtime.dead then return false end
+        runtime.queue[#runtime.queue+1]={cmd=cmd,item=item,recipient=recipient,
+            quantity=cmd=='/givetreadmill' and 1 or 3,userId=userId,onError=onError}
+        if runtime.working then return true end
+        runtime.working=true
+        task.spawn(function()
+            while #runtime.queue>0 and not runtime.dead do
+                local request=table.remove(runtime.queue,1)
+                local ok,err=xpcall(function() play(request) end,debug.traceback)
+                if not ok then
+                    if runtime.active then
+                        local state=runtime.active cleanup(state)
+                        if state.finished then state.finished:Destroy() end
+                        runtime.active=nil
+                    end
+                    warn('[SAE] Parcel animation: '..tostring(err))
+                    if request.onError then pcall(request.onError,tostring(err)) end
+                end
+            end
+            runtime.working=false
+        end)
+        return true
+    end
+end
+
 local function weld(t,m,off)m.Parent=t m:PivotTo(t.Handle.CFrame*off)if m:GetAttribute('SAE_REFERENCE_DETAIL') and m.PrimaryPart then local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=m.PrimaryPart w.Parent=t.Handle else for _,p in ipairs(allParts(m))do p.Anchored=false p.CanCollide=false p.CanTouch=false p.CanQuery=false p.Massless=true local w=Instance.new('WeldConstraint')w.Part0=t.Handle w.Part1=p w.Parent=t.Handle end end end
 local function createTreadmillRuntime()
     local previous=E.SAE_TREADMILL_RUNTIME
