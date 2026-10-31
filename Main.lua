@@ -4971,8 +4971,9 @@ do
         local boxHeight=math.max(3.3,itemBounds.Y+.45)
         local halfWidth,halfDepth=boxWidth*.5,boxDepth*.5
         local portalRadius=math.max(5.2,math.sqrt(math.max(boxWidth,boxDepth)^2+boxHeight^2)*.5+.8)
-        local portalHeight=portalRadius+.25
-        local portalDistance=boxWidth*1.6+4
+        local portalHeight=math.max(48,boxHeight*5+25)
+        local pickupHeight=boxHeight+13
+        local saucerWidth=math.max(12,boxWidth*1.45)
         local recipientId=request.userId
         if not recipientId then
             local ok,id=pcall(function() return Players:GetUserIdFromNameAsync(request.recipient) end)
@@ -5076,14 +5077,46 @@ do
         mist.Rotation=NumberRange.new(-180,180) mist.RotSpeed=NumberRange.new(-15,15)
         mist.SpreadAngle=Vector2.new(180,180) mist.EmissionDirection=Enum.NormalId.Right
         mist.Parent=iris
-        local wind={}
-        for index=1,18 do
-            local streak=makePart(scene,'DispatchWind',Vector3.new(.04,.04,1.7),
-                index%3==0 and Color3.fromRGB(245,227,255) or purple,Enum.Material.Neon)
-            streak.CastShadow=false streak.Transparency=1
-            wind[#wind+1]={part=streak,angle=index/18*math.pi*2,level=(index%3)*.65}
-            portalEffects[streak]=true
+        -- The collector is separate from the parcel: no ground ring or exit portal.
+        local ufoParts={}
+        local function saucerPart(name,size,offset,color,material,shape)
+            local part=makePart(scene,name,size,color,material)
+            if shape then part.Shape=shape end
+            part.CastShadow=false part.Transparency=1
+            portalEffects[part]=true
+            ufoParts[#ufoParts+1]={part=part,offset=offset}
+            return part
         end
+        local metal=Color3.fromRGB(37,40,49)
+        local green=Color3.fromRGB(115,255,153)
+        saucerPart('UFOHull',Vector3.new(1.25,saucerWidth,saucerWidth),
+            CFrame.Angles(0,0,math.pi*.5),metal,Enum.Material.Metal,Enum.PartType.Cylinder)
+        saucerPart('UFORim',Vector3.new(.16,saucerWidth*1.02,saucerWidth*1.02),
+            CFrame.new(0,-.35,0)*CFrame.Angles(0,0,math.pi*.5),green,Enum.Material.Neon,Enum.PartType.Cylinder)
+        saucerPart('UFODome',Vector3.new(saucerWidth*.44,saucerWidth*.22,saucerWidth*.44),
+            CFrame.new(0,.9,0),Color3.fromRGB(54,88,77),Enum.Material.Glass,Enum.PartType.Ball)
+        saucerPart('UFOTractorAperture',Vector3.new(.18,3,3),
+            CFrame.new(0,-.72,0)*CFrame.Angles(0,0,math.pi*.5),green,Enum.Material.Neon,Enum.PartType.Cylinder)
+        for index=1,10 do
+            local angle=index/10*math.pi*2
+            saucerPart('UFOLamp',Vector3.new(.35,.16,.35),
+                CFrame.new(math.cos(angle)*saucerWidth*.39,-.67,math.sin(angle)*saucerWidth*.39),
+                green,Enum.Material.Neon,Enum.PartType.Ball)
+        end
+        local beamTop=makePart(scene,'TractorTop',Vector3.new(.1,.1,.1),green)
+        local beamBottom=makePart(scene,'TractorBottom',Vector3.new(.1,.1,.1),green)
+        beamTop.Transparency=1 beamBottom.Transparency=1
+        portalEffects[beamTop]=true portalEffects[beamBottom]=true
+        local topAttachment=Instance.new('Attachment') topAttachment.Parent=beamTop
+        local bottomAttachment=Instance.new('Attachment') bottomAttachment.Parent=beamBottom
+        local tractor=Instance.new('Beam')
+        tractor.Name='GreenTractorBeam' tractor.Attachment0=topAttachment tractor.Attachment1=bottomAttachment
+        tractor.FaceCamera=true tractor.Width0=2.8 tractor.Width1=math.max(boxWidth,boxDepth)+2
+        tractor.Color=ColorSequence.new(green,Color3.fromRGB(178,255,205))
+        tractor.Transparency=NumberSequence.new(.62,.92)
+        tractor.LightEmission=.8 tractor.LightInfluence=0 tractor.Enabled=false tractor.Parent=beamTop
+        local tractorLight=Instance.new('PointLight')
+        tractorLight.Color=green tractorLight.Range=pickupHeight+5 tractorLight.Brightness=0 tractorLight.Parent=beamTop
         local portalLight=Instance.new('PointLight')
         portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=.7 portalLight.Parent=portal[1].part
         local tape=piece('YellowSealTape',Vector3.new(1.25,.06,boxDepth+.08),CFrame.new(0,boxHeight+.07,0),Color3.fromRGB(255,208,48))
@@ -5125,22 +5158,15 @@ do
                     cleanup(state) return
                 end
                 local t=os.clock()-started
-                -- The closed parcel is tossed sideways through an upright portal.
-                local travel=smooth((t-.55)/1.75)
-                local flight=clamp01((t-.55)/1.05)
-                local roll=-math.pi*2*travel
-                local x=-portalDistance*(1-travel)
-                local y=t<1.6 and (portalHeight-boxHeight*.5)*(1-flight)+math.sin(flight*math.pi)*1.8 or 0
-                if t>=1.6 and t<1.85 then y=math.sin((t-1.6)/.25*math.pi)*.18 end
-                -- Rotate around the box center and keep its lowest corner above the floor.
+                -- Film a long vertical fall from below, then settle before opening.
+                local flight=clamp01((t-.55)/1.4)
+                local roll=math.sin(flight*math.pi)*.12
+                local x=0
+                local y=(portalHeight-boxHeight)*(1-flight*flight)
+                if t>=1.95 then y=math.sin(clamp01((t-1.95)/.35)*math.pi)*.3 end
+                local departure=smooth((t-6.4)/.95)
+                if t>=6.4 then y=(pickupHeight-boxHeight*.5-.85)*departure end
                 local centerHeight=math.abs(math.cos(roll))*boxHeight*.5+math.abs(math.sin(roll))*halfWidth
-                local departure=smooth((t-6.4)/1.2)
-                if t>=6.4 then
-                    x=portalDistance*departure
-                    y=(portalHeight-boxHeight*.5)*departure+math.sin(departure*math.pi)*1.3
-                    roll=-math.pi*2+math.sin(departure*math.pi)*.2
-                    centerHeight=math.abs(math.cos(roll))*boxHeight*.5+math.abs(math.sin(roll))*halfWidth
-                end
                 local parcel=base*CFrame.new(x,y+centerHeight,0)*CFrame.Angles(0,0,roll)
                     *CFrame.new(0,-boxHeight*.5,0)
                 local opening=smooth((t-2.35)/.45)*(1-smooth((t-4.75)/.45))
@@ -5158,7 +5184,7 @@ do
                 local placement=smooth((t-3.55)/.75)
                 local glowAmount=smooth((t-2.85)/.3)*(1-smooth((t-4.75)/.35))
                 local emerge=smooth((t-.55)/.25)
-                local fade=smooth((t-7.35)/.3)
+                local fade=smooth((t-7.18)/.18)
                 for _,object in ipairs(parcelParts) do
                     object.LocalTransparencyModifier=math.max(1-emerge,fade)
                 end
@@ -5177,30 +5203,35 @@ do
                     end
                 end
                 glow.CFrame=parcel*CFrame.new(0,boxHeight*.7,0) light.Brightness=glowAmount*1.5
-                local portalAmount=smooth((t-.05)/.4)*(1-smooth((t-1.9)/.5))+smooth((t-6.25)/.35)
-                portalAmount=clamp01(portalAmount)
+                local portalAmount=smooth((t-.05)/.4)*(1-smooth((t-1.35)/.5))
                 for _,entry in ipairs(portal) do
                     local angle=entry.angle+t*(entry.band==1 and .8 or -.65)
                     local radius=portalRadius*entry.band*math.max(.05,portalAmount)*(1+.015*math.sin(t*5))
-                    local portalX=t<6 and -portalDistance or portalDistance
-                    entry.part.CFrame=base*CFrame.new(portalX,portalHeight+math.sin(angle)*radius,math.cos(angle)*radius)
-                        *CFrame.Angles(-angle-math.pi*.5,0,0)
+                    entry.part.CFrame=base*CFrame.new(math.cos(angle)*radius,portalHeight,math.sin(angle)*radius)
+                        *CFrame.Angles(0,-angle,0)
                     entry.part.Transparency=1-portalAmount*.92
                 end
-                iris.CFrame=base*CFrame.new(t<6 and -portalDistance or portalDistance,portalHeight,0)
+                iris.CFrame=base*CFrame.new(0,portalHeight,0)*CFrame.Angles(0,0,math.pi*.5)
                 iris.Transparency=1-portalAmount*.92
                 sparks.Enabled=portalAmount>.15
                 mist.Enabled=portalAmount>.15
                 portalLight.Brightness=portalAmount*.75
-                local gust=clamp01(smooth((t-1.55)/.1)*(1-smooth((t-2.2)/.25))
-                    +smooth((t-6.32)/.2)*(1-smooth((t-7.5)/.25)))
-                for _,entry in ipairs(wind) do
-                    local angle=entry.angle+t*6
-                    local radius=math.max(halfWidth,halfDepth)+departure*1.1
-                    entry.part.CFrame=base*CFrame.new(x+math.cos(angle)*radius,
-                        .6+entry.level+y*.65,math.sin(angle)*radius)*CFrame.Angles(0,-angle+.35,math.rad(18))
-                    entry.part.Transparency=1-gust*.8
+                local ufoArrival=smooth((t-5.85)/.5)
+                local ufoExit=smooth((t-7.3)/.45)
+                local ufoPosition=Vector3.new((1-ufoArrival)*saucerWidth*2+ufoExit*saucerWidth*.6,
+                    pickupHeight+(1-ufoArrival)*8+ufoExit*24,0)
+                local ufoFrame=base*CFrame.new(ufoPosition)
+                local ufoVisibility=smooth((t-5.85)/.25)*(1-smooth((t-7.65)/.15))
+                for _,entry in ipairs(ufoParts) do
+                    entry.part.CFrame=ufoFrame*entry.offset
+                    entry.part.Transparency=1-ufoVisibility
                 end
+                beamTop.CFrame=ufoFrame*CFrame.new(0,-.85,0)
+                beamBottom.CFrame=base*CFrame.new(0,.2,0)
+                local beamAmount=smooth((t-6.25)/.15)*(1-smooth((t-7.25)/.12))
+                tractor.Enabled=beamAmount>.01
+                tractor.Width1=(math.max(boxWidth,boxDepth)+2)*math.max(.15,beamAmount)
+                tractorLight.Brightness=beamAmount*1.1
                 local sealed=t>=5.25
                 local labeled=t>=5.45
                 tape.Transparency=sealed and 0 or 1
@@ -5212,16 +5243,16 @@ do
                 local slap=1-smooth((t-5.45)/.3)
                 sticker.CFrame=parcel*CFrame.new(0,boxHeight*.54,-halfDepth-.09-slap*1.1)
                     *CFrame.Angles(0,0,slap*-.12)
-                local arrival=CFrame.lookAt(floor-base.RightVector*(portalDistance*.4)
-                    +base.LookVector*(boxDepth*2.4)+Vector3.new(0,boxHeight+5,0),
-                    floor-base.RightVector*(portalDistance*.45)+Vector3.new(0,boxHeight*.85,0))
                 local parcelCenter=(parcel*CFrame.new(0,boxHeight*.5,0)).Position
-                local arrivalClose=CFrame.lookAt(parcelCenter+base.LookVector*(boxDepth*1.3)
-                    -base.RightVector*(boxWidth*.12)+Vector3.new(0,boxHeight*.6+2.8,0),parcelCenter)
-                local arrivalZoom=smooth((t-.45)/.35)*(1-smooth((t-1.25)/.55))
-                arrival=arrival:Lerp(arrivalClose,arrivalZoom)
-                local revealTarget=(boxHeight+1.1+itemBounds.Y*.5)*(1-placement)+(.28+itemBounds.Y*.5)*placement
                 local aspect=camera.ViewportSize.X/math.max(1,camera.ViewportSize.Y)
+                -- Ground-level camera tracks the fall. Widen first; close in only after landing.
+                local arrivalZoom=smooth((t-.25)/.4)
+                local arrivalDistance=math.max(25,boxWidth*2.8)*math.max(1,.9/math.max(.45,aspect))
+                    *(1+.18*arrivalZoom)
+                local arrivalFocus=parcelCenter+Vector3.new(0,2*(1-flight),0)
+                local arrival=CFrame.lookAt(floor+base.LookVector*arrivalDistance
+                    +base.RightVector*(boxWidth*.25)+Vector3.new(0,3,0),arrivalFocus)
+                local revealTarget=(boxHeight+1.1+itemBounds.Y*.5)*(1-placement)+(.28+itemBounds.Y*.5)*placement
                 local framing=math.max(boxWidth,boxDepth)*1.18*math.max(1,.95/math.max(.45,aspect))
                 local revealShot=CFrame.lookAt(floor+base.LookVector*(framing*.60)
                     +Vector3.new(.25,revealTarget+framing*1.15,0),floor+Vector3.new(0,revealTarget,0))
@@ -5243,19 +5274,17 @@ do
                     shot=shot:Lerp(petShot,petZoom)
                 end
                 shot=shot:Lerp(labelShot,smooth((t-4.7)/.65))
-                local exitShot=CFrame.lookAt(floor+base.RightVector*(portalDistance*.4)
-                    +base.LookVector*(boxDepth*2.4)+Vector3.new(0,boxHeight+5,0),
-                    floor+base.RightVector*(portalDistance*.45)+Vector3.new(0,portalHeight*.65,0))
-                local exitClose=CFrame.lookAt(parcelCenter+base.LookVector*(boxDepth*1.25)
-                    +base.RightVector*(boxWidth*.15)+Vector3.new(0,boxHeight*.6+2.8,0),parcelCenter)
-                local exitZoom=smooth((t-6.35)/.3)*(1-smooth((t-7.0)/.35))
-                exitShot=exitShot:Lerp(exitClose,exitZoom)
-                shot=shot:Lerp(exitShot,smooth((t-6.35)/.4))
+                -- Pull back to show the whole saucer and its beam from the ground.
+                local exitFocus=floor+Vector3.new(0,pickupHeight*.55+ufoExit*10,0)
+                local exitDistance=math.max(saucerWidth*2.5,pickupHeight*1.7)
+                    *math.max(1,.95/math.max(.45,aspect))
+                local exitShot=CFrame.lookAt(floor+base.LookVector*exitDistance
+                    +base.RightVector*(boxWidth*.35)+Vector3.new(0,3.5,0),exitFocus)
+                shot=shot:Lerp(exitShot,smooth((t-5.9)/.5))
                 camera.CFrame=state.cframe:Lerp(shot,smooth(t/.35))
-                local fov=58-10*smooth((t-2.3)/.6)-6*arrivalZoom
-                    +10*smooth((t-6.35)/.4)-6*exitZoom
+                local fov=62+4*arrivalZoom-18*smooth((t-2.3)/.6)+12*smooth((t-5.9)/.5)
                 camera.FieldOfView=state.fov+(fov-state.fov)*smooth(t/.35)
-                local focus=(t<2.3 or t>=6.35) and parcelCenter or floor+Vector3.new(0,boxHeight*.65,0)
+                local focus=t<2.3 and arrivalFocus or (t>=5.9 and exitFocus or floor+Vector3.new(0,boxHeight*.65,0))
                 camera.Focus=CFrame.new(focus)
                 if t>7.4 then
                     local back=smooth((t-7.4)/.4)
@@ -5267,7 +5296,7 @@ do
                     parcelCenter+base.RightVector*halfWidth,
                     parcelCenter-base.RightVector*halfWidth
                 })
-                if t>=6.5 and not dispatched then dispatched=true; dispatchCaption() end
+                if t>=7.3 and not dispatched then dispatched=true; dispatchCaption() end
                 if t>=7.8 then cleanup(state) end
             end,debug.traceback)
             if not ok then state.error=err; cleanup(state) end
