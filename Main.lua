@@ -3439,7 +3439,7 @@ OL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 local prompt=Instance.new("Frame")
-prompt.Position=UDim2.new(0,12,1,-66); prompt.Size=UDim2.new(1,-24,0,28)
+prompt.Position=UDim2.new(0,12,1,-38); prompt.Size=UDim2.new(1,-24,0,28)
 prompt.BackgroundTransparency=1; prompt.Parent=Console
 local promptMark=label(prompt,">",UDim2.fromOffset(0,0),UDim2.fromOffset(20,28),14)
 promptMark.Font=Enum.Font.Code; promptMark.TextColor3=consoleText
@@ -3451,9 +3451,15 @@ ci.PlaceholderColor3=consoleMuted; ci.TextColor3=consoleText
 ci.Font=Enum.Font.Code; ci.TextSize=14
 ci.ClearTextOnFocus=false; ci.TextXAlignment=Enum.TextXAlignment.Left
 ci.Parent=prompt
+local commandSerial=0
+ci:GetPropertyChangedSignal("Text"):Connect(function()
+    commandSerial+=1
+    ci.TextColor3=consoleText
+    promptMark.TextColor3=consoleText
+end)
 
 local quick=Instance.new("ScrollingFrame")
-quick.Position=UDim2.new(0,12,1,-30); quick.Size=UDim2.new(1,-24,0,22)
+quick.Position=UDim2.new(0,12,1,-66); quick.Size=UDim2.new(1,-24,0,22)
 quick.BackgroundTransparency=1; quick.BorderSizePixel=0
 quick.ScrollingDirection=Enum.ScrollingDirection.X; quick.CanvasSize=UDim2.new()
 quick.ScrollBarThickness=2; quick.ScrollBarImageColor3=Color3.fromRGB(90,90,90)
@@ -3502,9 +3508,28 @@ local function findPlayer(s)
     for _,p in ipairs(Players:GetPlayers()) do
         if string.lower(p.Name)==s or string.lower(p.DisplayName)==s then return p end
     end
-    for _,p in ipairs(Players:GetPlayers()) do
-        if string.sub(string.lower(p.Name),1,string.len(s))==s then return p end
+
+end
+local function resolveRecipient(value,raw)
+    value=trim(value):gsub("^@+","")
+    local serial=commandSerial
+    local player=findPlayer(value)
+    if player then return {name=player.Name,display=player.DisplayName,id=player.UserId} end
+    local ok,id=false,nil
+    if value~="" and value:match("^[%w_]+$") then
+        ok,id=pcall(function() return Players:GetUserIdFromNameAsync(value) end)
     end
+    -- Discard a lookup if the user has started another command or edited the input.
+    if not Console.Parent or serial~=commandSerial then return nil end
+    if not ok or type(id)~="number" or id<=0 then
+        ci.Text=raw
+        ci.TextColor3=C.red promptMark.TextColor3=C.red
+        line("Username not found. Check it and try again.",C.red)
+        ci:CaptureFocus()
+        ci.CursorPosition=#ci.Text+1
+        return nil
+    end
+    return {name=value,display=value,id=id}
 end
 local function clearChoices()
     for _,child in ipairs(quick:GetChildren()) do
@@ -3566,6 +3591,7 @@ end
 local function command(raw)
     raw=trim(raw)
     if raw=="" then return end
+    commandSerial+=1
     line("> "..raw,consoleText)
     local cmd,rest=raw:match("^(%S+)%s*(.*)$")
     cmd=string.lower(cmd or "")
@@ -3580,9 +3606,10 @@ local function command(raw)
     end
     if cmd=="/giveps" then
         if rest=="" then line("Enter a player.",C.red); return end
-        local pl=findPlayer(rest)
-        local target=pl and pl.DisplayName or rest
-        callRemote("GiveVPS",rest)
+        local account=resolveRecipient(rest,raw)
+        if not account then return end
+        local target=account.display
+        callRemote("GiveVPS",account.name)
         notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent","PRIVATE SERVER","to "..target)
         line("PRIVATE SERVER -> "..target)
         showCommands()
@@ -3611,21 +3638,21 @@ local function command(raw)
         recipientChoices(cmd,item)
         return
     end
-    local pl=findPlayer(recipient)
-    local target=pl and pl.DisplayName or recipient
+    local account=resolveRecipient(recipient,raw)
+    if not account then return end
+    local target=account.display
     local description
     if cmd=="/giveeggs" then description=item..(quantity==1 and " Egg" or " Eggs")
     elseif cmd=="/givepets" then description=item..(quantity==1 and " Pet" or " Pets")
     elseif cmd=="/givestars" then description=quantity==1 and "Star" or "Stars"
     else description=item end
     local sent=quantity.."× "..description
-    callRemote(remoteActions[cmd],recipient,item,quantity)
+    callRemote(remoteActions[cmd],account.name,item,quantity)
     notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent",sent,"to "..target)
     line(sent.." -> "..target)
     local delivery=((getgenv and getgenv()) or _G).SAE_PACKAGE_DELIVERY
     if type(delivery)=="function" then
-        local shippingUser=pl and pl.Name or recipient
-        delivery(cmd,item,shippingUser,quantity,pl and pl.UserId,function(message)
+        delivery(cmd,item,account.name,quantity,account.id,function(message)
             if Console.Parent then line("Parcel animation: "..message,C.red) end
         end)
     else
@@ -5077,6 +5104,9 @@ do
         end
         -- Any construction or frame failure is caught by the queue worker and restores the camera.
         local pieces,flaps,contents,portal={},{},{},{}
+        local contentParts={}
+        local parcelRig=nil
+        local lastParcelAlpha=nil
         local function piece(name,size,offset,color)
             local object=makePart(scene,name,size,color or cardboard)
             pieces[#pieces+1]={part=object,offset=offset}
@@ -5100,13 +5130,17 @@ do
         for index=1,request.quantity do
             local item=template:Clone() item.Name='ParcelItem'..index
             -- Never show a newly parented clone at its source pivot for one frame.
+            local itemParts={}
             for _,object in ipairs(item:GetDescendants()) do
-                if object:IsA('BasePart') then object.LocalTransparencyModifier=1 end
+                if object:IsA('BasePart') then
+                    object.LocalTransparencyModifier=1
+                    itemParts[#itemParts+1]=object contentParts[object]=true
+                end
             end
             item.Parent=scene
             local boxCf,size=item:GetBoundingBox()
             local pivotToBounds=item:GetPivot():ToObjectSpace(boxCf)
-            contents[#contents+1]={model=item,size=size,correction=pivotToBounds:Inverse(),
+            contents[#contents+1]={model=item,parts=itemParts,alpha=1,size=size,correction=pivotToBounds:Inverse(),
                 x=request.quantity==1 and 0 or (index==1 and -slotWidth*.5 or index==2 and slotWidth*.5 or 0),
                 z=request.quantity==1 and 0 or (index<3 and slotDepth*.5 or -slotDepth*.5),index=index}
         end
@@ -5284,7 +5318,7 @@ do
         fragileText.Font=Enum.Font.GothamBold fragileText.TextSize=72 fragileText.Parent=fragileGui
         local parcelParts={}
         for _,object in ipairs(scene:GetDescendants()) do
-            if object:IsA('BasePart') and not portalEffects[object] and object~=glow
+            if object:IsA('BasePart') and not portalEffects[object] and not contentParts[object] and object~=glow
                 and not (previewAvatar and object:IsDescendantOf(previewAvatar))
                 and not (previewMachine and object:IsDescendantOf(previewMachine)) then
                 parcelParts[#parcelParts+1]=object
@@ -5376,6 +5410,9 @@ do
                 local parcel=base*CFrame.new(x,y+centerHeight,0)*CFrame.Angles(0,0,roll)
                     *CFrame.new(0,-boxHeight*.5,0)
                 local opening=smooth((t-2.35)/.45)*(1-smooth((t-4.45)/.45))
+                if parcelRig then
+                    parcelRig:PivotTo(parcel)
+                else
                 for _,entry in ipairs(pieces) do entry.part.CFrame=parcel*entry.offset end
                 for _,flap in ipairs(flaps) do
                     local angle=opening*math.rad(205)
@@ -5387,14 +5424,18 @@ do
                             *CFrame.Angles(0,0,-flap.side*angle)*CFrame.new(-flap.side*halfWidth*.5,0,0)
                     end
                 end
+                end
                 local placement=smooth((t-3.55)/.75)
                 local glowAmount=smooth((t-2.85)/.3)*(1-smooth((t-4.45)/.35))
                 local emerge=smooth((t-.55)/.25)
                 local fade=smooth((t-7.55)/.13)
-                for _,object in ipairs(parcelParts) do
-                    object.LocalTransparencyModifier=math.max(1-emerge,fade)
+                local parcelAlpha=math.max(1-emerge,fade)
+                if parcelAlpha~=lastParcelAlpha then
+                    for _,object in ipairs(parcelParts) do object.LocalTransparencyModifier=parcelAlpha end
+                    lastParcelAlpha=parcelAlpha
                 end
                 for _,entry in ipairs(contents) do
+                    if not parcelRig then
                     -- Hold each item fully above the opening, then lower it into the parcel.
                     local lowering=smooth((t-((isTreadmill and 3.9 or 3.55)+(entry.index-1)*.12))/.5)
                     local hovering=boxHeight+1.1
@@ -5404,14 +5445,16 @@ do
                     local position=Vector3.new(entry.x,bottom+entry.size.Y*.5,entry.z)
                     local turn=isTreadmill and (math.pi+math.pi*2*smooth((t-2.75)/1.1)) or (1-lowering)*.16
                     entry.model:PivotTo(parcel*CFrame.new(position)*CFrame.Angles(0,turn,0)*entry.correction)
+                    end
                     local visible=t>=2.55 and 1 or 0
-                    for _,object in ipairs(entry.model:GetDescendants()) do
-                        if object:IsA('BasePart') then
-                            object.LocalTransparencyModifier=math.max(1-visible,fade)
-                        end
+                    local alpha=math.max(1-visible,fade)
+                    if entry.alpha~=alpha then
+                        for _,object in ipairs(entry.parts) do object.LocalTransparencyModifier=alpha end
+                        entry.alpha=alpha
                     end
                 end
-                glow.CFrame=parcel*CFrame.new(0,boxHeight*.7,0) light.Brightness=glowAmount*1.5
+                if not parcelRig then glow.CFrame=parcel*CFrame.new(0,boxHeight*.7,0) end
+                light.Brightness=glowAmount*1.5
                 local portalAmount=smooth((t-.05)/.4)*(1-smooth((t-1.35)/.5))
                 for _,entry in ipairs(portal) do
                     local angle=entry.angle+t*(entry.band==1 and .8 or -.65)
@@ -5449,13 +5492,17 @@ do
                 local labeled=t>=4.85
                 tape.Transparency=sealed and 0 or 1
                 local tapeLength=math.max(.01,(boxDepth+.08)*smooth((t-4.95)/.25))
-                tape.Size=Vector3.new(1.25,.06,tapeLength)
-                tape.CFrame=parcel*CFrame.new(0,boxHeight+.07,-halfDepth-.04+tapeLength*.5)
+                if not parcelRig then
+                    tape.Size=Vector3.new(1.25,.06,tapeLength)
+                    tape.CFrame=parcel*CFrame.new(0,boxHeight+.07,-halfDepth-.04+tapeLength*.5)
+                end
                 sticker.Transparency=labeled and 0 or 1
-                shipping.Enabled=labeled
+                if shipping.Enabled~=labeled then shipping.Enabled=labeled end
                 local slap=1-smooth((t-4.85)/.25)
-                sticker.CFrame=parcel*CFrame.new(0,boxHeight*.49,-halfDepth-.09-slap*1.1)
-                    *CFrame.Angles(0,0,slap*-.12)
+                if not parcelRig then
+                    sticker.CFrame=parcel*CFrame.new(0,boxHeight*.49,-halfDepth-.09-slap*1.1)
+                        *CFrame.Angles(0,0,slap*-.12)
+                end
                 local parcelCenter=(parcel*CFrame.new(0,boxHeight*.5,0)).Position
                 local aspect=camera.ViewportSize.X/math.max(1,camera.ViewportSize.Y)
                 -- Ground-level camera tracks the fall. Widen first; close in only after landing.
@@ -5463,13 +5510,26 @@ do
                 local arrivalDistance=math.max(25,boxWidth*2.8)*math.max(1,.9/math.max(.45,aspect))
                     *(1+.18*arrivalZoom)
                 itemBadge.Transparency=1
-                badgeGui.Enabled=labeled
+                if badgeGui.Enabled~=labeled then badgeGui.Enabled=labeled end
+                if not parcelRig then
                 itemBadge.CFrame=parcel*CFrame.new(boxWidth*.29,boxHeight+.13+slap*.4,-boxDepth*.06)
                     *CFrame.Angles(math.pi*.5,0,math.rad(9)-slap*.12)
+                end
                 fragile.Transparency=labeled and 0 or 1
-                fragileGui.Enabled=labeled
+                if fragileGui.Enabled~=labeled then fragileGui.Enabled=labeled end
+                if not parcelRig then
                 fragile.CFrame=parcel*CFrame.new(-boxWidth*.29,boxHeight+.14+slap*.4,0)
                     *CFrame.Angles(math.pi*.5,0,math.rad(-4)*slap)
+                end
+                if t>=5.3 and not parcelRig then
+                    -- One transform moves the sealed package and every attached label in lockstep.
+                    parcelRig=Instance.new('Model') parcelRig.Name='SealedParcel' parcelRig.Parent=scene
+                    for _,entry in ipairs(pieces) do entry.part.Parent=parcelRig end
+                    for _,entry in ipairs(flaps) do entry.part.Parent=parcelRig end
+                    for _,entry in ipairs(contents) do entry.model.Parent=parcelRig end
+                    sticker.Parent=parcelRig itemBadge.Parent=parcelRig fragile.Parent=parcelRig glow.Parent=parcelRig
+                    parcelRig.WorldPivot=parcel
+                end
                 local arrivalFocus=parcelCenter+Vector3.new(0,2*(1-flight),0)
                 local arrival=CFrame.lookAt(floor+base.LookVector*arrivalDistance
                     +base.RightVector*(boxWidth*.25)+Vector3.new(0,3,0),arrivalFocus)
