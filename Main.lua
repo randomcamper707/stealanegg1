@@ -917,7 +917,7 @@ CFG = {
     AnnouncementProfile = {Name=P.DisplayName, Username=P.Name, UserId=P.UserId},
     Remotes = {
         Morph=nil, Announcement=nil, GiveVPS=nil,
-        GiveTreadmill=nil, GiveEggs=nil, GivePets=nil, GiveStars=nil,
+        GiveTreadmill=nil, GiveEggs=nil, GivePets=nil, GiveStars=nil, GiveEverything=nil,
         Boost=nil, ClearBoost=nil, Meteor=nil
     }
 }
@@ -3491,7 +3491,7 @@ local function q(t)
     return b
 end
 local shortcuts={
-    "/announcements", "/givetreadmill", "/giveeggs", "/givepets", "/givestars", "/giveps"
+    "/announcements", "/givetreadmill", "/giveeggs", "/givepets", "/givestars", "/giveeverything", "/giveps"
 }
 local branchItems={
     ["/givepets"]={
@@ -3506,7 +3506,7 @@ local branchItems={
 }
 local remoteActions={
     ["/givetreadmill"]="GiveTreadmill", ["/giveeggs"]="GiveEggs",
-    ["/givepets"]="GivePets", ["/givestars"]="GiveStars"
+    ["/givepets"]="GivePets", ["/givestars"]="GiveStars", ["/giveeverything"]="GiveEverything"
 }
 local choiceOrder=0
 local function trim(value)
@@ -3580,7 +3580,7 @@ end
 local function recipientChoices(cmd,item)
     clearChoices()
     quick.Visible=false
-    local prefix=cmd=="/givestars" and (cmd.." ") or itemPrefix(cmd,item)
+    local prefix=(cmd=="/givestars" or cmd=="/giveeverything") and (cmd.." ") or itemPrefix(cmd,item)
     prefill(prefix)
     line("Type the recipient's username, then press Enter.",consoleMuted)
 end
@@ -3609,7 +3609,7 @@ showCommands=function()
         local cmd=shortcut
         choice(cmd,function()
             if branchItems[cmd] then chooseItem(cmd)
-            elseif cmd=="/givestars" then recipientChoices(cmd,nil)
+            elseif cmd=="/givestars" or cmd=="/giveeverything" then recipientChoices(cmd,nil)
             else clearChoices(); quick.Visible=false; prefill(cmd.." ") end
         end)
     end
@@ -3654,7 +3654,7 @@ local function command(raw)
         return
     end
     local item,recipient
-    local quantity=cmd=="/givetreadmill" and 1 or 3
+    local quantity=(cmd=="/givetreadmill" or cmd=="/giveeverything") and 1 or 3
     if branchItems[cmd] then
         if rest=="" then chooseItem(cmd); return end
         local supplied,tail=rest:match('^"([^"]+)"%s*(.*)$')
@@ -3680,7 +3680,7 @@ local function command(raw)
     elseif cmd=="/givepets" then description=item..(quantity==1 and " Pet" or " Pets")
     elseif cmd=="/givestars" then description=quantity==1 and "Star" or "Stars"
     else description=item end
-    local sent=quantity.."× "..description
+    local sent=cmd=="/giveeverything" and "Everything" or (quantity.."× "..description)
     Console.Visible=false
     callRemote(remoteActions[cmd],account.name,item,quantity)
     notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent",sent,"to "..target)
@@ -4993,6 +4993,7 @@ do
         local name=aliases[item] or item
         if cmd=='/giveeggs' then return 'Eggs',name..' Egg' end
         if cmd=='/givepets' then return 'Pets',name end
+        if cmd=='/giveeverything' then return 'Bundle','Everything' end
         if cmd=='/givetreadmill' then return 'Star',name end
         if cmd=='/givestars' then return 'Star','Star' end
         error('Unsupported parcel item')
@@ -5135,22 +5136,7 @@ do
             for _,object in ipairs(obstructions) do concealTree(state,object,false) end
         end
     end
-    local function play(request)
-        local character=P.Character
-        local runner=E.SAE_TREADMILL_RUNTIME
-        local treadmill=runner and type(runner.GetActiveModel)=='function' and runner:GetActiveModel() or nil
-        local root=character and character:FindFirstChild('HumanoidRootPart')
-        local camera=workspace.CurrentCamera
-        if not root or not camera then error('Character or camera is unavailable') end
-        local category,name=resolveModel(request.cmd,request.item)
-        local isTreadmill=request.cmd=='/givetreadmill'
-        local template=model(category,name)
-        if runtime.dead or request.generation~=runtime.generation then
-            if template then template:Destroy() end
-            return
-        end
-        if not template then error('3D model unavailable: '..tostring(name)) end
-        -- The preparatory clone is never parented into the live world.
+    local function sanitizeParcelModel(template)
         for _,object in ipairs(template:GetDescendants()) do
             if object:IsA('LuaSourceContainer') or object:IsA('Humanoid') or object:IsA('AnimationController')
                 or object:IsA('BillboardGui') or object:IsA('SurfaceGui') or object:IsA('Sound') then
@@ -5164,12 +5150,87 @@ do
                 end
             end
         end
+    end
+    local function mixedParcel(request)
+        local bundle=Instance.new('Model') bundle.Name='Everything'
+        bundle:SetAttribute('SAE_MIXED_PARCEL',true)
+        local specs={
+            {category='Pets',name='Unicorn',maximum=3.8},
+            {category='Pets',name='Kitsune',maximum=3.8},
+            {category='Eggs',name='Unicorn Egg',maximum=3.8},
+            {category='Eggs',name='Kitsune Egg',maximum=3.8},
+            {category='Star',name="Ben's Treadmill",maximum=5.8}
+        }
+        local entries={}
+        for _,spec in ipairs(specs) do
+            local ok,item=pcall(model,spec.category,spec.name)
+            if runtime.dead or request.generation~=runtime.generation then
+                if ok and item then item:Destroy() end
+                bundle:Destroy(); return nil
+            end
+            if not ok or not item then
+                bundle:Destroy(); error('Mixed parcel model unavailable: '..spec.name)
+            end
+            item.Parent=bundle
+            sanitizeParcelModel(item)
+            local size=item:GetExtentsSize()
+            local maximum=math.max(size.X,size.Y,size.Z)
+            if maximum<=.001 then bundle:Destroy(); error('Empty mixed parcel model: '..spec.name) end
+            local factor=spec.maximum/maximum
+            local shellHeight=item:GetAttribute('SAE_BODY_HEIGHT')
+            if spec.category=='Eggs' and type(shellHeight)=='number' and shellHeight>.01 then
+                factor=math.min(2.4/shellHeight,factor)
+            end
+            item:ScaleTo(item:GetScale()*factor)
+            item.Name=spec.name item:SetAttribute('SAE_PARCEL_CATEGORY',spec.category)
+            local boxCf,bounds=item:GetBoundingBox()
+            entries[#entries+1]={model=item,size=bounds,correction=item:GetPivot():ToObjectSpace(boxCf):Inverse()}
+        end
+        local petLeft,petRight,eggLeft,eggRight,machine=table.unpack(entries)
+        local backDepth=math.max(petLeft.size.Z,petRight.size.Z,machine.size.Z)
+        local frontDepth=math.max(eggLeft.size.Z,eggRight.size.Z)
+        local backZ=frontDepth*.5+.2
+        local frontZ=-backDepth*.5-.2
+        local positions={
+            Vector3.new(-(machine.size.X+petLeft.size.X)*.5-.35,0,backZ),
+            Vector3.new((machine.size.X+petRight.size.X)*.5+.35,0,backZ),
+            Vector3.new(-(eggLeft.size.X+eggRight.size.X)*.25-.2,0,frontZ),
+            Vector3.new((eggLeft.size.X+eggRight.size.X)*.25+.2,0,frontZ),
+            Vector3.new(0,0,backZ)
+        }
+        for index,entry in ipairs(entries) do
+            local position=positions[index]+Vector3.new(0,entry.size.Y*.5,0)
+            local yaw=index==5 and math.pi or 0
+            entry.model:PivotTo(CFrame.new(position)*CFrame.Angles(0,yaw,0)*entry.correction)
+        end
+        return bundle
+    end
+    local function play(request)
+        local character=P.Character
+        local runner=E.SAE_TREADMILL_RUNTIME
+        local treadmill=runner and type(runner.GetActiveModel)=='function' and runner:GetActiveModel() or nil
+        local root=character and character:FindFirstChild('HumanoidRootPart')
+        local camera=workspace.CurrentCamera
+        if not root or not camera then error('Character or camera is unavailable') end
+        local category,name=resolveModel(request.cmd,request.item)
+        local isTreadmill=request.cmd=='/givetreadmill'
+        local template
+        if category=='Bundle' then template=mixedParcel(request) else template=model(category,name) end
+        if runtime.dead or request.generation~=runtime.generation then
+            if template then template:Destroy() end
+            return
+        end
+        if not template then error('3D model unavailable: '..tostring(name)) end
+        -- The preparatory clone is never parented into the live world.
+        sanitizeParcelModel(template)
         local bounds=template:GetExtentsSize()
         local maxSize=math.max(bounds.X,bounds.Y,bounds.Z)
         if maxSize<=.001 then template:Destroy(); error('Empty parcel model') end
         local bodyHeight=template:GetAttribute('SAE_BODY_HEIGHT')
         local displayFactor
-        if category=='Eggs' and type(bodyHeight)=='number' and bodyHeight>.01 then
+        if category=='Bundle' then
+            displayFactor=1
+        elseif category=='Eggs' and type(bodyHeight)=='number' and bodyHeight>.01 then
             -- Size the shell itself; decorative horns must not miniaturize the egg.
             displayFactor=math.min(2.9/bodyHeight,4.8/maxSize)
         elseif category=='Pets' then
@@ -5758,7 +5819,7 @@ do
     E.SAE_PACKAGE_DELIVERY=function(cmd,item,recipient,quantity,userId,onError)
         if runtime.dead then return false end
         runtime.queue[#runtime.queue+1]={cmd=cmd,item=item,recipient=recipient,
-            quantity=cmd=='/givetreadmill' and 1 or 3,userId=userId,onError=onError,generation=runtime.generation}
+            quantity=(cmd=='/givetreadmill' or cmd=='/giveeverything') and 1 or 3,userId=userId,onError=onError,generation=runtime.generation}
         if runtime.working then return true end
         runtime.working=true
         task.spawn(function()
