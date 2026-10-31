@@ -3450,7 +3450,6 @@ ci.Font=Enum.Font.Code; ci.TextSize=14
 ci.ClearTextOnFocus=false; ci.TextXAlignment=Enum.TextXAlignment.Left
 ci.Parent=prompt
 
--- Keep command shortcuts horizontal; item branches float upward from them.
 local quick=Instance.new("ScrollingFrame")
 quick.Position=UDim2.new(0,12,1,-30); quick.Size=UDim2.new(1,-24,0,22)
 quick.BackgroundTransparency=1; quick.BorderSizePixel=0
@@ -3464,56 +3463,13 @@ QL.Padding=UDim.new(0,4); QL.Parent=quick
 QL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     quick.CanvasSize=UDim2.fromOffset(QL.AbsoluteContentSize.X,0)
 end)
-local itemMenu=Instance.new("ScrollingFrame")
-itemMenu.Name="CommandItemPopup"
-itemMenu.AnchorPoint=Vector2.new(0,1)
-itemMenu.Position=UDim2.new(0,12,1,-34)
-itemMenu.Size=UDim2.fromOffset(280,0)
-itemMenu.BackgroundColor3=Color3.fromRGB(12,10,16)
-itemMenu.BackgroundTransparency=.04
-itemMenu.BorderSizePixel=0
-itemMenu.ZIndex=10
-itemMenu.ScrollingDirection=Enum.ScrollingDirection.Y
-itemMenu.CanvasSize=UDim2.new()
-itemMenu.ScrollBarThickness=3
-itemMenu.ScrollBarImageColor3=Color3.fromRGB(151,99,201)
-itemMenu.Visible=false
-itemMenu.Parent=Console
-corner(itemMenu,4)
-local suggestionBorder=Instance.new("UIStroke")
-suggestionBorder.Color=Color3.fromRGB(70,46,94)
-suggestionBorder.Thickness=1
-suggestionBorder.Parent=itemMenu
-local itemLayout=Instance.new("UIListLayout")
-itemLayout.FillDirection=Enum.FillDirection.Vertical
-itemLayout.SortOrder=Enum.SortOrder.LayoutOrder
-itemLayout.Padding=UDim.new(0,2)
-itemLayout.Parent=itemMenu
-itemLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    local height=itemLayout.AbsoluteContentSize.Y+4
-    local available=math.max(28,Console.AbsoluteSize.Y-90)
-    itemMenu.CanvasSize=UDim2.fromOffset(0,height)
-    itemMenu.Size=UDim2.fromOffset(280,math.min(height,available))
-end)
-local function q(t,parent)
-    parent=parent or quick
-    local popup=parent==itemMenu
+local function q(t)
     local width=math.ceil(TextService:GetTextSize(t,11,Enum.Font.Code,Vector2.new(1000,20)).X)+14
-    local size=popup and UDim2.new(1,-8,0,24) or UDim2.fromOffset(width,20)
-    local b=button(parent,t,UDim2.new(),size,true)
-    b.Font=Enum.Font.Code
-    b.TextSize=popup and 13 or 11
-    b.TextColor3=consoleMuted
-    b.ZIndex=popup and 11 or 1
-    b:SetAttribute("RestingColor",Color3.fromRGB(12,10,16))
-    b:SetAttribute("HoverColor",popup and Color3.fromRGB(56,33,78) or Color3.fromRGB(42,42,42))
+    local b=button(quick,t,UDim2.new(),UDim2.fromOffset(width,20),true)
+    b.Font=Enum.Font.Code; b.TextSize=11; b.TextColor3=consoleMuted
+    b:SetAttribute("RestingColor",Color3.fromRGB(12,12,12))
+    b:SetAttribute("HoverColor",Color3.fromRGB(42,42,42))
     b.BackgroundTransparency=1
-    if popup then
-        b.TextXAlignment=Enum.TextXAlignment.Left
-        local padding=Instance.new("UIPadding")
-        padding.PaddingLeft=UDim.new(0,10)
-        padding.Parent=b
-    end
     b:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,2)
     return b
 end
@@ -3535,7 +3491,6 @@ local remoteActions={
 }
 local showCommands,chooseItem
 local choiceOrder=0
-local commandButtons={}
 local function trim(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
@@ -3550,15 +3505,15 @@ local function findPlayer(s)
     end
 end
 local function clearChoices()
-    for _,child in ipairs(itemMenu:GetChildren()) do
+    for _,child in ipairs(quick:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
-    itemMenu.CanvasPosition=Vector2.zero
-    itemMenu.Visible=false
+    quick.CanvasPosition=Vector2.zero
+    quick.Visible=true
     choiceOrder=0
 end
 local function choice(text,callback)
-    local b=q(text,itemMenu)
+    local b=q(text)
     choiceOrder+=1
     b.LayoutOrder=choiceOrder
     b.MouseButton1Click:Connect(callback)
@@ -3572,6 +3527,7 @@ local function itemPrefix(cmd,item)
 end
 local function recipientChoices(cmd,item)
     clearChoices()
+    quick.Visible=false
     local prefix=cmd=="/givestars" and (cmd.." ") or itemPrefix(cmd,item)
     prefill(prefix)
     line("Type the recipient's username, then press Enter.",consoleMuted)
@@ -3587,29 +3543,16 @@ chooseItem=function(cmd)
             recipientChoices(cmd,item)
         end)
     end
-    choice("Back",function() ci.Text=""; clearChoices() end)
-    local owner=commandButtons[cmd]
-    local width=math.max(1,Console.AbsoluteSize.X)
-    local ownerX=owner and (owner.AbsolutePosition.X-Console.AbsolutePosition.X) or 12
-    local x=math.clamp(ownerX,12,math.max(12,width-292))
-    itemMenu.Position=UDim2.new(x/width,0,1,-34)
-    itemMenu.Visible=true
+    choice("Back",function() ci.Text=""; showCommands() end)
 end
 showCommands=function()
     clearChoices()
-    for _,child in ipairs(quick:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
-    commandButtons={}
-    for index,shortcut in ipairs(shortcuts) do
+    for _,shortcut in ipairs(shortcuts) do
         local cmd=shortcut
-        local b=q(cmd)
-        b.LayoutOrder=index
-        commandButtons[cmd]=b
-        b.MouseButton1Click:Connect(function()
+        choice(cmd,function()
             if branchItems[cmd] then chooseItem(cmd)
             elseif cmd=="/givestars" then recipientChoices(cmd,nil)
-            else clearChoices(); prefill(cmd.." ") end
+            else clearChoices(); quick.Visible=false; prefill(cmd.." ") end
         end)
     end
 end
