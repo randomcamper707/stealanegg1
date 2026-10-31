@@ -4779,11 +4779,12 @@ end
 do
     local previous=E.SAE_PACKAGE_RUNTIME
     if previous and type(previous.Destroy)=='function' then pcall(function() previous:Destroy() end) end
-    local runtime={queue={},dead=false,active=nil}
+    local runtime={queue={},dead=false,active=nil,generation=0}
     E.SAE_PACKAGE_RUNTIME=runtime
     local TS=game:GetService('TweenService')
     local Run=game:GetService('RunService')
     local Debris=game:GetService('Debris')
+    local Input=game:GetService('UserInputService')
     local purple=Color3.fromRGB(175,73,255)
     local cardboard=Color3.fromRGB(171,119,65)
     local function clamp01(value) return math.clamp(value,0,1) end
@@ -4806,36 +4807,63 @@ do
         p.Parent=parent
         return p
     end
-    local function restoreCamera(state)
+    local function restoreCamera(state,force)
         local camera=state.camera
-        if camera and workspace.CurrentCamera==camera and camera.CameraType==Enum.CameraType.Scriptable then
+        if camera and workspace.CurrentCamera==camera and (force or camera.CameraType==Enum.CameraType.Scriptable) then
             camera.CFrame=state.cframe camera.Focus=state.focus camera.FieldOfView=state.fov
             camera.CameraSubject=state.subject camera.CameraType=state.cameraType
         end
     end
-    local function cleanup(state)
+    local function cleanup(state,force)
         if state.cleaned then return end
         state.cleaned=true
         if state.connection then state.connection:Disconnect() end
-        restoreCamera(state)
+        restoreCamera(state,force)
         if state.console and state.console.Parent then state.console.Visible=state.consoleVisible end
         if state.scene then state.scene:Destroy() end
         if state.finished then state.finished:Fire() end
     end
+    -- Control cancels queued and in-flight preparation as well as the active shot.
+    function runtime:Reset()
+        self.generation+=1
+        table.clear(self.queue)
+        if self.active then cleanup(self.active,true) end
+        if self.dispatchGui then self.dispatchGui:Destroy(); self.dispatchGui=nil end
+        for _,object in ipairs(workspace:GetChildren()) do
+            if object.Name=='SAE_DELIVERY_PARCEL' then object:Destroy() end
+        end
+        for _,object in ipairs(PG:GetChildren()) do
+            if object.Name=='SAE_PACKAGE_DISPATCH' then object:Destroy() end
+        end
+        local camera=workspace.CurrentCamera
+        if camera then
+            local character=P.Character
+            local humanoid=character and character:FindFirstChildOfClass('Humanoid')
+            if humanoid then camera.CameraSubject=humanoid end
+            camera.CameraType=Enum.CameraType.Custom
+        end
+    end
     function runtime:Destroy()
         if self.dead then return end
-        self.dead=true table.clear(self.queue)
-        if self.active then cleanup(self.active) end
+        self.dead=true
+        self:Reset()
+        if self.inputConnection then self.inputConnection:Disconnect() end
         if self.guiConnection then self.guiConnection:Disconnect() end
         if E.SAE_PACKAGE_RUNTIME==self then
             E.SAE_PACKAGE_DELIVERY=nil E.SAE_PACKAGE_RUNTIME=nil
         end
     end
     runtime.guiConnection=Gui.Destroying:Connect(function() runtime:Destroy() end)
+    runtime.inputConnection=Input.InputBegan:Connect(function(input)
+        if input.KeyCode==Enum.KeyCode.LeftControl or input.KeyCode==Enum.KeyCode.RightControl then
+            runtime:Reset()
+        end
+    end)
     local function dispatchCaption()
         local sg=Instance.new('ScreenGui')
         sg.Name='SAE_PACKAGE_DISPATCH' sg.ResetOnSpawn=false sg.IgnoreGuiInset=true
         sg.DisplayOrder=960 sg.Parent=PG
+        runtime.dispatchGui=sg
         local caption=Instance.new('TextLabel')
         caption.AnchorPoint=Vector2.new(.5,1) caption.Position=UDim2.new(.5,0,1,-72)
         caption.Size=UDim2.fromOffset(300,30) caption.BackgroundTransparency=1
@@ -4855,6 +4883,10 @@ do
         if not root or not camera then error('Character or camera is unavailable') end
         local category,name=resolveModel(request.cmd,request.item)
         local template=model(category,name)
+        if runtime.dead or request.generation~=runtime.generation then
+            if template then template:Destroy() end
+            return
+        end
         if not template then error('3D model unavailable: '..tostring(name)) end
         -- The preparatory clone is never parented into the live world.
         for _,object in ipairs(template:GetDescendants()) do
@@ -4868,16 +4900,17 @@ do
         local bounds=template:GetExtentsSize()
         local maxSize=math.max(bounds.X,bounds.Y,bounds.Z)
         if maxSize<=.001 then template:Destroy(); error('Empty parcel model') end
-        template:ScaleTo(template:GetScale()*(request.quantity==1 and 2 or 1.35)/maxSize)
+        template:ScaleTo(template:GetScale()*(request.quantity==1 and 2 or 1.55)/maxSize)
         local recipientId=request.userId
         if not recipientId then
             local ok,id=pcall(function() return Players:GetUserIdFromNameAsync(request.recipient) end)
+            if runtime.dead or request.generation~=runtime.generation then template:Destroy(); return end
             if not ok or type(id)~='number' or id<=0 then
                 template:Destroy(); error('Recipient account could not be found')
             end
             recipientId=id
         end
-        if runtime.dead then template:Destroy(); return end
+        if runtime.dead or request.generation~=runtime.generation then template:Destroy(); return end
         -- Place the scene on the floor in front of the sender, excluding their character.
         local forward=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
         if forward.Magnitude<.01 then forward=Vector3.new(0,0,-1) else forward=forward.Unit end
@@ -4922,39 +4955,71 @@ do
             local boxCf,size=item:GetBoundingBox()
             local pivotToBounds=item:GetPivot():ToObjectSpace(boxCf)
             contents[#contents+1]={model=item,size=size,correction=pivotToBounds:Inverse(),
-                x=(index-(request.quantity+1)/2)*1.5}
+                x=(index-(request.quantity+1)/2)*1.6,index=index}
         end
         template:Destroy()
         local glow=makePart(scene,'RevealGlow',Vector3.new(.1,.1,.1),purple,Enum.Material.Neon)
         glow.Transparency=1
         local light=Instance.new('PointLight') light.Color=purple light.Range=11 light.Brightness=0 light.Parent=glow
-        for index=1,40 do
-            local angle=(index-1)/40*math.pi*2
-            local segment=makePart(scene,'PortalArc',Vector3.new(.18,.12,.57),purple,Enum.Material.Neon)
+        local portalEffects={}
+        for index=1,64 do
+            local angle=(index-1)/32*math.pi*2
+            local segment=makePart(scene,'PortalArc',Vector3.new(.15,.13,.98),index<=32 and purple or Color3.fromRGB(224,174,255),Enum.Material.Neon)
             segment.CastShadow=false
-            portal[#portal+1]={part=segment,angle=angle}
+            portal[#portal+1]={part=segment,angle=angle,band=index<=32 and 1 or .83}
+            portalEffects[segment]=true
+        end
+        -- A luminous interior and rotating rings read as a portal rather than a bare hoop.
+        local iris=makePart(scene,'PortalIris',Vector3.new(.08,9.6,9.6),Color3.fromRGB(100,29,177),Enum.Material.Neon)
+        iris.Shape=Enum.PartType.Cylinder
+        iris.CastShadow=false
+        portalEffects[iris]=true
+        local sparks=Instance.new('ParticleEmitter')
+        sparks.Name='PortalSparks'
+        sparks.Texture='rbxasset://textures/particles/sparkles_main.dds'
+        sparks.Color=ColorSequence.new(Color3.fromRGB(223,175,255),purple)
+        sparks.Size=NumberSequence.new(.16,0)
+        sparks.Transparency=NumberSequence.new(.15,1)
+        sparks.LightEmission=1 sparks.Rate=24
+        sparks.Lifetime=NumberRange.new(.35,.8) sparks.Speed=NumberRange.new(.8,2.2)
+        sparks.SpreadAngle=Vector2.new(180,180)
+        sparks.Acceleration=Vector3.new(0,-2,0)
+        sparks.Parent=iris
+        local wind={}
+        for index=1,18 do
+            local streak=makePart(scene,'DispatchWind',Vector3.new(.04,.04,1.7),
+                index%3==0 and Color3.fromRGB(245,227,255) or purple,Enum.Material.Neon)
+            streak.CastShadow=false streak.Transparency=1
+            wind[#wind+1]={part=streak,angle=index/18*math.pi*2,level=(index%3)*.65}
+            portalEffects[streak]=true
         end
         local portalLight=Instance.new('PointLight')
         portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=2.5 portalLight.Parent=portal[1].part
         local tape=piece('YellowSealTape',Vector3.new(1.15,.06,3.88),CFrame.new(0,2.57,0),Color3.fromRGB(255,208,48))
         tape.Transparency=1
-        local sticker=makePart(scene,'CourierSticker',Vector3.new(4.25,1.35,.03),Color3.fromRGB(255,212,52))
+        local sticker=makePart(scene,'CourierSticker',Vector3.new(4.45,.035,2.7),Color3.fromRGB(255,212,52))
         sticker.Transparency=1
         local shipping=Instance.new('SurfaceGui')
-        shipping.Name='RecipientLabel' shipping.Face=Enum.NormalId.Front
-        shipping.CanvasSize=Vector2.new(680,216) shipping.LightInfluence=0
+        shipping.Name='RecipientLabel' shipping.Face=Enum.NormalId.Top
+        shipping.CanvasSize=Vector2.new(680,410) shipping.LightInfluence=0
         shipping.Enabled=false shipping.Parent=sticker
         local avatar=Instance.new('ImageLabel')
-        avatar.BackgroundTransparency=1 avatar.Position=UDim2.fromOffset(24,22)
+        avatar.BackgroundTransparency=1 avatar.Position=UDim2.fromOffset(24,108)
         avatar.Size=UDim2.fromOffset(172,172)
         avatar.Image='rbxthumb://type=AvatarHeadShot&id='..recipientId..'&w=150&h=150'
         avatar.Parent=shipping
         local to=Instance.new('TextLabel')
-        to.BackgroundTransparency=1 to.Position=UDim2.fromOffset(220,24) to.Size=UDim2.fromOffset(430,42)
+        to.BackgroundTransparency=1 to.Position=UDim2.fromOffset(220,76) to.Size=UDim2.fromOffset(430,58)
         to.Text='DELIVER TO' to.TextColor3=Color3.fromRGB(61,37,12)
         to.Font=Enum.Font.GothamBold to.TextSize=28 to.TextXAlignment=Enum.TextXAlignment.Left to.Parent=shipping
-        local user=to:Clone() user.Position=UDim2.fromOffset(220,76) user.Size=UDim2.fromOffset(430,112)
+        local user=to:Clone() user.Position=UDim2.fromOffset(220,144) user.Size=UDim2.fromOffset(430,190)
         user.Text='@'..request.recipient user.TextSize=42 user.TextWrapped=true user.Parent=shipping
+        local parcelParts={}
+        for _,object in ipairs(scene:GetDescendants()) do
+            if object:IsA('BasePart') and not portalEffects[object] and object~=glow then
+                parcelParts[#parcelParts+1]=object
+            end
+        end
         local started=os.clock()
         local dispatched=false
         Console.Visible=false
@@ -4966,15 +5031,18 @@ do
                     cleanup(state) return
                 end
                 local t=os.clock()-started
-                local drop=clamp01((t-.4)/.95)
-                local y=t<1.35 and 8.6*(1-drop*drop) or 0
-                if t>=1.35 and t<1.65 then y=math.sin((t-1.35)/.3*math.pi)*.22 end
-                if t>=5.05 then y=9*smooth((t-5.05)/.75) end
-                local parcel=base*CFrame.new(0,y,0)
-                local opening=smooth((t-1.65)/.5)*(1-smooth((t-3.65)/.4))
+                local drop=clamp01((t-.65)/.85)
+                local y=t<1.5 and 8.6*(1-drop*drop) or 0
+                if t>=1.5 and t<1.72 then y=math.sin((t-1.5)/.22*math.pi)*.16 end
+                local departure=smooth((t-5.1)/.9)
+                if t>=5.1 then y=9*departure end
+                local parcel=base*CFrame.new(math.sin(departure*math.pi)*.7,y,0)
+                    *CFrame.Angles(0,departure*.16,0)
+                -- Open flaps fold past flat and hang outside the walls, below the rim.
+                local opening=1-smooth((t-3.6)/.4)
                 for _,entry in ipairs(pieces) do entry.part.CFrame=parcel*entry.offset end
                 for _,flap in ipairs(flaps) do
-                    local angle=opening*math.rad(108)
+                    local angle=opening*math.rad(205)
                     if flap.axis=='x' then
                         flap.part.CFrame=parcel*CFrame.new(0,2.5,flap.side*1.9)
                             *CFrame.Angles(flap.side*angle,0,0)*CFrame.new(0,0,-flap.side*.95)
@@ -4983,50 +5051,81 @@ do
                             *CFrame.Angles(0,0,-flap.side*angle)*CFrame.new(-flap.side*1.25,0,0)
                     end
                 end
-                local reveal=smooth((t-2.05)/.45)*(1-smooth((t-3.25)/.4))
-                for _,entry in ipairs(contents) do
-                    local position=Vector3.new(entry.x,.28+entry.size.Y*.5+reveal*2.2,0)
-                    entry.model:PivotTo(parcel*CFrame.new(position)*CFrame.Angles(0,reveal*.25,0)*entry.correction)
+                local placement=smooth((t-2.3)/.7)
+                local glowAmount=smooth((t-1.65)/.3)*(1-smooth((t-3.6)/.35))
+                local emerge=smooth((t-.55)/.25)
+                local fade=smooth((t-5.7)/.3)
+                for _,object in ipairs(parcelParts) do
+                    object.LocalTransparencyModifier=math.max(1-emerge,fade)
                 end
-                glow.CFrame=parcel*CFrame.new(0,1.8,0) light.Brightness=reveal*1.6
-                local portalAmount=smooth(t/.4)*(1-smooth((t-1.4)/.45))+smooth((t-4.9)/.35)
+                for _,entry in ipairs(contents) do
+                    -- Hold each item fully above the opening, then lower it into the parcel.
+                    local lowering=smooth((t-(2.3+(entry.index-1)*.12))/.48)
+                    local bottom=4.15+( .32-4.15 )*lowering
+                    local position=Vector3.new(entry.x,bottom+entry.size.Y*.5,0)
+                    entry.model:PivotTo(parcel*CFrame.new(position)*CFrame.Angles(0,(1-lowering)*.16,0)*entry.correction)
+                    local visible=smooth((t-(1.65+(entry.index-1)*.07))/.2)
+                    for _,object in ipairs(entry.model:GetDescendants()) do
+                        if object:IsA('BasePart') then
+                            object.LocalTransparencyModifier=math.max(1-visible,fade)
+                        end
+                    end
+                end
+                glow.CFrame=parcel*CFrame.new(0,1.8,0) light.Brightness=glowAmount*2.1
+                local portalAmount=smooth((t-.05)/.4)*(1-smooth((t-1.55)/.5))+smooth((t-5.0)/.35)
                 portalAmount=clamp01(portalAmount)
                 for _,entry in ipairs(portal) do
-                    local angle=entry.angle+t*.7
-                    local radius=3.6*math.max(.05,portalAmount)
+                    local angle=entry.angle+t*(entry.band==1 and .8 or -.65)
+                    local radius=5.2*entry.band*math.max(.05,portalAmount)*(1+.015*math.sin(t*5))
                     entry.part.CFrame=base*CFrame.new(math.cos(angle)*radius,8.6,math.sin(angle)*radius)
                         *CFrame.Angles(0,-angle,0)
                     entry.part.Transparency=1-portalAmount*.92
                 end
-                portalLight.Brightness=portalAmount*2.5
+                iris.CFrame=base*CFrame.new(0,8.6,0)*CFrame.Angles(0,0,math.pi/2)
+                iris.Transparency=1-portalAmount*.42
+                sparks.Enabled=portalAmount>.15
+                portalLight.Brightness=portalAmount*3.2
+                local gust=smooth((t-5.02)/.2)*(1-smooth((t-5.8)/.2))
+                for _,entry in ipairs(wind) do
+                    local angle=entry.angle+t*6
+                    local radius=2.9+departure*1.1
+                    entry.part.CFrame=base*CFrame.new(math.cos(angle)*radius,
+                        .6+entry.level+y*.65,math.sin(angle)*radius)*CFrame.Angles(0,-angle+.35,math.rad(18))
+                    entry.part.Transparency=1-gust*.8
+                end
                 local sealed=t>=4.05
+                local labeled=t>=4.2
                 tape.Transparency=sealed and 0 or 1
-                sticker.Transparency=sealed and 0 or 1
-                shipping.Enabled=sealed
-                local slap=1-smooth((t-4.05)/.35)
-                sticker.CFrame=parcel*CFrame.new(0,1.35,-2.01-slap*1.2)*CFrame.Angles(0,0,slap*-.14)
-                if t>5.52 then
-                    local fade=clamp01((t-5.52)/.28)
-                    for _,object in ipairs(scene:GetDescendants()) do
-                        if object:IsA('BasePart') and object.Name~='PortalArc' and object~=glow then
-                            object.LocalTransparencyModifier=fade
-                        end
-                    end
-                end
-                local viewCenter=floor+Vector3.new(0,3.6-1.95*smooth((t-1.3)/.7),0)
-                local wide=CFrame.lookAt(floor+base.LookVector*13+Vector3.new(4,7,0),viewCenter)
-                local close=CFrame.lookAt(floor+base.LookVector*7.5+Vector3.new(1,3.4,0),floor+Vector3.new(0,1.4,0))
-                local shot=wide:Lerp(close,smooth((t-3.35)/.6))
-                camera.CFrame=state.cframe:Lerp(shot,smooth(t/.55))
-                camera.FieldOfView=state.fov+(48-state.fov)*smooth(t/.6)
-                camera.Focus=CFrame.new(floor+Vector3.new(0,1.5,0))
-                if t>5.4 then
-                    local back=smooth((t-5.4)/.4)
+                local tapeLength=math.max(.01,3.88*smooth((t-4.05)/.35))
+                tape.Size=Vector3.new(1.15,.06,tapeLength)
+                tape.CFrame=parcel*CFrame.new(0,2.57,-1.94+tapeLength*.5)
+                sticker.Transparency=labeled and 0 or 1
+                shipping.Enabled=labeled
+                local slap=1-smooth((t-4.2)/.3)
+                sticker.CFrame=parcel*CFrame.new(0,2.64+slap*1.1,0)*CFrame.Angles(0,slap*.1,slap*-.1)
+                local arrival=CFrame.lookAt(floor+base.LookVector*18+Vector3.new(4,11,0),floor+Vector3.new(0,5,0))
+                local revealTarget=4.1-(4.1-1.45)*placement
+                local revealShot=CFrame.lookAt(floor+base.LookVector*5.8+Vector3.new(.4,10.6,0),
+                    floor+Vector3.new(0,revealTarget,0))
+                -- A true top view keeps every item and the top-facing shipping label readable.
+                local overhead=CFrame.lookAt(floor+base.LookVector*.45+Vector3.new(0,11.3,0),
+                    floor+Vector3.new(0,2.5,0),base.LookVector)
+                local shot=arrival:Lerp(revealShot,smooth((t-1.4)/.45))
+                shot=shot:Lerp(overhead,smooth((t-3.35)/.65))
+                local exitShot=CFrame.lookAt(floor+base.LookVector*16+Vector3.new(3,10,0),
+                    floor+Vector3.new(0,4.5,0))
+                shot=shot:Lerp(exitShot,smooth((t-5.05)/.4))
+                camera.CFrame=state.cframe:Lerp(shot,smooth(t/.35))
+                local fov=58-10*smooth((t-1.4)/.6)
+                camera.FieldOfView=state.fov+(fov-state.fov)*smooth(t/.35)
+                camera.Focus=CFrame.new(floor+Vector3.new(0,2,0))
+                if t>5.65 then
+                    local back=smooth((t-5.65)/.35)
                     camera.CFrame=camera.CFrame:Lerp(state.cframe,back)
-                    camera.FieldOfView=48+(state.fov-48)*back
+                    camera.FieldOfView=fov+(state.fov-fov)*back
                 end
-                if t>=5.05 and not dispatched then dispatched=true; dispatchCaption() end
-                if t>=5.8 then cleanup(state) end
+                if t>=5.1 and not dispatched then dispatched=true; dispatchCaption() end
+                if t>=6 then cleanup(state) end
             end,debug.traceback)
             if not ok then state.error=err; cleanup(state) end
         end)
@@ -5038,7 +5137,7 @@ do
     E.SAE_PACKAGE_DELIVERY=function(cmd,item,recipient,quantity,userId,onError)
         if runtime.dead then return false end
         runtime.queue[#runtime.queue+1]={cmd=cmd,item=item,recipient=recipient,
-            quantity=cmd=='/givetreadmill' and 1 or 3,userId=userId,onError=onError}
+            quantity=cmd=='/givetreadmill' and 1 or 3,userId=userId,onError=onError,generation=runtime.generation}
         if runtime.working then return true end
         runtime.working=true
         task.spawn(function()
