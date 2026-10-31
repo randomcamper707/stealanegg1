@@ -3444,7 +3444,7 @@ prompt.BackgroundTransparency=1; prompt.Parent=Console
 local promptMark=label(prompt,">",UDim2.fromOffset(0,0),UDim2.fromOffset(20,28),14)
 promptMark.Font=Enum.Font.Code; promptMark.TextColor3=consoleText
 local ci=Instance.new("TextBox")
-ci.Position=UDim2.fromOffset(22,0); ci.Size=UDim2.new(1,-22,1,0)
+ci.Position=UDim2.fromOffset(22,0); ci.Size=UDim2.new(1,-106,1,0)
 ci.BackgroundTransparency=1; ci.BorderSizePixel=0
 ci.Text=""; ci.PlaceholderText="Enter a command..."
 ci.PlaceholderColor3=consoleMuted; ci.TextColor3=consoleText
@@ -3452,8 +3452,10 @@ ci.Font=Enum.Font.Code; ci.TextSize=14
 ci.ClearTextOnFocus=false; ci.TextXAlignment=Enum.TextXAlignment.Left
 ci.Parent=prompt
 local commandSerial=0
+local errorInput=nil
 ci:GetPropertyChangedSignal("Text"):Connect(function()
-    commandSerial+=1
+    if errorInput and ci.Text==errorInput then return end
+    errorInput=nil
     ci.TextColor3=consoleText
     promptMark.TextColor3=consoleText
 end)
@@ -3513,18 +3515,31 @@ end
 local function resolveRecipient(value,raw)
     value=trim(value):gsub("^@+","")
     local serial=commandSerial
+    local inputAtStart=ci.Text
     local player=findPlayer(value)
     if player then return {name=player.Name,display=player.DisplayName,id=player.UserId} end
     local ok,id=false,nil
+    local timedOut=false
     if value~="" and value:match("^[%w_]+$") then
-        ok,id=pcall(function() return Players:GetUserIdFromNameAsync(value) end)
+        local finished=false
+        task.spawn(function()
+            ok,id=pcall(function() return Players:GetUserIdFromNameAsync(value) end)
+            finished=true
+        end)
+        local deadline=os.clock()+8
+        while not finished do
+            if not Console.Parent or serial~=commandSerial or ci.Text~=inputAtStart then return nil end
+            if os.clock()>=deadline then timedOut=true; break end
+            task.wait(.05)
+        end
     end
     -- Discard a lookup if the user has started another command or edited the input.
-    if not Console.Parent or serial~=commandSerial then return nil end
-    if not ok or type(id)~="number" or id<=0 then
+    if not Console.Parent or serial~=commandSerial or ci.Text~=inputAtStart then return nil end
+    if timedOut or not ok or type(id)~="number" or id<=0 then
+        errorInput=raw
         ci.Text=raw
         ci.TextColor3=C.red promptMark.TextColor3=C.red
-        line("Username not found. Check it and try again.",C.red)
+        line(timedOut and "Username check timed out. Try again or press Back." or "Username not found. Check it and try again.",C.red)
         ci:CaptureFocus()
         ci.CursorPosition=#ci.Text+1
         return nil
@@ -3546,6 +3561,7 @@ local function choice(text,callback)
     b.MouseButton1Click:Connect(callback)
 end
 local function prefill(text)
+    commandSerial+=1
     ci.Text=text
     ci:CaptureFocus()
 end
@@ -3560,6 +3576,7 @@ local function recipientChoices(cmd,item)
     line("Type the recipient's username, then press Enter.",consoleMuted)
 end
 chooseItem=function(cmd)
+    commandSerial+=1
     clearChoices()
     ci.Text=cmd.." "
     line(cmd=="/givetreadmill" and "Choose a treadmill below." or "Choose an item below.",consoleMuted)
@@ -3573,6 +3590,10 @@ chooseItem=function(cmd)
     choice("Back",function() ci.Text=""; showCommands() end)
 end
 showCommands=function()
+    commandSerial+=1
+    errorInput=nil
+    ci.Text=""
+    ci.TextColor3=consoleText promptMark.TextColor3=consoleText
     clearChoices()
     for _,shortcut in ipairs(shortcuts) do
         local cmd=shortcut
@@ -3583,6 +3604,13 @@ showCommands=function()
         end)
     end
 end
+-- This control is outside the scrolling choices and remains usable in every state.
+local back=button(prompt,"Back",UDim2.new(1,-72,0,0),UDim2.fromOffset(72,28),true)
+back.Name="ConsoleBack" back.Font=Enum.Font.Code back.TextSize=12 back.TextColor3=consoleMuted
+back.MouseButton1Click:Connect(function()
+    showCommands()
+    ci:CaptureFocus()
+end)
 local function canonicalItem(cmd,value)
     for _,item in ipairs(branchItems[cmd] or {}) do
         if item:lower()==value:lower() then return item end
@@ -3596,6 +3624,7 @@ local function command(raw)
     local cmd,rest=raw:match("^(%S+)%s*(.*)$")
     cmd=string.lower(cmd or "")
     rest=trim(rest)
+    if cmd=="/back" or cmd=="/cancel" then showCommands(); return end
     if cmd=="/announcements" or cmd=="/announcement" then
         if rest=="" then line("Enter a message.",C.red); return end
         callRemote("Announcement",rest)
@@ -3660,8 +3689,20 @@ local function command(raw)
     end
     showCommands()
 end
+local function submit(raw)
+    local ok,err=xpcall(function() command(raw) end,debug.traceback)
+    if not ok and Console.Parent then
+        -- Restore a usable prompt even if a game remote or UI callback fails.
+        showCommands()
+        errorInput=raw
+        ci.Text=raw ci.TextColor3=C.red promptMark.TextColor3=C.red
+        line("Command could not finish. Try again or press Back.",C.red)
+        ci:CaptureFocus()
+        warn("[SAE] Console command: "..tostring(err))
+    end
+end
 ci.FocusLost:Connect(function(enter)
-    if enter then local t=ci.Text; ci.Text=""; command(t) end
+    if enter then submit(ci.Text) end
 end)
 showCommands()
 consoleJoinLabel=line(Display.." has joined the server.")
@@ -4029,7 +4070,79 @@ local function luminousPet()
     end
     return finalize(m,root)
 end
-local function star()local m=Instance.new('Model')m.Name='Star'local gold,edge,dark=rgb(255,208,22),rgb(239,165,10),rgb(25,20,18)local r=ball(m,'Center',Vector3.new(4.5,4.5,1.25),gold,CFrame.new(),MAT)for i=0,4 do local a=math.rad(-90+i*72)local x,y=math.cos(a)*3.25,math.sin(a)*3.25 wedge(m,'Point',Vector3.new(2.75,4.7,1.15),gold,CFrame.new(x,y,0)*CFrame.Angles(0,0,a+math.rad(90)),MAT)wedge(m,'BackEdge',Vector3.new(2.55,4.4,.3),edge,CFrame.new(x,y,.68)*CFrame.Angles(0,0,a+math.rad(90)),MAT)end for _,s in ipairs({{-1.25,1.45},{0,1.65},{1.15,1.15},{-2,.55},{-.8,.55},{.45,.6},{1.8,.45},{-1.55,-.65},{-.35,-.5},{.9,-.55},{1.65,-.95},{-.95,-1.65},{.25,-1.6}})do part(m,'Stud',Vector3.new(.52,.52,.22),rgb(255,221,43),CFrame.new(s[1],s[2],-.72),MAT)end eye(m,-.9,.15,-.78,dark,Vector3.new(.82,1.05,.3))eye(m,.9,.15,-.78,dark,Vector3.new(.82,1.05,.3))ball(m,'BlushL',Vector3.new(.65,.32,.14),rgb(255,133,97),CFrame.new(-1.75,-.55,-.83),NEON)ball(m,'BlushR',Vector3.new(.65,.32,.14),rgb(255,133,97),CFrame.new(1.75,-.55,-.83),NEON)return finalize(m,r)end
+local function star()
+    local m=Instance.new('Model') m.Name='Star'
+    local gold,edge,dark=rgb(255,233,63),rgb(229,188,24),rgb(50,43,20)
+    local root=part(m,'StarCore',Vector3.new(1,1,.8),gold,CFrame.new(),MAT)
+    -- A true upright five-point outline with a shallow, studded toy surface.
+    local vertices={}
+    for index=0,9 do
+        local angle=math.pi*.5+index*math.pi/5
+        local radius=index%2==0 and 3.35 or 1.70
+        vertices[#vertices+1]=Vector2.new(math.cos(angle)*radius,math.sin(angle)*radius)
+    end
+    local function intersections(y)
+        local xs={}
+        for index,p in ipairs(vertices) do
+            local q=vertices[index%#vertices+1]
+            if (p.Y<=y and q.Y>y) or (q.Y<=y and p.Y>y) then
+                xs[#xs+1]=p.X+(y-p.Y)*(q.X-p.X)/(q.Y-p.Y)
+            end
+        end
+        table.sort(xs)
+        return xs
+    end
+    local function inside(x,y)
+        local xs=intersections(y)
+        for index=1,#xs-1,2 do
+            if x>=xs[index] and x<=xs[index+1] then return true end
+        end
+        return false
+    end
+    local step=6.7/58
+    for row=0,57 do
+        local y=-3.35+(row+.5)*step
+        local xs=intersections(y)
+        for index=1,#xs-1,2 do
+            local width=xs[index+1]-xs[index]
+            local x=(xs[index]+xs[index+1])*.5
+            if width>.05 then
+                part(m,'StarOutline',Vector3.new(width,step+.006,1.18),edge,CFrame.new(x,y,.04),MAT)
+                part(m,'StarFace',Vector3.new(math.max(.05,width-.045),step+.008,1.12),gold,CFrame.new(x,y,-.05),MAT)
+            end
+        end
+    end
+    for ix=-3,3 do
+        for iy=-3,3 do
+            local x,y=ix*.74,iy*.74
+            local onFace=math.abs(x)<1.32 and y>-.95 and y<.85
+            if not onFace and inside(x-.25,y-.25) and inside(x+.25,y+.25)
+                and inside(x-.25,y+.25) and inside(x+.25,y-.25) then
+                part(m,'StudEdge',Vector3.new(.46,.40,.045),edge,CFrame.new(x,y,-.64),MAT)
+                part(m,'Stud',Vector3.new(.38,.33,.10),rgb(255,242,92),CFrame.new(x,y,-.70),MAT)
+            end
+        end
+    end
+    for _,side in ipairs({-1,1}) do
+        eye(m,side*.77,.12,-.73,dark,Vector3.new(.54,.69,.14))
+        ball(m,'EyeShine',Vector3.new(.14,.17,.06),rgb(255,252,205),CFrame.new(side*.77-.08,.28,-.82),MAT)
+    end
+    local mouth={Vector3.new(-.43,-.47,-.78),Vector3.new(-.22,-.65,-.78),
+        Vector3.new(0,-.48,-.78),Vector3.new(.22,-.65,-.78),Vector3.new(.43,-.47,-.78)}
+    for index=1,#mouth-1 do
+        local p,q=mouth[index],mouth[index+1]
+        part(m,'CuteSmile',Vector3.new(.085,.085,(q-p).Magnitude+.035),dark,CFrame.lookAt((p+q)*.5,q),MAT)
+    end
+    local attachment=Instance.new('Attachment') attachment.Position=Vector3.new(0,3.45,0) attachment.Parent=root
+    local sparkle=Instance.new('ParticleEmitter') sparkle.Name='StarGlints'
+    sparkle.Texture='rbxasset://textures/particles/sparkles_main.dds'
+    sparkle.Color=ColorSequence.new(rgb(255,248,178),rgb(255,255,245))
+    sparkle.Size=NumberSequence.new(.15,0) sparkle.Transparency=NumberSequence.new(.15,1)
+    sparkle.Rate=3 sparkle.Lifetime=NumberRange.new(.35,.7) sparkle.Speed=NumberRange.new(.3,.7)
+    sparkle.SpreadAngle=Vector2.new(35,35) sparkle.LightEmission=.6 sparkle.Parent=attachment
+    m:SetAttribute('SAE_STAR_REFERENCE','Yellow five-point studded smiling star')
+    return finalize(m,root)
+end
 
 local function refEgg(name) return function() return buildSculptedEgg(name) end end
 -- Custom treadmill geometry follows the supplied shop art, with a full running deck.
@@ -4779,6 +4892,32 @@ local function hit(o,want)if want[norm(o.Name)]then return 1000 end local n=norm
 local function source(cat,name)local key=cat..'|'..name if cache[key]and cache[key].Parent then return cache[key]end local want={}for _,a in ipairs(Aliases[name]or{name})do want[norm(a)]=true end local best,bs=nil,-1 local function scan(o,bonus)if not(o:IsA('Model')or o:IsA('Tool'))then return end if P.Character and o:IsDescendantOf(P.Character)then return end if o:IsDescendantOf(Placed)then return end if cat=='Pets'and badPet(o)then return end local h=hit(o,want)if h<=0 then return end local count=0 for _,d in ipairs(o:GetDescendants())do if d:IsA('BasePart')then count+=1 end end if count<1 then return end local sc=h+bonus+math.min(count,100)if sc>bs then best,bs=o,sc end end for _,r in ipairs({{RS,220},{workspace,80}})do local list=r[1]:GetDescendants()for i,o in ipairs(list)do scan(o,r[2])if i%1500==0 then task.wait()end end end if type(getnilinstances)=='function'then local ok,list=pcall(getnilinstances)if ok then for i,o in ipairs(list)do if typeof(o)=='Instance'then scan(o,120)end if i%1500==0 then task.wait()end end end end cache[key]=best return best end
 local function clone(src,name)if not src then return nil end local ok,c=pcall(function()return src:Clone()end)if not ok or not c then return nil end local m=c if c:IsA('Tool')then m=Instance.new('Model')m.Name=name for _,q in ipairs(c:GetChildren())do if not(q:IsA('Script')or q:IsA('LocalScript')or q:IsA('ModuleScript'))then q.Parent=m end end c:Destroy()end if not m:IsA('Model')then return nil end local kill={}for _,d in ipairs(m:GetDescendants())do if d:IsA('Script')or d:IsA('LocalScript')or d:IsA('ModuleScript')or d:IsA('Humanoid')or d:IsA('Animator')or d:IsA('ProximityPrompt')or d:IsA('ClickDetector')or d:IsA('SurfaceGui')or d:IsA('BillboardGui')then kill[#kill+1]=d end end for _,d in ipairs(kill)do d:Destroy()end if not m:FindFirstChildWhichIsA('BasePart',true)then m:Destroy()return nil end m.Name=name return m end
 local function fit(m,target)local ok,s=pcall(function()return m:GetExtentsSize()end)if ok then local mx=math.max(s.X,s.Y,s.Z)if mx>.01 then pcall(function()m:ScaleTo(target/mx)end)end end end
+-- Prefer the actual held/backpack star; source() intentionally skips character models.
+local function inventoryStar()
+    local names={star=true,stars=true,startool=true,goldenstar=true,goldstar=true,divinestar=true}
+    local holders={}
+    if P.Character then holders[#holders+1]=P.Character end
+    if BP then holders[#holders+1]=BP end
+    for _,holder in ipairs(holders) do
+        for _,tool in ipairs(holder:GetChildren()) do
+            if tool:IsA('Tool') and not tool:GetAttribute('SAE_V7_TOOL') then
+                local matched=names[norm(tool.Name):gsub('%d','')]==true
+                for _,attribute in ipairs({'ItemName','DisplayName','Title','Type'}) do
+                    if names[norm(tool:GetAttribute(attribute))] then matched=true end
+                end
+                if matched then
+                    local copy=clone(tool,'Star')
+                    if copy then
+                        local handle=copy:FindFirstChild('Handle',true) or copy:FindFirstChildWhichIsA('BasePart',true)
+                        if handle then copy.PrimaryPart=handle copy:PivotTo(CFrame.new()) end
+                        copy:SetAttribute('SAE_STAR_SOURCE','Actual inventory star')
+                        return copy
+                    end
+                end
+            end
+        end
+    end
+end
 local function buildModel(cat,name)
     if name=="Ben's Treadmill" then return customTreadmill(name,false),false end
     if name=="Brocodile's Treadmill" then return customTreadmill(name,true),false end
@@ -4787,6 +4926,10 @@ local function buildModel(cat,name)
 local preparedModels={}
 local preparingModels={}
 local function model(cat,name)
+    if cat=='Star' and name=='Star' then
+        local actual=inventoryStar()
+        if actual then fit(actual,7.5); return actual,true end
+    end
     local key=cat..'|'..name
     while preparingModels[key] do task.wait() end
     local entry=preparedModels[key]
