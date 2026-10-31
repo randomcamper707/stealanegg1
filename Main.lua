@@ -4785,7 +4785,7 @@ do
     local Run=game:GetService('RunService')
     local Debris=game:GetService('Debris')
     local Input=game:GetService('UserInputService')
-    local purple=Color3.fromRGB(175,73,255)
+    local purple=Color3.fromRGB(92,35,154)
     local cardboard=Color3.fromRGB(171,119,65)
     local function clamp01(value) return math.clamp(value,0,1) end
     local function smooth(value) value=clamp01(value); return value*value*(3-2*value) end
@@ -4817,6 +4817,14 @@ do
     local function cleanup(state,force)
         if state.cleaned then return end
         state.cleaned=true
+        if state.visibilityConnections then
+            for _,connection in ipairs(state.visibilityConnections) do connection:Disconnect() end
+        end
+        if state.hidden then
+            for object,saved in pairs(state.hidden) do
+                if object.Parent then pcall(function() object[saved.property]=saved.value end) end
+            end
+        end
         if state.connection then state.connection:Disconnect() end
         restoreCamera(state,force)
         if state.console and state.console.Parent then state.console.Visible=state.consoleVisible end
@@ -4876,8 +4884,47 @@ do
         }):Play()
         Debris:AddItem(sg,1.2)
     end
+    local function conceal(state,object)
+        local property,value
+        if object:IsA('BasePart') then property='LocalTransparencyModifier'; value=1
+        elseif object:IsA('Decal') then property='Transparency'; value=1
+        elseif object:IsA('BillboardGui') or object:IsA('SurfaceGui') or object:IsA('ParticleEmitter')
+            or object:IsA('Beam') or object:IsA('Trail') or object:IsA('PointLight')
+            or object:IsA('SpotLight') or object:IsA('SurfaceLight') then property='Enabled'; value=false end
+        if not property then return end
+        if not state.hidden[object] then state.hidden[object]={property=property,value=object[property]} end
+        object[property]=value
+    end
+    local function concealTree(state,root,watch)
+        if not root then return end
+        conceal(state,root)
+        for _,object in ipairs(root:GetDescendants()) do conceal(state,object) end
+        if watch then
+            state.visibilityConnections[#state.visibilityConnections+1]=root.DescendantAdded:Connect(function(object)
+                if not state.cleaned then conceal(state,object) end
+            end)
+        end
+    end
+    local function clearView(state,scene,character,treadmill,targets)
+        -- Run after Roblox's camera update so first-person transparency cannot reveal the head.
+        for object,saved in pairs(state.hidden) do
+            if object.Parent then
+                if saved.property=='Enabled' then object[saved.property]=false else object[saved.property]=1 end
+            end
+        end
+        local ignore={scene,character}
+        if treadmill then ignore[#ignore+1]=treadmill end
+        local ok,obstructions=pcall(function()
+            return state.camera:GetPartsObscuringTarget(targets,ignore)
+        end)
+        if ok then
+            for _,object in ipairs(obstructions) do concealTree(state,object,false) end
+        end
+    end
     local function play(request)
         local character=P.Character
+        local runner=E.SAE_TREADMILL_RUNTIME
+        local treadmill=runner and type(runner.GetActiveModel)=='function' and runner:GetActiveModel() or nil
         local root=character and character:FindFirstChild('HumanoidRootPart')
         local camera=workspace.CurrentCamera
         if not root or not camera then error('Character or camera is unavailable') end
@@ -4910,6 +4957,8 @@ do
         if category=='Eggs' and type(bodyHeight)=='number' and bodyHeight>.01 then
             -- Size the shell itself; decorative horns must not miniaturize the egg.
             displayFactor=math.min(2.9/bodyHeight,4.8/maxSize)
+        elseif category=='Pets' then
+            displayFactor=6/maxSize
         else
             displayFactor=(request.quantity==1 and 3.8 or 3.5)/maxSize
         end
@@ -4940,7 +4989,9 @@ do
         local point=root.Position+forward*9
         local params=RaycastParams.new()
         params.FilterType=Enum.RaycastFilterType.Exclude
-        params.FilterDescendantsInstances={character,Placed}
+        local floorIgnore={character,Placed}
+        if treadmill then floorIgnore[#floorIgnore+1]=treadmill end
+        params.FilterDescendantsInstances=floorIgnore
         local hit=workspace:Raycast(point+Vector3.new(0,20,0),Vector3.new(0,-128,0),params)
         if not hit then template:Destroy(); error('No floor found for parcel landing') end
         local floor=hit.Position+Vector3.new(0,.06,0)
@@ -4948,9 +4999,16 @@ do
         local scene=Instance.new('Model') scene.Name='SAE_DELIVERY_PARCEL' scene.Parent=workspace
         local state={scene=scene,camera=camera,cframe=camera.CFrame,focus=camera.Focus,
             fov=camera.FieldOfView,subject=camera.CameraSubject,cameraType=camera.CameraType,
-            console=Console,consoleVisible=Console.Visible,
+            console=Console,consoleVisible=Console.Visible,hidden={},visibilityConnections={},
             finished=Instance.new('BindableEvent')}
         runtime.active=state
+        concealTree(state,character,true)
+        concealTree(state,treadmill,true)
+        for _,object in ipairs(PG:GetDescendants()) do
+            if object:IsA('BillboardGui') and object.Adornee and object.Adornee:IsDescendantOf(character) then
+                conceal(state,object)
+            end
+        end
         -- Any construction or frame failure is caught by the queue worker and restores the camera.
         local pieces,flaps,contents,portal={},{},{},{}
         local function piece(name,size,offset,color)
@@ -4984,31 +5042,40 @@ do
         template:Destroy()
         local glow=makePart(scene,'RevealGlow',Vector3.new(.1,.1,.1),purple,Enum.Material.Neon)
         glow.Transparency=1
-        local light=Instance.new('PointLight') light.Color=purple light.Range=11 light.Brightness=0 light.Parent=glow
+        local light=Instance.new('PointLight') light.Color=Color3.fromRGB(204,174,235) light.Range=math.max(11,boxWidth*1.8) light.Brightness=0 light.Parent=glow
         local portalEffects={}
         for index=1,64 do
             local angle=(index-1)/32*math.pi*2
-            local segment=makePart(scene,'PortalArc',Vector3.new(.15,.13,.98),index<=32 and purple or Color3.fromRGB(224,174,255),Enum.Material.Neon)
+            local segment=makePart(scene,'PortalArc',Vector3.new(.15,.13,.98),index<=32 and purple or Color3.fromRGB(114,57,173),Enum.Material.Neon)
             segment.CastShadow=false
             portal[#portal+1]={part=segment,angle=angle,band=index<=32 and 1 or .83}
             portalEffects[segment]=true
         end
         -- A luminous interior and rotating rings read as a portal rather than a bare hoop.
-        local iris=makePart(scene,'PortalIris',Vector3.new(.08,portalRadius*1.84,portalRadius*1.84),Color3.fromRGB(100,29,177),Enum.Material.Neon)
+        local iris=makePart(scene,'PortalIris',Vector3.new(.08,portalRadius*1.84,portalRadius*1.84),Color3.fromRGB(14,5,27),Enum.Material.SmoothPlastic)
         iris.Shape=Enum.PartType.Cylinder
         iris.CastShadow=false
         portalEffects[iris]=true
         local sparks=Instance.new('ParticleEmitter')
         sparks.Name='PortalSparks'
         sparks.Texture='rbxasset://textures/particles/sparkles_main.dds'
-        sparks.Color=ColorSequence.new(Color3.fromRGB(223,175,255),purple)
+        sparks.Color=ColorSequence.new(Color3.fromRGB(126,75,167),purple)
         sparks.Size=NumberSequence.new(.16,0)
         sparks.Transparency=NumberSequence.new(.15,1)
-        sparks.LightEmission=1 sparks.Rate=24
-        sparks.Lifetime=NumberRange.new(.35,.8) sparks.Speed=NumberRange.new(.8,2.2)
+        sparks.LightEmission=.35 sparks.Rate=14
+        sparks.Lifetime=NumberRange.new(.35,.8) sparks.Speed=NumberRange.new(.4,1.3)
         sparks.SpreadAngle=Vector2.new(180,180)
         sparks.Acceleration=Vector3.new(0,-2,0)
         sparks.Parent=iris
+        local mist=Instance.new('ParticleEmitter')
+        mist.Name='PortalMist' mist.Texture='rbxasset://textures/particles/smoke_main.dds'
+        mist.Color=ColorSequence.new(Color3.fromRGB(16,8,26),Color3.fromRGB(56,22,82))
+        mist.Size=NumberSequence.new(.7,1.5) mist.Transparency=NumberSequence.new(.55,1)
+        mist.Lifetime=NumberRange.new(.8,1.4) mist.Speed=NumberRange.new(.3,.9)
+        mist.Rate=12 mist.LightEmission=0 mist.LightInfluence=.6
+        mist.Rotation=NumberRange.new(-180,180) mist.RotSpeed=NumberRange.new(-15,15)
+        mist.SpreadAngle=Vector2.new(180,180) mist.EmissionDirection=Enum.NormalId.Right
+        mist.Parent=iris
         local wind={}
         for index=1,18 do
             local streak=makePart(scene,'DispatchWind',Vector3.new(.04,.04,1.7),
@@ -5018,10 +5085,11 @@ do
             portalEffects[streak]=true
         end
         local portalLight=Instance.new('PointLight')
-        portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=2.5 portalLight.Parent=portal[1].part
+        portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=.7 portalLight.Parent=portal[1].part
         local tape=piece('YellowSealTape',Vector3.new(1.25,.06,boxDepth+.08),CFrame.new(0,boxHeight+.07,0),Color3.fromRGB(255,208,48))
         tape.Transparency=1
-        local sticker=makePart(scene,'CourierSticker',Vector3.new(4.8,1.525,.03),Color3.fromRGB(255,212,52))
+        local labelWidth=category=='Pets' and math.min(boxWidth*.78,9) or 4.8
+        local sticker=makePart(scene,'CourierSticker',Vector3.new(labelWidth,category=='Pets' and labelWidth*216/680 or 1.525,.03),Color3.fromRGB(255,212,52))
         sticker.Transparency=1
         local shipping=Instance.new('SurfaceGui')
         shipping.Name='RecipientLabel' shipping.Face=Enum.NormalId.Front
@@ -5048,7 +5116,9 @@ do
         local dispatched=false
         Console.Visible=false
         camera.CameraType=Enum.CameraType.Scriptable
-        state.connection=Run.RenderStepped:Connect(function()
+        local renderName='SAE_PARCEL_CAMERA'
+        state.connection={Disconnect=function() Run:UnbindFromRenderStep(renderName) end}
+        Run:BindToRenderStep(renderName,Enum.RenderPriority.Camera.Value+5,function()
             local ok,err=xpcall(function()
                 if runtime.dead or not scene.Parent or not character.Parent or P.Character~=character
                     or not root.Parent or workspace.CurrentCamera~=camera or camera.CameraType~=Enum.CameraType.Scriptable then
@@ -5106,7 +5176,7 @@ do
                         end
                     end
                 end
-                glow.CFrame=parcel*CFrame.new(0,boxHeight*.7,0) light.Brightness=glowAmount*2.1
+                glow.CFrame=parcel*CFrame.new(0,boxHeight*.7,0) light.Brightness=glowAmount*1.5
                 local portalAmount=smooth((t-.05)/.4)*(1-smooth((t-1.9)/.5))+smooth((t-6.25)/.35)
                 portalAmount=clamp01(portalAmount)
                 for _,entry in ipairs(portal) do
@@ -5118,9 +5188,10 @@ do
                     entry.part.Transparency=1-portalAmount*.92
                 end
                 iris.CFrame=base*CFrame.new(t<6 and -portalDistance or portalDistance,portalHeight,0)
-                iris.Transparency=1-portalAmount*.42
+                iris.Transparency=1-portalAmount*.92
                 sparks.Enabled=portalAmount>.15
-                portalLight.Brightness=portalAmount*3.2
+                mist.Enabled=portalAmount>.15
+                portalLight.Brightness=portalAmount*.75
                 local gust=clamp01(smooth((t-1.55)/.1)*(1-smooth((t-2.2)/.25))
                     +smooth((t-6.32)/.2)*(1-smooth((t-7.5)/.25)))
                 for _,entry in ipairs(wind) do
@@ -5144,6 +5215,11 @@ do
                 local arrival=CFrame.lookAt(floor-base.RightVector*(portalDistance*.4)
                     +base.LookVector*(boxDepth*2.4)+Vector3.new(0,boxHeight+5,0),
                     floor-base.RightVector*(portalDistance*.45)+Vector3.new(0,boxHeight*.85,0))
+                local parcelCenter=(parcel*CFrame.new(0,boxHeight*.5,0)).Position
+                local arrivalClose=CFrame.lookAt(parcelCenter+base.LookVector*(boxDepth*1.3)
+                    -base.RightVector*(boxWidth*.12)+Vector3.new(0,boxHeight*.6+2.8,0),parcelCenter)
+                local arrivalZoom=smooth((t-.45)/.35)*(1-smooth((t-1.25)/.55))
+                arrival=arrival:Lerp(arrivalClose,arrivalZoom)
                 local revealTarget=(boxHeight+1.1+itemBounds.Y*.5)*(1-placement)+(.28+itemBounds.Y*.5)*placement
                 local aspect=camera.ViewportSize.X/math.max(1,camera.ViewportSize.Y)
                 local framing=math.max(boxWidth,boxDepth)*1.18*math.max(1,.95/math.max(.45,aspect))
@@ -5154,20 +5230,43 @@ do
                     +base.RightVector*(boxWidth*.12)+Vector3.new(0,boxHeight*.75+2.1,0),
                     floor+Vector3.new(0,boxHeight*.54,0))
                 local shot=arrival:Lerp(revealShot,smooth((t-2.3)/.55))
+                if category=='Pets' then
+                    -- A close tracking shot makes the enlarged front pet clearly readable.
+                    local lowering=smooth((t-(3.55+(request.quantity-1)*.12))/.5)
+                    local petBottom=(boxHeight+1.1)+(.28-boxHeight-1.1)*lowering
+                    local petFocus=floor+base.LookVector*(slotDepth*.5)+Vector3.new(0,petBottom+itemBounds.Y*.5,0)
+                    local petView=math.max(itemBounds.X,itemBounds.Y,itemBounds.Z)
+                        *math.max(1,1/math.max(.45,aspect))
+                    local petShot=CFrame.lookAt(petFocus+base.LookVector*(petView*.95)
+                        +Vector3.new(petView*.08,petView*1.8,0),petFocus)
+                    local petZoom=smooth((t-3.05)/.25)*(1-smooth((t-4.25)/.3))
+                    shot=shot:Lerp(petShot,petZoom)
+                end
                 shot=shot:Lerp(labelShot,smooth((t-4.7)/.65))
                 local exitShot=CFrame.lookAt(floor+base.RightVector*(portalDistance*.4)
                     +base.LookVector*(boxDepth*2.4)+Vector3.new(0,boxHeight+5,0),
                     floor+base.RightVector*(portalDistance*.45)+Vector3.new(0,portalHeight*.65,0))
+                local exitClose=CFrame.lookAt(parcelCenter+base.LookVector*(boxDepth*1.25)
+                    +base.RightVector*(boxWidth*.15)+Vector3.new(0,boxHeight*.6+2.8,0),parcelCenter)
+                local exitZoom=smooth((t-6.35)/.3)*(1-smooth((t-7.0)/.35))
+                exitShot=exitShot:Lerp(exitClose,exitZoom)
                 shot=shot:Lerp(exitShot,smooth((t-6.35)/.4))
                 camera.CFrame=state.cframe:Lerp(shot,smooth(t/.35))
-                local fov=58-10*smooth((t-2.3)/.6)
+                local fov=58-10*smooth((t-2.3)/.6)-6*arrivalZoom
+                    +10*smooth((t-6.35)/.4)-6*exitZoom
                 camera.FieldOfView=state.fov+(fov-state.fov)*smooth(t/.35)
-                camera.Focus=CFrame.new(floor+Vector3.new(0,boxHeight*.65,0))
+                local focus=(t<2.3 or t>=6.35) and parcelCenter or floor+Vector3.new(0,boxHeight*.65,0)
+                camera.Focus=CFrame.new(focus)
                 if t>7.4 then
                     local back=smooth((t-7.4)/.4)
                     camera.CFrame=camera.CFrame:Lerp(state.cframe,back)
                     camera.FieldOfView=fov+(state.fov-fov)*back
                 end
+                clearView(state,scene,character,treadmill,{
+                    focus,parcelCenter,
+                    parcelCenter+base.RightVector*halfWidth,
+                    parcelCenter-base.RightVector*halfWidth
+                })
                 if t>=6.5 and not dispatched then dispatched=true; dispatchCaption() end
                 if t>=7.8 then cleanup(state) end
             end,debug.traceback)
@@ -5368,6 +5467,10 @@ local function createTreadmillRuntime()
         popup.gui.Enabled=true
     end
     local function updateSteps(now)
+        if E.SAE_PACKAGE_RUNTIME and E.SAE_PACKAGE_RUNTIME.active then
+            for _,popup in ipairs(popups) do popup.started=nil popup.gui.Enabled=false end
+            return
+        end
         for _,popup in ipairs(popups) do
             if popup.started then
                 local t=(now-popup.started)/1.15
@@ -5596,7 +5699,8 @@ local function createTreadmillRuntime()
                 if active and active.entry==entry then stopRunning(false) end
                 entries[model]=nil
             else
-                local visible=root and (entry.belt.Position-root.Position).Magnitude<110
+                local visible=not (E.SAE_PACKAGE_RUNTIME and E.SAE_PACKAGE_RUNTIME.active)
+                    and root and (entry.belt.Position-root.Position).Magnitude<110
                 entry.surface.Enabled=not not visible
                 if entry.visible~=visible then
                     entry.visible=visible
@@ -5633,7 +5737,9 @@ local function createTreadmillRuntime()
                 not active.entry.model.Parent or not active.root.Parent then stopRunning(false)
             else
                 popupClock-=dt
-                if popupClock<=0 then emitStep(active,now) popupClock=.22 end
+                if popupClock<=0 and not (E.SAE_PACKAGE_RUNTIME and E.SAE_PACKAGE_RUNTIME.active) then
+                    emitStep(active,now) popupClock=.22
+                end
             end
             return
         end
@@ -5672,6 +5778,7 @@ local function createTreadmillRuntime()
         for _,track in pairs(tracks) do pcall(function() track:Stop(0); track:Destroy() end) end
         for _,popup in ipairs(popups) do popup.gui:Destroy() end
     end
+    function api:GetActiveModel() return active and active.entry.model end
     E.SAE_TREADMILL_RUNTIME=api
     return api
 end
