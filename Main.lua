@@ -3450,25 +3450,51 @@ ci.Font=Enum.Font.Code; ci.TextSize=14
 ci.ClearTextOnFocus=false; ci.TextXAlignment=Enum.TextXAlignment.Left
 ci.Parent=prompt
 
+-- Vertical command suggestions open directly above the input prompt.
 local quick=Instance.new("ScrollingFrame")
-quick.Position=UDim2.new(0,12,1,-30); quick.Size=UDim2.new(1,-24,0,22)
-quick.BackgroundTransparency=1; quick.BorderSizePixel=0
-quick.ScrollingDirection=Enum.ScrollingDirection.X; quick.CanvasSize=UDim2.new()
-quick.ScrollBarThickness=2; quick.ScrollBarImageColor3=Color3.fromRGB(90,90,90)
+quick.Name="CommandSuggestions"
+quick.AnchorPoint=Vector2.new(0,1)
+quick.Position=UDim2.new(0,34,1,-70)
+quick.Size=UDim2.new(1,-46,0,0)
+quick.BackgroundColor3=Color3.fromRGB(12,10,16)
+quick.BackgroundTransparency=.04
+quick.BorderSizePixel=0
+quick.ZIndex=10
+quick.ScrollingDirection=Enum.ScrollingDirection.Y
+quick.CanvasSize=UDim2.new()
+quick.ScrollBarThickness=3
+quick.ScrollBarImageColor3=Color3.fromRGB(151,99,201)
 quick.Parent=Console
+corner(quick,4)
+local suggestionBorder=Instance.new("UIStroke")
+suggestionBorder.Color=Color3.fromRGB(70,46,94)
+suggestionBorder.Thickness=1
+suggestionBorder.Parent=quick
 local QL=Instance.new("UIListLayout")
-QL.FillDirection=Enum.FillDirection.Horizontal; QL.Padding=UDim.new(0,4); QL.Parent=quick
+QL.FillDirection=Enum.FillDirection.Vertical
+QL.SortOrder=Enum.SortOrder.LayoutOrder
+QL.Padding=UDim.new(0,2)
+QL.Parent=quick
 QL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    quick.CanvasSize=UDim2.fromOffset(QL.AbsoluteContentSize.X,0)
+    local height=QL.AbsoluteContentSize.Y+4
+    local available=math.max(28,Console.AbsoluteSize.Y-120)
+    quick.CanvasSize=UDim2.fromOffset(0,height)
+    quick.Size=UDim2.new(1,-46,0,math.min(height,available))
 end)
 local function q(t)
-    local width=math.ceil(TextService:GetTextSize(t,11,Enum.Font.Code,Vector2.new(1000,20)).X)+14
-    local b=button(quick,t,UDim2.new(),UDim2.fromOffset(width,20),true)
-    b.Font=Enum.Font.Code; b.TextSize=11; b.TextColor3=consoleMuted
-    b:SetAttribute("RestingColor",Color3.fromRGB(12,12,12))
-    b:SetAttribute("HoverColor",Color3.fromRGB(42,42,42))
+    local b=button(quick,t,UDim2.new(),UDim2.new(1,-8,0,24),true)
+    b.Font=Enum.Font.Code
+    b.TextSize=13
+    b.TextColor3=consoleMuted
+    b.TextXAlignment=Enum.TextXAlignment.Left
+    b.ZIndex=11
+    b:SetAttribute("RestingColor",Color3.fromRGB(12,10,16))
+    b:SetAttribute("HoverColor",Color3.fromRGB(56,33,78))
     b.BackgroundTransparency=1
-    b:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,2)
+    local padding=Instance.new("UIPadding")
+    padding.PaddingLeft=UDim.new(0,10)
+    padding.Parent=b
+    b:FindFirstChildOfClass("UICorner").CornerRadius=UDim.new(0,3)
     return b
 end
 local shortcuts={
@@ -3487,7 +3513,8 @@ local remoteActions={
     ["/givetreadmill"]="GiveTreadmill", ["/giveeggs"]="GiveEggs",
     ["/givepets"]="GivePets", ["/givestars"]="GiveStars"
 }
-local showCommands,chooseItem,chooseQuantity
+local showCommands,chooseItem
+local choiceOrder=0
 local function trim(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
 end
@@ -3506,9 +3533,13 @@ local function clearChoices()
         if child:IsA("TextButton") then child:Destroy() end
     end
     quick.CanvasPosition=Vector2.zero
+    quick.Visible=true
+    choiceOrder=0
 end
 local function choice(text,callback)
     local b=q(text)
+    choiceOrder+=1
+    b.LayoutOrder=choiceOrder
     b.MouseButton1Click:Connect(callback)
 end
 local function prefill(text)
@@ -3518,31 +3549,12 @@ end
 local function itemPrefix(cmd,item)
     return cmd..' "'..item..'" '
 end
-local function recipientChoices(cmd,item,quantity)
+local function recipientChoices(cmd,item)
     clearChoices()
-    if branchItems[cmd] then
-        choice("Change item",function() chooseItem(cmd) end)
-    end
-    if cmd~="/givetreadmill" then
-        choice("Change quantity",function() chooseQuantity(cmd,item) end)
-    end
-    choice("Cancel",function() ci.Text=""; showCommands() end)
+    quick.Visible=false
     local prefix=cmd=="/givestars" and (cmd.." ") or itemPrefix(cmd,item)
-    if cmd~="/givetreadmill" then prefix=prefix..quantity.." " end
     prefill(prefix)
     line("Type the recipient's username, then press Enter.",consoleMuted)
-end
-chooseQuantity=function(cmd,item)
-    clearChoices()
-    ci.Text=cmd=="/givestars" and (cmd.." ") or itemPrefix(cmd,item)
-    line("Choose how many: 1, 2, or 3.",consoleMuted)
-    for count=1,3 do
-        local quantity=count
-        choice(tostring(quantity),function() recipientChoices(cmd,item,quantity) end)
-    end
-    choice("Back",function()
-        if branchItems[cmd] then chooseItem(cmd) else ci.Text=""; showCommands() end
-    end)
 end
 chooseItem=function(cmd)
     clearChoices()
@@ -3552,8 +3564,7 @@ chooseItem=function(cmd)
         local item=name
         local caption=cmd=="/giveeggs" and (item.." Egg") or item
         choice(caption,function()
-            if cmd=="/givetreadmill" then recipientChoices(cmd,item,1)
-            else chooseQuantity(cmd,item) end
+            recipientChoices(cmd,item)
         end)
     end
     choice("Back",function() ci.Text=""; showCommands() end)
@@ -3564,8 +3575,8 @@ showCommands=function()
         local cmd=shortcut
         choice(cmd,function()
             if branchItems[cmd] then chooseItem(cmd)
-            elseif cmd=="/givestars" then chooseQuantity(cmd,nil)
-            else prefill(cmd.." ") end
+            elseif cmd=="/givestars" then recipientChoices(cmd,nil)
+            else clearChoices(); quick.Visible=false; prefill(cmd.." ") end
         end)
     end
 end
@@ -3603,38 +3614,23 @@ local function command(raw)
         line("Unknown command. Choose a shortcut below.",C.red)
         return
     end
-    local item,quantity,recipient
+    local item,recipient
+    local quantity=cmd=="/givetreadmill" and 1 or 3
     if branchItems[cmd] then
         if rest=="" then chooseItem(cmd); return end
         local supplied,tail=rest:match('^"([^"]+)"%s*(.*)$')
         if not supplied then chooseItem(cmd); return end
         item=canonicalItem(cmd,supplied)
         if not item then line("Choose one of the listed items.",C.red); chooseItem(cmd); return end
-        if cmd=="/givetreadmill" then
-            quantity=1
-            recipient=trim(tail)
-        else
-            if trim(tail)=="" then chooseQuantity(cmd,item); return end
-            local number,target=tail:match("^(%d+)%s*(.*)$")
-            quantity=tonumber(number)
-            recipient=trim(target)
-        end
+        recipient=trim(tail)
     else
-        if rest=="" then chooseQuantity(cmd,nil); return end
-        local number,target=rest:match("^(%d+)%s*(.*)$")
-        quantity=tonumber(number)
-        recipient=trim(target)
+        recipient=rest
     end
-    if not quantity or quantity<1 or quantity>3 then
-        line("Choose a quantity from 1 to 3.",C.red)
-        chooseQuantity(cmd,item)
-        return
-    end
-    if recipient=="" then recipientChoices(cmd,item,quantity); return end
+    if recipient=="" then recipientChoices(cmd,item); return end
     recipient=recipient:gsub("^@+","")
     if recipient=="" then
         line("Enter a player.",C.red)
-        recipientChoices(cmd,item,quantity)
+        recipientChoices(cmd,item)
         return
     end
     local pl=findPlayer(recipient)
