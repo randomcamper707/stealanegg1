@@ -4807,6 +4807,26 @@ do
         p.Parent=parent
         return p
     end
+    -- Fit every corner of the closed parcel inside the sticker shot, including narrow screens.
+    local function frameParcel(base,floor,width,height,depth,aspect,fov)
+        local target=floor+Vector3.new(0,height*.5,0)
+        local direction=(base.LookVector+base.RightVector*.18+Vector3.new(0,.4,0)).Unit
+        local axes=CFrame.lookAt(target+direction,target)
+        local vertical=math.tan(math.rad(fov*.5))*.86
+        local horizontal=vertical*math.max(.2,aspect)
+        local distance=1
+        for _,x in ipairs({-width*.5,width*.5}) do
+            for _,y in ipairs({0,height+.12}) do
+                for _,z in ipairs({-depth*.5-.16,depth*.5}) do
+                    local relative=(base*CFrame.new(x,y,z)).Position-target
+                    local toward=relative:Dot(direction)
+                    distance=math.max(distance,toward+math.abs(relative:Dot(axes.RightVector))/horizontal,
+                        toward+math.abs(relative:Dot(axes.UpVector))/vertical)
+                end
+            end
+        end
+        return CFrame.lookAt(target+direction*distance,target)
+    end
     local function restoreCamera(state,force)
         local camera=state.camera
         if camera and workspace.CurrentCamera==camera and (force or camera.CameraType==Enum.CameraType.Scriptable) then
@@ -5002,6 +5022,10 @@ do
             if not ok or not avatar then template:Destroy(); error('Recipient avatar could not be prepared') end
             previewAvatar=avatar
             previewAvatar.Name='RecipientRunner'
+            local previewHumanoid=previewAvatar:FindFirstChildOfClass('Humanoid')
+            if runner and type(runner.PreparePreview)=='function' and previewHumanoid then
+                runner:PreparePreview(previewAvatar,previewHumanoid)
+            end
             previewMachine=template:Clone() previewMachine.Name='TreadmillRunningPreview'
             previewMachine:ScaleTo(nativeScale)
             for _,object in ipairs(previewAvatar:GetDescendants()) do
@@ -5198,8 +5222,8 @@ do
         portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=.7 portalLight.Parent=portal[1].part
         local tape=piece('YellowSealTape',Vector3.new(1.25,.06,boxDepth+.08),CFrame.new(0,boxHeight+.07,0),Color3.fromRGB(255,208,48))
         tape.Transparency=1
-        local labelWidth=math.min(category=='Pets' and math.min(boxWidth*.78,9) or 4.8,boxWidth*.68)
-        local sticker=makePart(scene,'CourierSticker',Vector3.new(labelWidth,category=='Pets' and labelWidth*216/680 or 1.525,.03),Color3.fromRGB(255,212,52))
+        local labelWidth=math.min(category=='Pets' and 9 or 4.8,boxWidth*.59,boxHeight*.50*680/216)
+        local sticker=makePart(scene,'CourierSticker',Vector3.new(labelWidth,labelWidth*216/680,.03),Color3.fromRGB(255,212,52))
         sticker.Transparency=1
         local shipping=Instance.new('SurfaceGui')
         shipping.Name='RecipientLabel' shipping.Face=Enum.NormalId.Front
@@ -5217,7 +5241,7 @@ do
         local user=to:Clone() user.Position=UDim2.fromOffset(220,76) user.Size=UDim2.fromOffset(430,112)
         user.Text='@'..request.recipient user.TextSize=42 user.TextWrapped=true user.Parent=shipping
         -- A separate cream badge keeps the item picture clear of the name and avatar.
-        local badgeWidth=math.min(1.7,boxWidth*.20)
+        local badgeWidth=math.min(3.8,boxWidth*.29,boxHeight*.62)
         local itemBadge=makePart(scene,'ItemPictureSticker',Vector3.new(badgeWidth,badgeWidth,.035),
             Color3.fromRGB(255,246,223))
         itemBadge.Transparency=1 -- Invisible carrier: only the item picture is drawn.
@@ -5242,6 +5266,21 @@ do
         local pictureDistance=math.max(stickerBounds.X,stickerBounds.Y,stickerBounds.Z)*2.25
         pictureCamera.CFrame=CFrame.lookAt(Vector3.new(pictureDistance*.18,pictureDistance*.12,-pictureDistance),Vector3.zero)
         pictureCamera.Parent=viewport viewport.CurrentCamera=pictureCamera
+        local fragileWidth=math.min(4,boxWidth*.5)
+        local fragileHeight=math.min(.8,boxHeight*.18)
+        local fragile=makePart(scene,'FragileSticker',Vector3.new(fragileWidth,fragileHeight,.035),
+            Color3.fromRGB(255,241,214))
+        fragile.Transparency=1
+        local fragileGui=Instance.new('SurfaceGui')
+        fragileGui.Name='FragileLabel' fragileGui.Face=Enum.NormalId.Front
+        fragileGui.CanvasSize=Vector2.new(480,128) fragileGui.LightInfluence=0
+        fragileGui.Enabled=false fragileGui.Parent=fragile
+        local fragileText=Instance.new('TextLabel')
+        fragileText.Size=UDim2.new(1,-16,1,-16) fragileText.Position=UDim2.fromOffset(8,8)
+        fragileText.BackgroundColor3=Color3.fromRGB(255,241,214)
+        fragileText.BorderSizePixel=5 fragileText.BorderColor3=Color3.fromRGB(166,40,40)
+        fragileText.Text='FRAGILE' fragileText.TextColor3=Color3.fromRGB(166,40,40)
+        fragileText.Font=Enum.Font.GothamBold fragileText.TextSize=72 fragileText.Parent=fragileGui
         local parcelParts={}
         for _,object in ipairs(scene:GetDescendants()) do
             if object:IsA('BasePart') and not portalEffects[object] and object~=glow
@@ -5414,7 +5453,7 @@ do
                 sticker.Transparency=labeled and 0 or 1
                 shipping.Enabled=labeled
                 local slap=1-smooth((t-5.05)/.25)
-                sticker.CFrame=parcel*CFrame.new(-boxWidth*.11,boxHeight*.54,-halfDepth-.09-slap*1.1)
+                sticker.CFrame=parcel*CFrame.new(-boxWidth*.17,boxHeight*.37,-halfDepth-.09-slap*1.1)
                     *CFrame.Angles(0,0,slap*-.12)
                 local parcelCenter=(parcel*CFrame.new(0,boxHeight*.5,0)).Position
                 local aspect=camera.ViewportSize.X/math.max(1,camera.ViewportSize.Y)
@@ -5424,8 +5463,12 @@ do
                     *(1+.18*arrivalZoom)
                 itemBadge.Transparency=1
                 badgeGui.Enabled=labeled
-                itemBadge.CFrame=parcel*CFrame.new(halfWidth-badgeWidth*.6,boxHeight*.65,-halfDepth-.115-slap*1.1)
+                itemBadge.CFrame=parcel*CFrame.new(halfWidth-badgeWidth*.62,boxHeight*.56,-halfDepth-.115-slap*1.1)
                     *CFrame.Angles(0,0,math.rad(9)-slap*.12)
+                fragile.Transparency=labeled and 0 or 1
+                fragileGui.Enabled=labeled
+                fragile.CFrame=parcel*CFrame.new(-boxWidth*.17,boxHeight*.80,-halfDepth-.12-slap*1.1)
+                    *CFrame.Angles(0,0,math.rad(-4)*slap)
                 local arrivalFocus=parcelCenter+Vector3.new(0,2*(1-flight),0)
                 local arrival=CFrame.lookAt(floor+base.LookVector*arrivalDistance
                     +base.RightVector*(boxWidth*.25)+Vector3.new(0,3,0),arrivalFocus)
@@ -5434,9 +5477,7 @@ do
                 local revealShot=CFrame.lookAt(floor+base.LookVector*(framing*.60)
                     +Vector3.new(.25,revealTarget+framing*1.15,0),floor+Vector3.new(0,revealTarget,0))
                 -- Return to the original front label, viewed from a raised three-quarter angle.
-                local labelShot=CFrame.lookAt(floor+base.LookVector*(boxDepth*1.35)
-                    +base.RightVector*(boxWidth*.12)+Vector3.new(0,boxHeight*.75+2.1,0),
-                    floor+Vector3.new(0,boxHeight*.54,0))
+                local labelShot=frameParcel(base,floor,boxWidth,boxHeight,boxDepth,aspect,48)
                 local shot=arrival:Lerp(revealShot,smooth((t-2.3)/.55))
                 if category=='Pets' then
                     -- A close tracking shot makes the enlarged front pet clearly readable.
@@ -5618,6 +5659,47 @@ local function createTreadmillRuntime()
         track.Looped=true track.Priority=Enum.AnimationPriority.Action
         tracks[humanoid]=track
         return track
+    end
+
+    -- Keep a playable run asset outside Animate before the delivery strips scripts.
+    function api:PreparePreview(character,humanoid)
+        local animation=nil
+        local function choose(source)
+            if animation or not source then return end
+            local animate=source:FindFirstChild('Animate')
+            if animate then
+                for _,name in ipairs({'run','Run','walk','Walk'}) do
+                    local group=animate:FindFirstChild(name)
+                    local candidate=group and group:FindFirstChildWhichIsA('Animation',true)
+                    if candidate and candidate.AnimationId:match('%d+') then animation=candidate:Clone(); return end
+                end
+            end
+            for _,candidate in ipairs(source:GetDescendants()) do
+                if candidate:IsA('Animation') and candidate.AnimationId:match('%d+')
+                    and (candidate.Name:lower():find('run',1,true) or candidate.Name:lower():find('walk',1,true)) then
+                    animation=candidate:Clone(); return
+                end
+            end
+        end
+        local sender=P.Character
+        local senderHumanoid=sender and sender:FindFirstChildOfClass('Humanoid')
+        -- Prefer the same running cycle seen on the real treadmill when the rigs match.
+        if senderHumanoid and senderHumanoid.RigType==humanoid.RigType then choose(sender) end
+        choose(character)
+        if not animation then
+            animation=Instance.new('Animation')
+            local id=0
+            if humanoid.RigType~=Enum.HumanoidRigType.R6 then
+                local ok,description=pcall(function() return humanoid:GetAppliedDescription() end)
+                if ok and description then id=description.RunAnimation or 0; description:Destroy() end
+            end
+            if id<=0 then id=humanoid.RigType==Enum.HumanoidRigType.R6 and 180426354 or 507767714 end
+            animation.AnimationId='rbxassetid://'..id
+        end
+        animation.Name='SAE_DeliveryRun' animation.Parent=character
+        if not humanoid:FindFirstChildOfClass('Animator') then
+            local animator=Instance.new('Animator') animator.Parent=humanoid
+        end
     end
 
     -- Pooled visual step gains. These never write to the game's stats.
