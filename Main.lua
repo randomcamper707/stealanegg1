@@ -5037,7 +5037,7 @@ do
         end
         -- Fetch meshes, textures, portal particles and the portrait before the camera takes over.
         local portrait=Instance.new('ImageLabel')
-        portrait.Image='rbxthumb://type=AvatarHeadShot&id='..recipientId..'&w=150&h=150'
+        portrait.Image='rbxthumb://type=AvatarHeadShot&id='..recipientId..'&w=420&h=420'
         local preloadOk,preloadError=pcall(function()
             local assets={template,portrait,
                 'rbxasset://textures/particles/sparkles_main.dds',
@@ -5222,26 +5222,27 @@ do
         portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=.7 portalLight.Parent=portal[1].part
         local tape=piece('YellowSealTape',Vector3.new(1.25,.06,boxDepth+.08),CFrame.new(0,boxHeight+.07,0),Color3.fromRGB(255,208,48))
         tape.Transparency=1
-        local labelWidth=math.min(category=='Pets' and 9 or 4.8,boxWidth*.59,boxHeight*.50*680/216)
-        local sticker=makePart(scene,'CourierSticker',Vector3.new(labelWidth,labelWidth*216/680,.03),Color3.fromRGB(255,212,52))
+        local labelWidth=math.min(boxWidth*.88,boxHeight*.78*680/300)
+        local labelHeight=labelWidth*300/680
+        local sticker=makePart(scene,'CourierSticker',Vector3.new(labelWidth,labelHeight,.03),Color3.fromRGB(255,212,52))
         sticker.Transparency=1
         local shipping=Instance.new('SurfaceGui')
         shipping.Name='RecipientLabel' shipping.Face=Enum.NormalId.Front
-        shipping.CanvasSize=Vector2.new(680,216) shipping.LightInfluence=0
+        shipping.CanvasSize=Vector2.new(680,300) shipping.LightInfluence=0
         shipping.Enabled=false shipping.Parent=sticker
         local avatar=Instance.new('ImageLabel')
-        avatar.BackgroundTransparency=1 avatar.Position=UDim2.fromOffset(24,22)
-        avatar.Size=UDim2.fromOffset(172,172)
-        avatar.Image='rbxthumb://type=AvatarHeadShot&id='..recipientId..'&w=150&h=150'
+        avatar.BackgroundTransparency=1 avatar.Position=UDim2.fromOffset(24,28)
+        avatar.Size=UDim2.fromOffset(244,244)
+        avatar.Image='rbxthumb://type=AvatarHeadShot&id='..recipientId..'&w=420&h=420'
         avatar.Parent=shipping
         local to=Instance.new('TextLabel')
-        to.BackgroundTransparency=1 to.Position=UDim2.fromOffset(220,24) to.Size=UDim2.fromOffset(430,42)
+        to.BackgroundTransparency=1 to.Position=UDim2.fromOffset(292,32) to.Size=UDim2.fromOffset(364,42)
         to.Text='DELIVER TO' to.TextColor3=Color3.fromRGB(61,37,12)
         to.Font=Enum.Font.GothamBold to.TextSize=28 to.TextXAlignment=Enum.TextXAlignment.Left to.Parent=shipping
-        local user=to:Clone() user.Position=UDim2.fromOffset(220,76) user.Size=UDim2.fromOffset(430,112)
-        user.Text='@'..request.recipient user.TextSize=42 user.TextWrapped=true user.Parent=shipping
+        local user=to:Clone() user.Position=UDim2.fromOffset(292,92) user.Size=UDim2.fromOffset(364,180)
+        user.Text='@'..request.recipient user.TextSize=44 user.TextWrapped=true user.Parent=shipping
         -- A separate cream badge keeps the item picture clear of the name and avatar.
-        local badgeWidth=math.min(3.8,boxWidth*.29,boxHeight*.62)
+        local badgeWidth=math.min(2.1,boxWidth*.18,boxDepth*.30)
         local itemBadge=makePart(scene,'ItemPictureSticker',Vector3.new(badgeWidth,badgeWidth,.035),
             Color3.fromRGB(255,246,223))
         itemBadge.Transparency=1 -- Invisible carrier: only the item picture is drawn.
@@ -5266,8 +5267,8 @@ do
         local pictureDistance=math.max(stickerBounds.X,stickerBounds.Y,stickerBounds.Z)*2.25
         pictureCamera.CFrame=CFrame.lookAt(Vector3.new(pictureDistance*.18,pictureDistance*.12,-pictureDistance),Vector3.zero)
         pictureCamera.Parent=viewport viewport.CurrentCamera=pictureCamera
-        local fragileWidth=math.min(4,boxWidth*.5)
-        local fragileHeight=math.min(.8,boxHeight*.18)
+        local fragileWidth=math.min(3,boxWidth*.32)
+        local fragileHeight=math.min(.65,boxDepth*.18)
         local fragile=makePart(scene,'FragileSticker',Vector3.new(fragileWidth,fragileHeight,.035),
             Color3.fromRGB(255,241,214))
         fragile.Transparency=1
@@ -5338,7 +5339,7 @@ do
                 local t=os.clock()-started
                 if previewAvatar then
                     if t<previewDuration then
-                        local angle=-.55+t*.18
+                        local angle=-.35+math.pi*2*smooth((t-.35)/(previewDuration-.45))
                         local aspect=camera.ViewportSize.X/math.max(1,camera.ViewportSize.Y)
                         local distance=previewRadius*math.max(1,1/math.max(.45,aspect))
                         local previewShot=CFrame.lookAt(previewFocus
@@ -5369,8 +5370,8 @@ do
                 local x=0
                 local y=(portalHeight-boxHeight)*(1-flight*flight)
                 if t>=1.95 then y=math.sin(clamp01((t-1.95)/.35)*math.pi)*.3 end
-                local departure=smooth((t-6.95)/.65)
-                if t>=6.95 then y=(pickupHeight-boxHeight*.5-.85)*departure end
+                local departure=smooth((t-7.1)/.55)
+                if t>=7.1 then y=(pickupHeight-boxHeight*.5-.85)*departure end
                 local centerHeight=math.abs(math.cos(roll))*boxHeight*.5+math.abs(math.sin(roll))*halfWidth
                 local parcel=base*CFrame.new(x,y+centerHeight,0)*CFrame.Angles(0,0,roll)
                     *CFrame.new(0,-boxHeight*.5,0)
@@ -5389,7 +5390,7 @@ do
                 local placement=smooth((t-3.55)/.75)
                 local glowAmount=smooth((t-2.85)/.3)*(1-smooth((t-4.45)/.35))
                 local emerge=smooth((t-.55)/.25)
-                local fade=smooth((t-7.48)/.14)
+                local fade=smooth((t-7.55)/.13)
                 for _,object in ipairs(parcelParts) do
                     object.LocalTransparencyModifier=math.max(1-emerge,fade)
                 end
@@ -5428,32 +5429,32 @@ do
                     entry.part.CFrame=base*CFrame.new(entry.x,portalHeight-.15,entry.z)
                     entry.part.Transparency=1-portalAmount*(.32+.10*math.sin(t*1.5+entry.phase))
                 end
-                local ufoArrival=smooth((t-6.35)/.35)
-                local ufoExit=smooth((t-7.6)/.35)
+                local ufoArrival=smooth((t-6.6)/.35)
+                local ufoExit=smooth((t-7.65)/.3)
                 local ufoPosition=Vector3.new((1-ufoArrival)*saucerWidth*2+ufoExit*saucerWidth*.6,
                     pickupHeight+(1-ufoArrival)*8+ufoExit*24,0)
                 local ufoFrame=base*CFrame.new(ufoPosition)
-                local ufoVisibility=smooth((t-6.35)/.25)*(1-smooth((t-7.9)/.1))
+                local ufoVisibility=smooth((t-6.6)/.25)*(1-smooth((t-7.9)/.1))
                 for _,entry in ipairs(ufoParts) do
                     entry.part.CFrame=ufoFrame*entry.offset
                     entry.part.Transparency=1-ufoVisibility
                 end
                 beamTop.CFrame=ufoFrame*CFrame.new(0,-.85,0)
                 beamBottom.CFrame=base*CFrame.new(0,.2,0)
-                local beamAmount=smooth((t-6.8)/.15)*(1-smooth((t-7.58)/.12))
+                local beamAmount=smooth((t-6.95)/.15)*(1-smooth((t-7.63)/.1))
                 tractor.Enabled=beamAmount>.01
                 tractor.Width1=(math.max(boxWidth,boxDepth)+2)*math.max(.15,beamAmount)
                 tractorLight.Brightness=beamAmount*1.1
                 local sealed=t>=4.95
-                local labeled=t>=5.05
+                local labeled=t>=4.85
                 tape.Transparency=sealed and 0 or 1
                 local tapeLength=math.max(.01,(boxDepth+.08)*smooth((t-4.95)/.25))
                 tape.Size=Vector3.new(1.25,.06,tapeLength)
                 tape.CFrame=parcel*CFrame.new(0,boxHeight+.07,-halfDepth-.04+tapeLength*.5)
                 sticker.Transparency=labeled and 0 or 1
                 shipping.Enabled=labeled
-                local slap=1-smooth((t-5.05)/.25)
-                sticker.CFrame=parcel*CFrame.new(-boxWidth*.17,boxHeight*.37,-halfDepth-.09-slap*1.1)
+                local slap=1-smooth((t-4.85)/.25)
+                sticker.CFrame=parcel*CFrame.new(0,boxHeight*.49,-halfDepth-.09-slap*1.1)
                     *CFrame.Angles(0,0,slap*-.12)
                 local parcelCenter=(parcel*CFrame.new(0,boxHeight*.5,0)).Position
                 local aspect=camera.ViewportSize.X/math.max(1,camera.ViewportSize.Y)
@@ -5463,12 +5464,12 @@ do
                     *(1+.18*arrivalZoom)
                 itemBadge.Transparency=1
                 badgeGui.Enabled=labeled
-                itemBadge.CFrame=parcel*CFrame.new(halfWidth-badgeWidth*.62,boxHeight*.56,-halfDepth-.115-slap*1.1)
-                    *CFrame.Angles(0,0,math.rad(9)-slap*.12)
+                itemBadge.CFrame=parcel*CFrame.new(boxWidth*.29,boxHeight+.13+slap*.4,-boxDepth*.06)
+                    *CFrame.Angles(math.pi*.5,0,math.rad(9)-slap*.12)
                 fragile.Transparency=labeled and 0 or 1
                 fragileGui.Enabled=labeled
-                fragile.CFrame=parcel*CFrame.new(-boxWidth*.17,boxHeight*.80,-halfDepth-.12-slap*1.1)
-                    *CFrame.Angles(0,0,math.rad(-4)*slap)
+                fragile.CFrame=parcel*CFrame.new(-boxWidth*.29,boxHeight+.14+slap*.4,0)
+                    *CFrame.Angles(math.pi*.5,0,math.rad(-4)*slap)
                 local arrivalFocus=parcelCenter+Vector3.new(0,2*(1-flight),0)
                 local arrival=CFrame.lookAt(floor+base.LookVector*arrivalDistance
                     +base.RightVector*(boxWidth*.25)+Vector3.new(0,3,0),arrivalFocus)
@@ -5477,7 +5478,12 @@ do
                 local revealShot=CFrame.lookAt(floor+base.LookVector*(framing*.60)
                     +Vector3.new(.25,revealTarget+framing*1.15,0),floor+Vector3.new(0,revealTarget,0))
                 -- Return to the original front label, viewed from a raised three-quarter angle.
-                local labelShot=frameParcel(base,floor,boxWidth,boxHeight,boxDepth,aspect,48)
+                local labelWide=frameParcel(base,floor,boxWidth,boxHeight,boxDepth,aspect,48)
+                local labelBase=base*CFrame.new(0,boxHeight*.49-labelHeight*.5,-halfDepth-.13)
+                local labelClose=frameParcel(labelBase,labelBase.Position,labelWidth,labelHeight,.06,aspect,48)
+                -- Read the avatar and username, then return to the full parcel before collection.
+                local portraitZoom=smooth((t-5.15)/.35)*(1-smooth((t-6.2)/.45))
+                local labelShot=labelWide:Lerp(labelClose,portraitZoom)
                 local shot=arrival:Lerp(revealShot,smooth((t-2.3)/.55))
                 if category=='Pets' then
                     -- A close tracking shot makes the enlarged front pet clearly readable.
@@ -5498,14 +5504,14 @@ do
                     *math.max(1,.95/math.max(.45,aspect))
                 local exitShot=CFrame.lookAt(floor+base.LookVector*exitDistance
                     +base.RightVector*(boxWidth*.35)+Vector3.new(0,pickupHeight+7,0),exitFocus)
-                shot=shot:Lerp(exitShot,smooth((t-6.55)/.4))
+                shot=shot:Lerp(exitShot,smooth((t-6.8)/.3))
                 camera.CFrame=sequenceStart:Lerp(shot,smooth((t-previewDuration)/.45))
-                local fov=62+4*arrivalZoom-18*smooth((t-2.3)/.6)+12*smooth((t-6.55)/.4)
+                local fov=62+4*arrivalZoom-18*smooth((t-2.3)/.6)+12*smooth((t-6.8)/.3)
                 camera.FieldOfView=state.fov+(fov-state.fov)*smooth(t/.35)
-                local focus=t<2.3 and arrivalFocus or (t>=6.55 and exitFocus or floor+Vector3.new(0,boxHeight*.65,0))
+                local focus=t<2.3 and arrivalFocus or (t>=6.8 and exitFocus or floor+Vector3.new(0,boxHeight*.65,0))
                 camera.Focus=CFrame.new(focus)
-                if t>7.7 then
-                    local back=smooth((t-7.7)/.3)
+                if t>7.75 then
+                    local back=smooth((t-7.75)/.25)
                     camera.CFrame=camera.CFrame:Lerp(state.cframe,back)
                     camera.FieldOfView=fov+(state.fov-fov)*back
                 end
@@ -5514,7 +5520,7 @@ do
                     parcelCenter+base.RightVector*halfWidth,
                     parcelCenter-base.RightVector*halfWidth
                 })
-                if t>=7.65 and not dispatched then dispatched=true; dispatchCaption() end
+                if t>=7.7 and not dispatched then dispatched=true; dispatchCaption() end
                 if t>=8 then cleanup(state) end
             end,debug.traceback)
             if not ok then state.error=err; cleanup(state) end
