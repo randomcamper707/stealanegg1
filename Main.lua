@@ -3444,16 +3444,23 @@ prompt.BackgroundTransparency=1; prompt.Parent=Console
 local promptMark=label(prompt,">",UDim2.fromOffset(0,0),UDim2.fromOffset(20,28),14)
 promptMark.Font=Enum.Font.Code; promptMark.TextColor3=consoleText
 local ci=Instance.new("TextBox")
-ci.Position=UDim2.fromOffset(22,0); ci.Size=UDim2.new(1,-106,1,0)
+ci.Position=UDim2.fromOffset(22,0); ci.Size=UDim2.new(1,-22,1,0)
 ci.BackgroundTransparency=1; ci.BorderSizePixel=0
 ci.Text=""; ci.PlaceholderText="Enter a command..."
 ci.PlaceholderColor3=consoleMuted; ci.TextColor3=consoleText
 ci.Font=Enum.Font.Code; ci.TextSize=14
 ci.ClearTextOnFocus=false; ci.TextXAlignment=Enum.TextXAlignment.Left
 ci.Parent=prompt
+local showCommands,chooseItem
+local activeCommand=nil
 local commandSerial=0
 local errorInput=nil
 ci:GetPropertyChangedSignal("Text"):Connect(function()
+    local prefix=ci.Text:match("^%s*(/%S+)")
+    if activeCommand and (not prefix or prefix:lower()~=activeCommand) then
+        showCommands()
+        return
+    end
     if errorInput and ci.Text==errorInput then return end
     errorInput=nil
     ci.TextColor3=consoleText
@@ -3499,7 +3506,6 @@ local remoteActions={
     ["/givetreadmill"]="GiveTreadmill", ["/giveeggs"]="GiveEggs",
     ["/givepets"]="GivePets", ["/givestars"]="GiveStars"
 }
-local showCommands,chooseItem
 local choiceOrder=0
 local function trim(value)
     return tostring(value or ""):match("^%s*(.-)%s*$")
@@ -3539,7 +3545,7 @@ local function resolveRecipient(value,raw)
         errorInput=raw
         ci.Text=raw
         ci.TextColor3=C.red promptMark.TextColor3=C.red
-        line(timedOut and "Username check timed out. Try again or press Back." or "Username not found. Check it and try again.",C.red)
+        line(timedOut and "Username check timed out. Try again or press Ctrl." or "Username not found. Check it and try again.",C.red)
         ci:CaptureFocus()
         ci.CursorPosition=#ci.Text+1
         return nil
@@ -3561,6 +3567,7 @@ local function choice(text,callback)
     b.MouseButton1Click:Connect(callback)
 end
 local function prefill(text)
+    activeCommand=(text:match("^(%S+)") or ""):lower()
     commandSerial+=1
     ci.Text=text
     ci:CaptureFocus()
@@ -3576,6 +3583,7 @@ local function recipientChoices(cmd,item)
     line("Type the recipient's username, then press Enter.",consoleMuted)
 end
 chooseItem=function(cmd)
+    activeCommand=cmd
     commandSerial+=1
     clearChoices()
     ci.Text=cmd.." "
@@ -3587,9 +3595,9 @@ chooseItem=function(cmd)
             recipientChoices(cmd,item)
         end)
     end
-    choice("Back",function() ci.Text=""; showCommands() end)
 end
 showCommands=function()
+    activeCommand=nil
     commandSerial+=1
     errorInput=nil
     ci.Text=""
@@ -3604,13 +3612,14 @@ showCommands=function()
         end)
     end
 end
--- This control is outside the scrolling choices and remains usable in every state.
-local back=button(prompt,"Back",UDim2.new(1,-72,0,0),UDim2.fromOffset(72,28),true)
-back.Name="ConsoleBack" back.Font=Enum.Font.Code back.TextSize=12 back.TextColor3=consoleMuted
-back.MouseButton1Click:Connect(function()
-    showCommands()
-    ci:CaptureFocus()
+-- Ctrl returns to the command list without adding another button to the panel.
+local resetConnection=UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode==Enum.KeyCode.LeftControl or input.KeyCode==Enum.KeyCode.RightControl then
+        showCommands()
+        if Console.Visible then ci:CaptureFocus() end
+    end
 end)
+Gui.Destroying:Connect(function() resetConnection:Disconnect() end)
 local function canonicalItem(cmd,value)
     for _,item in ipairs(branchItems[cmd] or {}) do
         if item:lower()==value:lower() then return item end
@@ -3627,6 +3636,7 @@ local function command(raw)
     if cmd=="/back" or cmd=="/cancel" then showCommands(); return end
     if cmd=="/announcements" or cmd=="/announcement" then
         if rest=="" then line("Enter a message.",C.red); return end
+        Console.Visible=false
         callRemote("Announcement",rest)
         notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,":","",rest,Enum.Font.FredokaOne)
         line("Announcement shown.")
@@ -3638,6 +3648,7 @@ local function command(raw)
         local account=resolveRecipient(rest,raw)
         if not account then return end
         local target=account.display
+        Console.Visible=false
         callRemote("GiveVPS",account.name)
         notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent","PRIVATE SERVER","to "..target)
         line("PRIVATE SERVER -> "..target)
@@ -3676,6 +3687,7 @@ local function command(raw)
     elseif cmd=="/givestars" then description=quantity==1 and "Star" or "Stars"
     else description=item end
     local sent=quantity.."× "..description
+    Console.Visible=false
     callRemote(remoteActions[cmd],account.name,item,quantity)
     notice(CFG.AnnouncementProfile.UserId,CFG.AnnouncementProfile.Name,": sent",sent,"to "..target)
     line(sent.." -> "..target)
@@ -3693,10 +3705,11 @@ local function submit(raw)
     local ok,err=xpcall(function() command(raw) end,debug.traceback)
     if not ok and Console.Parent then
         -- Restore a usable prompt even if a game remote or UI callback fails.
+        Console.Visible=true
         showCommands()
         errorInput=raw
         ci.Text=raw ci.TextColor3=C.red promptMark.TextColor3=C.red
-        line("Command could not finish. Try again or press Back.",C.red)
+        line("Command could not finish. Try again or press Ctrl.",C.red)
         ci:CaptureFocus()
         warn("[SAE] Console command: "..tostring(err))
     end
@@ -4075,11 +4088,25 @@ local function star()
     local gold,edge,dark=rgb(255,233,63),rgb(229,188,24),rgb(50,43,20)
     local root=part(m,'StarCore',Vector3.new(1,1,.8),gold,CFrame.new(),MAT)
     -- A true upright five-point outline with a shallow, studded toy surface.
-    local vertices={}
+    local corners={}
     for index=0,9 do
         local angle=math.pi*.5+index*math.pi/5
         local radius=index%2==0 and 3.35 or 1.70
-        vertices[#vertices+1]=Vector2.new(math.cos(angle)*radius,math.sin(angle)*radius)
+        corners[#corners+1]=Vector2.new(math.cos(angle)*radius,math.sin(angle)*radius)
+    end
+    -- Round both the five outer tips and the valleys with quadratic fillets.
+    local vertices={}
+    for index,corner in ipairs(corners) do
+        local previous=corners[(index-2)%#corners+1]
+        local following=corners[index%#corners+1]
+        local trim=index%2==1 and .26 or .16
+        local entry=corner+(previous-corner)*trim
+        local exit=corner+(following-corner)*trim
+        for sample=0,12 do
+            local t=sample/12
+            local point=entry*((1-t)^2)+corner*(2*(1-t)*t)+exit*(t*t)
+            vertices[#vertices+1]=point
+        end
     end
     local function intersections(y)
         local xs={}
@@ -4099,8 +4126,8 @@ local function star()
         end
         return false
     end
-    local step=6.7/58
-    for row=0,57 do
+    local step=6.7/96
+    for row=0,95 do
         local y=-3.35+(row+.5)*step
         local xs=intersections(y)
         for index=1,#xs-1,2 do
@@ -4140,7 +4167,7 @@ local function star()
     sparkle.Size=NumberSequence.new(.15,0) sparkle.Transparency=NumberSequence.new(.15,1)
     sparkle.Rate=3 sparkle.Lifetime=NumberRange.new(.35,.7) sparkle.Speed=NumberRange.new(.3,.7)
     sparkle.SpreadAngle=Vector2.new(35,35) sparkle.LightEmission=.6 sparkle.Parent=attachment
-    m:SetAttribute('SAE_STAR_REFERENCE','Yellow five-point studded smiling star')
+    m:SetAttribute('SAE_STAR_REFERENCE','Rounded yellow five-point studded smiling star')
     return finalize(m,root)
 end
 
@@ -4894,7 +4921,7 @@ local function clone(src,name)if not src then return nil end local ok,c=pcall(fu
 local function fit(m,target)local ok,s=pcall(function()return m:GetExtentsSize()end)if ok then local mx=math.max(s.X,s.Y,s.Z)if mx>.01 then pcall(function()m:ScaleTo(target/mx)end)end end end
 -- Prefer the actual held/backpack star; source() intentionally skips character models.
 local function inventoryStar()
-    local names={star=true,stars=true,startool=true,goldenstar=true,goldstar=true,divinestar=true}
+    local names={star=true,stars=true,startool=true,goldenstar=true,goldenstars=true,goldstar=true,divinestar=true}
     local holders={}
     if P.Character then holders[#holders+1]=P.Character end
     if BP then holders[#holders+1]=BP end
@@ -4904,6 +4931,13 @@ local function inventoryStar()
                 local matched=names[norm(tool.Name):gsub('%d','')]==true
                 for _,attribute in ipairs({'ItemName','DisplayName','Title','Type'}) do
                     if names[norm(tool:GetAttribute(attribute))] then matched=true end
+                end
+                if not matched then
+                    for _,object in ipairs(tool:GetDescendants()) do
+                        if (object:IsA('Model') or object:IsA('BasePart')) and names[norm(object.Name)] then
+                            matched=true; break
+                        end
+                    end
                 end
                 if matched then
                     local copy=clone(tool,'Star')
@@ -4919,6 +4953,7 @@ local function inventoryStar()
     end
 end
 local function buildModel(cat,name)
+    if cat=='Star' and name=='Star' then local m=star(); fit(m,7.5); return m,false end
     if name=="Ben's Treadmill" then return customTreadmill(name,false),false end
     if name=="Brocodile's Treadmill" then return customTreadmill(name,true),false end
     if cat=='Eggs' and EGG_DESIGNS[name] then local m=buildSculptedEgg(name) if m then return m,false end end if cat=='Pets' and (name=='Night Flame' or name=='Luminous Cthulhu') then local f=Built[name] if f then local m=f() fit(m,16) return m,false end end local src=source(cat,name)if src then local m=clone(src,name)if m then fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,true end end local f=Built[name]if f then local m=f()fit(m,cat=='Pets'and 16 or cat=='Eggs'and 10.5 or 7.5)return m,false end return nil,false end
@@ -5399,7 +5434,7 @@ do
         portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=.7 portalLight.Parent=portal[1].part
         local tape=piece('YellowSealTape',Vector3.new(1.25,.06,boxDepth+.08),CFrame.new(0,boxHeight+.07,0),Color3.fromRGB(255,208,48))
         tape.Transparency=1
-        local labelWidth=math.min(boxWidth*.88,boxHeight*.78*680/300)
+        local labelWidth=math.min(boxWidth*.88,boxHeight*.62*680/300)
         local labelHeight=labelWidth*300/680
         local sticker=makePart(scene,'CourierSticker',Vector3.new(labelWidth,labelHeight,.03),Color3.fromRGB(255,212,52))
         sticker.Transparency=1
@@ -5419,7 +5454,7 @@ do
         local user=to:Clone() user.Position=UDim2.fromOffset(292,92) user.Size=UDim2.fromOffset(364,180)
         user.Text='@'..request.recipient user.TextSize=44 user.TextWrapped=true user.Parent=shipping
         -- A separate cream badge keeps the item picture clear of the name and avatar.
-        local badgeWidth=math.min(2.1,boxWidth*.18,boxDepth*.30)
+        local badgeWidth=math.min(2.1,boxWidth*.20,boxHeight*.23)
         local itemBadge=makePart(scene,'ItemPictureSticker',Vector3.new(badgeWidth,badgeWidth,.035),
             Color3.fromRGB(255,246,223))
         itemBadge.Transparency=1 -- Invisible carrier: only the item picture is drawn.
@@ -5445,7 +5480,7 @@ do
         pictureCamera.CFrame=CFrame.lookAt(Vector3.new(pictureDistance*.18,pictureDistance*.12,-pictureDistance),Vector3.zero)
         pictureCamera.Parent=viewport viewport.CurrentCamera=pictureCamera
         local fragileWidth=math.min(3,boxWidth*.32)
-        local fragileHeight=math.min(.65,boxDepth*.18)
+        local fragileHeight=math.min(.65,boxHeight*.17)
         local fragile=makePart(scene,'FragileSticker',Vector3.new(fragileWidth,fragileHeight,.035),
             Color3.fromRGB(255,241,214))
         fragile.Transparency=1
@@ -5643,7 +5678,7 @@ do
                 if shipping.Enabled~=labeled then shipping.Enabled=labeled end
                 local slap=1-smooth((t-4.85)/.25)
                 if not parcelRig then
-                    sticker.CFrame=parcel*CFrame.new(0,boxHeight*.49,-halfDepth-.09-slap*1.1)
+                    sticker.CFrame=parcel*CFrame.new(0,boxHeight*.38,-halfDepth-.09-slap*1.1)
                         *CFrame.Angles(0,0,slap*-.12)
                 end
                 local parcelCenter=(parcel*CFrame.new(0,boxHeight*.5,0)).Position
@@ -5655,14 +5690,14 @@ do
                 itemBadge.Transparency=1
                 if badgeGui.Enabled~=labeled then badgeGui.Enabled=labeled end
                 if not parcelRig then
-                itemBadge.CFrame=parcel*CFrame.new(boxWidth*.29,boxHeight+.13+slap*.4,-boxDepth*.06)
-                    *CFrame.Angles(math.pi*.5,0,math.rad(9)-slap*.12)
+                itemBadge.CFrame=parcel*CFrame.new(boxWidth*.28,boxHeight*.84,-halfDepth-.13-slap*.7)
+                    *CFrame.Angles(0,0,math.rad(9)-slap*.12)
                 end
                 fragile.Transparency=labeled and 0 or 1
                 if fragileGui.Enabled~=labeled then fragileGui.Enabled=labeled end
                 if not parcelRig then
-                fragile.CFrame=parcel*CFrame.new(-boxWidth*.29,boxHeight+.14+slap*.4,0)
-                    *CFrame.Angles(math.pi*.5,0,math.rad(-4)*slap)
+                fragile.CFrame=parcel*CFrame.new(-boxWidth*.23,boxHeight*.84,-halfDepth-.14-slap*.7)
+                    *CFrame.Angles(0,0,math.rad(-4)*slap)
                 end
                 if t>=5.3 and not parcelRig then
                     -- One transform moves the sealed package and every attached label in lockstep.
@@ -5682,7 +5717,7 @@ do
                     +Vector3.new(.25,revealTarget+framing*1.15,0),floor+Vector3.new(0,revealTarget,0))
                 -- Return to the original front label, viewed from a raised three-quarter angle.
                 local labelWide=frameParcel(base,floor,boxWidth,boxHeight,boxDepth,aspect,48)
-                local labelBase=base*CFrame.new(0,boxHeight*.49-labelHeight*.5,-halfDepth-.13)
+                local labelBase=base*CFrame.new(0,boxHeight*.38-labelHeight*.5,-halfDepth-.13)
                 local labelClose=frameParcel(labelBase,labelBase.Position,labelWidth,labelHeight,.06,aspect,48)
                 -- Read the avatar and username, then return to the full parcel before collection.
                 local portraitZoom=smooth((t-5.15)/.35)*(1-smooth((t-6.2)/.45))
