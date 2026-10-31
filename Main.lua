@@ -4785,7 +4785,7 @@ do
     local Run=game:GetService('RunService')
     local Debris=game:GetService('Debris')
     local Input=game:GetService('UserInputService')
-    local purple=Color3.fromRGB(92,35,154)
+    local purple=Color3.fromRGB(48,20,72)
     local cardboard=Color3.fromRGB(171,119,65)
     local function clamp01(value) return math.clamp(value,0,1) end
     local function smooth(value) value=clamp01(value); return value*value*(3-2*value) end
@@ -4828,6 +4828,7 @@ do
         if state.connection then state.connection:Disconnect() end
         restoreCamera(state,force)
         if state.console and state.console.Parent then state.console.Visible=state.consoleVisible end
+        if state.itemStickerGui then state.itemStickerGui:Destroy() end
         if state.scene then state.scene:Destroy() end
         if state.finished then state.finished:Fire() end
     end
@@ -4984,6 +4985,17 @@ do
             recipientId=id
         end
         if runtime.dead or request.generation~=runtime.generation then template:Destroy(); return end
+        -- Fetch meshes, textures, portal particles and the portrait before the camera takes over.
+        local portrait=Instance.new('ImageLabel')
+        portrait.Image='rbxthumb://type=AvatarHeadShot&id='..recipientId..'&w=150&h=150'
+        local preloadOk,preloadError=pcall(function()
+            game:GetService('ContentProvider'):PreloadAsync({template,portrait,
+                'rbxasset://textures/particles/sparkles_main.dds',
+                'rbxasset://textures/particles/smoke_main.dds'})
+        end)
+        portrait:Destroy()
+        if runtime.dead or request.generation~=runtime.generation then template:Destroy(); return end
+        if not preloadOk then template:Destroy(); error('Parcel assets could not be prepared: '..tostring(preloadError)) end
         -- Place the scene on the floor in front of the sender, excluding their character.
         local forward=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
         if forward.Magnitude<.01 then forward=Vector3.new(0,0,-1) else forward=forward.Unit end
@@ -5033,13 +5045,19 @@ do
             flaps[#flaps+1]={part=endLid,side=side,axis='z'}
         end
         for index=1,request.quantity do
-            local item=template:Clone() item.Name='ParcelItem'..index item.Parent=scene
+            local item=template:Clone() item.Name='ParcelItem'..index
+            -- Never show a newly parented clone at its source pivot for one frame.
+            for _,object in ipairs(item:GetDescendants()) do
+                if object:IsA('BasePart') then object.LocalTransparencyModifier=1 end
+            end
+            item.Parent=scene
             local boxCf,size=item:GetBoundingBox()
             local pivotToBounds=item:GetPivot():ToObjectSpace(boxCf)
             contents[#contents+1]={model=item,size=size,correction=pivotToBounds:Inverse(),
                 x=request.quantity==1 and 0 or (index==1 and -slotWidth*.5 or index==2 and slotWidth*.5 or 0),
                 z=request.quantity==1 and 0 or (index<3 and slotDepth*.5 or -slotDepth*.5),index=index}
         end
+        local stickerModel=template:Clone()
         template:Destroy()
         local glow=makePart(scene,'RevealGlow',Vector3.new(.1,.1,.1),purple,Enum.Material.Neon)
         glow.Transparency=1
@@ -5047,36 +5065,47 @@ do
         local portalEffects={}
         for index=1,64 do
             local angle=(index-1)/32*math.pi*2
-            local segment=makePart(scene,'PortalArc',Vector3.new(.15,.13,.98),index<=32 and purple or Color3.fromRGB(114,57,173),Enum.Material.Neon)
+            local segment=makePart(scene,'PortalArc',Vector3.new(.15,.13,.98),index<=32 and purple or Color3.fromRGB(72,39,94),Enum.Material.Neon)
             segment.CastShadow=false
             portal[#portal+1]={part=segment,angle=angle,band=index<=32 and 1 or .83}
             portalEffects[segment]=true
         end
         -- A luminous interior and rotating rings read as a portal rather than a bare hoop.
-        local iris=makePart(scene,'PortalIris',Vector3.new(.08,portalRadius*1.84,portalRadius*1.84),Color3.fromRGB(14,5,27),Enum.Material.SmoothPlastic)
+        local iris=makePart(scene,'PortalIris',Vector3.new(.08,portalRadius*1.84,portalRadius*1.84),Color3.fromRGB(5,2,11),Enum.Material.SmoothPlastic)
         iris.Shape=Enum.PartType.Cylinder
         iris.CastShadow=false
         portalEffects[iris]=true
         local sparks=Instance.new('ParticleEmitter')
         sparks.Name='PortalSparks'
         sparks.Texture='rbxasset://textures/particles/sparkles_main.dds'
-        sparks.Color=ColorSequence.new(Color3.fromRGB(126,75,167),purple)
+        sparks.Color=ColorSequence.new(Color3.fromRGB(128,108,151),purple)
         sparks.Size=NumberSequence.new(.16,0)
-        sparks.Transparency=NumberSequence.new(.15,1)
-        sparks.LightEmission=.35 sparks.Rate=14
+        sparks.Transparency=NumberSequence.new(.5,1)
+        sparks.LightEmission=.15 sparks.Rate=5
         sparks.Lifetime=NumberRange.new(.35,.8) sparks.Speed=NumberRange.new(.4,1.3)
         sparks.SpreadAngle=Vector2.new(180,180)
         sparks.Acceleration=Vector3.new(0,-2,0)
         sparks.Parent=iris
         local mist=Instance.new('ParticleEmitter')
         mist.Name='PortalMist' mist.Texture='rbxasset://textures/particles/smoke_main.dds'
-        mist.Color=ColorSequence.new(Color3.fromRGB(16,8,26),Color3.fromRGB(56,22,82))
-        mist.Size=NumberSequence.new(.7,1.5) mist.Transparency=NumberSequence.new(.55,1)
+        mist.Color=ColorSequence.new(Color3.fromRGB(3,2,7),Color3.fromRGB(24,12,36))
+        mist.Size=NumberSequence.new(1.3,2.7) mist.Transparency=NumberSequence.new(.32,1)
         mist.Lifetime=NumberRange.new(.8,1.4) mist.Speed=NumberRange.new(.3,.9)
         mist.Rate=12 mist.LightEmission=0 mist.LightInfluence=.6
         mist.Rotation=NumberRange.new(-180,180) mist.RotSpeed=NumberRange.new(-15,15)
         mist.SpreadAngle=Vector2.new(180,180) mist.EmissionDirection=Enum.NormalId.Right
         mist.Parent=iris
+        local portalStars={}
+        for index=1,11 do
+            local angle=index*2.39996
+            local radius=portalRadius*math.sqrt(index/12)*.76
+            local size=index%3==0 and .17 or .10
+            local star=makePart(scene,'PortalStar',Vector3.new(size,size,size),
+                Color3.fromRGB(159,143,179),Enum.Material.Neon)
+            star.Shape=Enum.PartType.Ball star.CastShadow=false star.Transparency=1
+            portalStars[#portalStars+1]={part=star,x=math.cos(angle)*radius,z=math.sin(angle)*radius,phase=index}
+            portalEffects[star]=true
+        end
         -- The collector is separate from the parcel: no ground ring or exit portal.
         local ufoParts={}
         local function saucerPart(name,size,offset,color,material,shape)
@@ -5097,6 +5126,25 @@ do
             CFrame.new(0,.9,0),Color3.fromRGB(54,88,77),Enum.Material.Glass,Enum.PartType.Ball)
         saucerPart('UFOTractorAperture',Vector3.new(.18,3,3),
             CFrame.new(0,-.72,0)*CFrame.Angles(0,0,math.pi*.5),green,Enum.Material.Neon,Enum.PartType.Cylinder)
+        -- A raised, layered roof gives the craft a readable silhouette from above and below.
+        for index=1,4 do
+            local diameter=saucerWidth*(.88-index*.115)
+            saucerPart('UFORoofTier'..index,Vector3.new(.40,diameter,diameter),
+                CFrame.new(0,.65+index*.32,0)*CFrame.Angles(0,0,math.pi*.5),
+                Color3.fromRGB(62+index*5,65+index*5,78+index*5),Enum.Material.Metal,Enum.PartType.Cylinder)
+        end
+        saucerPart('UFORoofCrown',Vector3.new(saucerWidth*.28,2.1,saucerWidth*.28),
+            CFrame.new(0,2.15,0),Color3.fromRGB(85,139,116),Enum.Material.Glass,Enum.PartType.Ball)
+        saucerPart('UFOAntenna',Vector3.new(.12,1.15,.12),
+            CFrame.new(0,3.35,0),metal,Enum.Material.Metal)
+        saucerPart('UFOBeacon',Vector3.new(.32,.32,.32),
+            CFrame.new(0,3.98,0),green,Enum.Material.Neon,Enum.PartType.Ball)
+        for index=1,8 do
+            local angle=index/8*math.pi*2
+            saucerPart('UFOCabinWindow',Vector3.new(.8,.32,.13),
+                CFrame.new(math.sin(angle)*saucerWidth*.25,1.52,math.cos(angle)*saucerWidth*.25)
+                    *CFrame.Angles(0,angle,0),Color3.fromRGB(122,219,174),Enum.Material.Neon)
+        end
         for index=1,10 do
             local angle=index/10*math.pi*2
             saucerPart('UFOLamp',Vector3.new(.35,.16,.35),
@@ -5121,7 +5169,7 @@ do
         portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=.7 portalLight.Parent=portal[1].part
         local tape=piece('YellowSealTape',Vector3.new(1.25,.06,boxDepth+.08),CFrame.new(0,boxHeight+.07,0),Color3.fromRGB(255,208,48))
         tape.Transparency=1
-        local labelWidth=category=='Pets' and math.min(boxWidth*.78,9) or 4.8
+        local labelWidth=math.min(category=='Pets' and math.min(boxWidth*.78,9) or 4.8,boxWidth*.68)
         local sticker=makePart(scene,'CourierSticker',Vector3.new(labelWidth,category=='Pets' and labelWidth*216/680 or 1.525,.03),Color3.fromRGB(255,212,52))
         sticker.Transparency=1
         local shipping=Instance.new('SurfaceGui')
@@ -5139,6 +5187,32 @@ do
         to.Font=Enum.Font.GothamBold to.TextSize=28 to.TextXAlignment=Enum.TextXAlignment.Left to.Parent=shipping
         local user=to:Clone() user.Position=UDim2.fromOffset(220,76) user.Size=UDim2.fromOffset(430,112)
         user.Text='@'..request.recipient user.TextSize=42 user.TextWrapped=true user.Parent=shipping
+        -- A separate cream badge keeps the item picture clear of the name and avatar.
+        local badgeWidth=math.min(1.7,boxWidth*.20)
+        local itemBadge=makePart(scene,'ItemPictureSticker',Vector3.new(badgeWidth,badgeWidth,.035),
+            Color3.fromRGB(255,246,223))
+        itemBadge.Transparency=1
+        local badgeGui=Instance.new('SurfaceGui')
+        badgeGui.Name='ItemPictureLabel' badgeGui.Adornee=itemBadge
+        badgeGui.Face=Enum.NormalId.Front badgeGui.CanvasSize=Vector2.new(192,192)
+        badgeGui.LightInfluence=0 badgeGui.Enabled=false badgeGui.Parent=PG
+        state.itemStickerGui=badgeGui
+        local viewport=Instance.new('ViewportFrame')
+        viewport.Name='SelectedItemPicture' viewport.Size=UDim2.fromScale(1,1)
+        viewport.BackgroundTransparency=1 viewport.Ambient=Color3.fromRGB(210,205,220)
+        viewport.LightColor=Color3.fromRGB(255,245,226)
+        viewport.LightDirection=Vector3.new(-1,-1,-2) viewport.Parent=badgeGui
+        local world=Instance.new('WorldModel') world.Parent=viewport
+        stickerModel.Name='StickerItem' stickerModel.Parent=world
+        local stickerBounds=stickerModel:GetExtentsSize()
+        local boundsFrame=stickerModel:GetBoundingBox()
+        local correction=stickerModel:GetPivot():ToObjectSpace(boundsFrame):Inverse()
+        stickerModel:PivotTo(CFrame.new()*correction)
+        local pictureCamera=Instance.new('Camera')
+        pictureCamera.FieldOfView=32
+        local pictureDistance=math.max(stickerBounds.X,stickerBounds.Y,stickerBounds.Z)*2.25
+        pictureCamera.CFrame=CFrame.lookAt(Vector3.new(pictureDistance*.18,pictureDistance*.12,-pictureDistance),Vector3.zero)
+        pictureCamera.Parent=viewport viewport.CurrentCamera=pictureCamera
         local parcelParts={}
         for _,object in ipairs(scene:GetDescendants()) do
             if object:IsA('BasePart') and not portalEffects[object] and object~=glow then
@@ -5164,12 +5238,12 @@ do
                 local x=0
                 local y=(portalHeight-boxHeight)*(1-flight*flight)
                 if t>=1.95 then y=math.sin(clamp01((t-1.95)/.35)*math.pi)*.3 end
-                local departure=smooth((t-6.4)/.95)
-                if t>=6.4 then y=(pickupHeight-boxHeight*.5-.85)*departure end
+                local departure=smooth((t-6.95)/.65)
+                if t>=6.95 then y=(pickupHeight-boxHeight*.5-.85)*departure end
                 local centerHeight=math.abs(math.cos(roll))*boxHeight*.5+math.abs(math.sin(roll))*halfWidth
                 local parcel=base*CFrame.new(x,y+centerHeight,0)*CFrame.Angles(0,0,roll)
                     *CFrame.new(0,-boxHeight*.5,0)
-                local opening=smooth((t-2.35)/.45)*(1-smooth((t-4.75)/.45))
+                local opening=smooth((t-2.35)/.45)*(1-smooth((t-4.45)/.45))
                 for _,entry in ipairs(pieces) do entry.part.CFrame=parcel*entry.offset end
                 for _,flap in ipairs(flaps) do
                     local angle=opening*math.rad(205)
@@ -5182,9 +5256,9 @@ do
                     end
                 end
                 local placement=smooth((t-3.55)/.75)
-                local glowAmount=smooth((t-2.85)/.3)*(1-smooth((t-4.75)/.35))
+                local glowAmount=smooth((t-2.85)/.3)*(1-smooth((t-4.45)/.35))
                 local emerge=smooth((t-.55)/.25)
-                local fade=smooth((t-7.18)/.18)
+                local fade=smooth((t-7.48)/.14)
                 for _,object in ipairs(parcelParts) do
                     object.LocalTransparencyModifier=math.max(1-emerge,fade)
                 end
@@ -5192,10 +5266,12 @@ do
                     -- Hold each item fully above the opening, then lower it into the parcel.
                     local lowering=smooth((t-(3.55+(entry.index-1)*.12))/.5)
                     local hovering=boxHeight+1.1
-                    local bottom=hovering+(.28-hovering)*lowering
+                    local approach=smooth((t-(2.55+(entry.index-1)*.08))/.9)
+                    local incoming=hovering+math.max(30,entry.size.Y*5)*(1-approach)
+                    local bottom=incoming+(.28-incoming)*lowering
                     local position=Vector3.new(entry.x,bottom+entry.size.Y*.5,entry.z)
                     entry.model:PivotTo(parcel*CFrame.new(position)*CFrame.Angles(0,(1-lowering)*.16,0)*entry.correction)
-                    local visible=smooth((t-(2.85+(entry.index-1)*.07))/.2)
+                    local visible=t>=2.55 and 1 or 0
                     for _,object in ipairs(entry.model:GetDescendants()) do
                         if object:IsA('BasePart') then
                             object.LocalTransparencyModifier=math.max(1-visible,fade)
@@ -5212,36 +5288,40 @@ do
                     entry.part.Transparency=1-portalAmount*.92
                 end
                 iris.CFrame=base*CFrame.new(0,portalHeight,0)*CFrame.Angles(0,0,math.pi*.5)
-                iris.Transparency=1-portalAmount*.92
+                iris.Transparency=1-portalAmount*.985
                 sparks.Enabled=portalAmount>.15
                 mist.Enabled=portalAmount>.15
-                portalLight.Brightness=portalAmount*.75
-                local ufoArrival=smooth((t-5.85)/.5)
-                local ufoExit=smooth((t-7.3)/.45)
+                portalLight.Brightness=portalAmount*.3
+                for _,entry in ipairs(portalStars) do
+                    entry.part.CFrame=base*CFrame.new(entry.x,portalHeight-.15,entry.z)
+                    entry.part.Transparency=1-portalAmount*(.32+.10*math.sin(t*1.5+entry.phase))
+                end
+                local ufoArrival=smooth((t-6.35)/.35)
+                local ufoExit=smooth((t-7.6)/.35)
                 local ufoPosition=Vector3.new((1-ufoArrival)*saucerWidth*2+ufoExit*saucerWidth*.6,
                     pickupHeight+(1-ufoArrival)*8+ufoExit*24,0)
                 local ufoFrame=base*CFrame.new(ufoPosition)
-                local ufoVisibility=smooth((t-5.85)/.25)*(1-smooth((t-7.65)/.15))
+                local ufoVisibility=smooth((t-6.35)/.25)*(1-smooth((t-7.9)/.1))
                 for _,entry in ipairs(ufoParts) do
                     entry.part.CFrame=ufoFrame*entry.offset
                     entry.part.Transparency=1-ufoVisibility
                 end
                 beamTop.CFrame=ufoFrame*CFrame.new(0,-.85,0)
                 beamBottom.CFrame=base*CFrame.new(0,.2,0)
-                local beamAmount=smooth((t-6.25)/.15)*(1-smooth((t-7.25)/.12))
+                local beamAmount=smooth((t-6.8)/.15)*(1-smooth((t-7.58)/.12))
                 tractor.Enabled=beamAmount>.01
                 tractor.Width1=(math.max(boxWidth,boxDepth)+2)*math.max(.15,beamAmount)
                 tractorLight.Brightness=beamAmount*1.1
-                local sealed=t>=5.25
-                local labeled=t>=5.45
+                local sealed=t>=4.95
+                local labeled=t>=5.05
                 tape.Transparency=sealed and 0 or 1
-                local tapeLength=math.max(.01,(boxDepth+.08)*smooth((t-5.25)/.35))
+                local tapeLength=math.max(.01,(boxDepth+.08)*smooth((t-4.95)/.25))
                 tape.Size=Vector3.new(1.25,.06,tapeLength)
                 tape.CFrame=parcel*CFrame.new(0,boxHeight+.07,-halfDepth-.04+tapeLength*.5)
                 sticker.Transparency=labeled and 0 or 1
                 shipping.Enabled=labeled
-                local slap=1-smooth((t-5.45)/.3)
-                sticker.CFrame=parcel*CFrame.new(0,boxHeight*.54,-halfDepth-.09-slap*1.1)
+                local slap=1-smooth((t-5.05)/.25)
+                sticker.CFrame=parcel*CFrame.new(-boxWidth*.11,boxHeight*.54,-halfDepth-.09-slap*1.1)
                     *CFrame.Angles(0,0,slap*-.12)
                 local parcelCenter=(parcel*CFrame.new(0,boxHeight*.5,0)).Position
                 local aspect=camera.ViewportSize.X/math.max(1,camera.ViewportSize.Y)
@@ -5249,6 +5329,10 @@ do
                 local arrivalZoom=smooth((t-.25)/.4)
                 local arrivalDistance=math.max(25,boxWidth*2.8)*math.max(1,.9/math.max(.45,aspect))
                     *(1+.18*arrivalZoom)
+                itemBadge.Transparency=labeled and 0 or 1
+                badgeGui.Enabled=labeled
+                itemBadge.CFrame=parcel*CFrame.new(halfWidth-badgeWidth*.6,boxHeight*.65,-halfDepth-.115-slap*1.1)
+                    *CFrame.Angles(0,0,math.rad(9)-slap*.12)
                 local arrivalFocus=parcelCenter+Vector3.new(0,2*(1-flight),0)
                 local arrival=CFrame.lookAt(floor+base.LookVector*arrivalDistance
                     +base.RightVector*(boxWidth*.25)+Vector3.new(0,3,0),arrivalFocus)
@@ -5273,21 +5357,21 @@ do
                     local petZoom=smooth((t-3.05)/.25)*(1-smooth((t-4.25)/.3))
                     shot=shot:Lerp(petShot,petZoom)
                 end
-                shot=shot:Lerp(labelShot,smooth((t-4.7)/.65))
+                shot=shot:Lerp(labelShot,smooth((t-4.5)/.55))
                 -- Pull back to show the whole saucer and its beam from the ground.
                 local exitFocus=floor+Vector3.new(0,pickupHeight*.55+ufoExit*10,0)
                 local exitDistance=math.max(saucerWidth*2.5,pickupHeight*1.7)
                     *math.max(1,.95/math.max(.45,aspect))
                 local exitShot=CFrame.lookAt(floor+base.LookVector*exitDistance
-                    +base.RightVector*(boxWidth*.35)+Vector3.new(0,3.5,0),exitFocus)
-                shot=shot:Lerp(exitShot,smooth((t-5.9)/.5))
+                    +base.RightVector*(boxWidth*.35)+Vector3.new(0,pickupHeight+7,0),exitFocus)
+                shot=shot:Lerp(exitShot,smooth((t-6.55)/.4))
                 camera.CFrame=state.cframe:Lerp(shot,smooth(t/.35))
-                local fov=62+4*arrivalZoom-18*smooth((t-2.3)/.6)+12*smooth((t-5.9)/.5)
+                local fov=62+4*arrivalZoom-18*smooth((t-2.3)/.6)+12*smooth((t-6.55)/.4)
                 camera.FieldOfView=state.fov+(fov-state.fov)*smooth(t/.35)
-                local focus=t<2.3 and arrivalFocus or (t>=5.9 and exitFocus or floor+Vector3.new(0,boxHeight*.65,0))
+                local focus=t<2.3 and arrivalFocus or (t>=6.55 and exitFocus or floor+Vector3.new(0,boxHeight*.65,0))
                 camera.Focus=CFrame.new(focus)
-                if t>7.4 then
-                    local back=smooth((t-7.4)/.4)
+                if t>7.7 then
+                    local back=smooth((t-7.7)/.3)
                     camera.CFrame=camera.CFrame:Lerp(state.cframe,back)
                     camera.FieldOfView=fov+(state.fov-fov)*back
                 end
@@ -5296,8 +5380,8 @@ do
                     parcelCenter+base.RightVector*halfWidth,
                     parcelCenter-base.RightVector*halfWidth
                 })
-                if t>=7.3 and not dispatched then dispatched=true; dispatchCaption() end
-                if t>=7.8 then cleanup(state) end
+                if t>=7.65 and not dispatched then dispatched=true; dispatchCaption() end
+                if t>=8 then cleanup(state) end
             end,debug.traceback)
             if not ok then state.error=err; cleanup(state) end
         end)
