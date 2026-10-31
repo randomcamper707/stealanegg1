@@ -3582,7 +3582,6 @@ local function recipientChoices(cmd,item)
     quick.Visible=false
     local prefix=(cmd=="/givestars" or cmd=="/giveeverything") and (cmd.." ") or itemPrefix(cmd,item)
     prefill(prefix)
-    line("Type the recipient's username, then press Enter.",consoleMuted)
 end
 chooseItem=function(cmd)
     activeCommand=cmd
@@ -5007,9 +5006,12 @@ do
         return p
     end
     -- Fit every corner of the closed parcel inside the sticker shot, including narrow screens.
-    local function frameParcel(base,floor,width,height,depth,aspect,fov)
+    local function frameParcel(base,floor,width,height,depth,aspect,fov,yaw)
         local target=floor+Vector3.new(0,height*.5,0)
-        local direction=(base.LookVector+base.RightVector*.18+Vector3.new(0,.4,0)).Unit
+        yaw=yaw or 0
+        local toward=base.LookVector*math.cos(yaw)+base.RightVector*math.sin(yaw)
+        local right=base.RightVector*math.cos(yaw)-base.LookVector*math.sin(yaw)
+        local direction=(toward+right*.18+Vector3.new(0,.4,0)).Unit
         local axes=CFrame.lookAt(target+direction,target)
         local vertical=math.tan(math.rad(fov*.5))*.86
         local horizontal=vertical*math.max(.2,aspect)
@@ -5332,6 +5334,9 @@ do
         local pieces,flaps,contents,portal={},{},{},{}
         local contentParts={}
         local parcelRig=nil
+        local rigidParts,rigidOffsets,rigidFrames={},{},{}
+        local portalWasVisible=true
+        local ufoWasVisible=false
         local lastParcelAlpha=nil
         local function piece(name,size,offset,color)
             local object=makePart(scene,name,size,color or cardboard)
@@ -5353,9 +5358,26 @@ do
             local endLid=makePart(scene,'EndFlap',Vector3.new(halfWidth,.08,boxDepth),Color3.fromRGB(153,103,57))
             flaps[#flaps+1]={part=endLid,side=side,axis='z'}
         end
-        for index=1,request.quantity do
-            local item=template:Clone() item.Name='ParcelItem'..index
-            -- Never show a newly parented clone at its source pivot for one frame.
+        local sources={}
+        if category=='Bundle' then
+            local bundleBox=template:GetBoundingBox()
+            for _,source in ipairs(template:GetChildren()) do
+                if source:IsA('Model') then
+                    local childBox=source:GetBoundingBox()
+                    local position=bundleBox:PointToObjectSpace(childBox.Position)
+                    sources[#sources+1]={source=source,x=position.X,z=position.Z,
+                        yaw=source:GetAttribute('SAE_PARCEL_CATEGORY')=='Star' and math.pi or 0}
+                end
+            end
+        else
+            for index=1,request.quantity do
+                sources[#sources+1]={source=template,
+                    x=request.quantity==1 and 0 or (index==1 and -slotWidth*.5 or index==2 and slotWidth*.5 or 0),
+                    z=request.quantity==1 and 0 or (index<3 and slotDepth*.5 or -slotDepth*.5),yaw=0}
+            end
+        end
+        for index,source in ipairs(sources) do
+            local item=source.source:Clone() item.Name='ParcelItem'..index
             local itemParts={}
             for _,object in ipairs(item:GetDescendants()) do
                 if object:IsA('BasePart') then
@@ -5367,10 +5389,17 @@ do
             local boxCf,size=item:GetBoundingBox()
             local pivotToBounds=item:GetPivot():ToObjectSpace(boxCf)
             contents[#contents+1]={model=item,parts=itemParts,alpha=1,size=size,correction=pivotToBounds:Inverse(),
-                x=request.quantity==1 and 0 or (index==1 and -slotWidth*.5 or index==2 and slotWidth*.5 or 0),
-                z=request.quantity==1 and 0 or (index<3 and slotDepth*.5 or -slotDepth*.5),index=index}
+                x=source.x,z=source.z,yaw=source.yaw,index=index}
         end
         local stickerModel=template:Clone()
+        if category=='Bundle' then
+            for _,item in ipairs(stickerModel:GetChildren()) do
+                if item:IsA('Model') and item:GetAttribute('SAE_PARCEL_CATEGORY')=='Star' then
+                    -- The fixed picture camera needs the machine's front, not its rear console.
+                    item:PivotTo(item:GetPivot()*CFrame.Angles(0,math.pi,0))
+                end
+            end
+        end
         template:Destroy()
         local glow=makePart(scene,'RevealGlow',Vector3.new(.1,.1,.1),purple,Enum.Material.Neon)
         glow.Transparency=1
@@ -5637,7 +5666,8 @@ do
                     *CFrame.new(0,-boxHeight*.5,0)
                 local opening=smooth((t-2.35)/.45)*(1-smooth((t-4.45)/.45))
                 if parcelRig then
-                    parcelRig:PivotTo(parcel)
+                    for index,offset in ipairs(rigidOffsets) do rigidFrames[index]=parcel*offset end
+                    workspace:BulkMoveTo(rigidParts,rigidFrames,Enum.BulkMoveMode.FireCFrameChanged)
                 else
                 for _,entry in ipairs(pieces) do entry.part.CFrame=parcel*entry.offset end
                 for _,flap in ipairs(flaps) do
@@ -5662,17 +5692,25 @@ do
                 end
                 for _,entry in ipairs(contents) do
                     if not parcelRig then
-                    -- Hold each item fully above the opening, then lower it into the parcel.
-                    local lowering=smooth((t-((isTreadmill and 3.9 or 3.55)+(entry.index-1)*.12))/.5)
+                    local mixed=category=='Bundle'
+                    local lowerStart=mixed and (3.25+(entry.index-1)*.17)
+                        or ((isTreadmill and 3.9 or 3.55)+(entry.index-1)*.12)
+                    local lowering=smooth((t-lowerStart)/(mixed and .45 or .5))
                     local hovering=boxHeight+1.1
-                    local approach=smooth((t-(2.55+(entry.index-1)*.08))/.9)
-                    local incoming=hovering+math.max(30,entry.size.Y*5)*(1-approach)
+                    local approach=smooth((t-(2.55+(entry.index-1)*(mixed and .09 or .08)))/(mixed and .6 or .9))
+                    local incoming=hovering+math.max(mixed and 18 or 30,entry.size.Y*(mixed and 3 or 5))*(1-approach)
                     local bottom=incoming+(.28-incoming)*lowering
-                    local position=Vector3.new(entry.x,bottom+entry.size.Y*.5,entry.z)
-                    local turn=isTreadmill and (math.pi+math.pi*2*smooth((t-2.75)/1.1)) or (1-lowering)*.16
-                    entry.model:PivotTo(parcel*CFrame.new(position)*CFrame.Angles(0,turn,0)*entry.correction)
+                    local floating=mixed and approach*(1-lowering) or 0
+                    local side=entry.index%2==0 and 1 or -1
+                    local position=Vector3.new(entry.x+floating*math.sin(t*1.7+entry.index)*.24,
+                        bottom+entry.size.Y*.5+floating*math.sin(t*2+entry.index)*.1,
+                        entry.z+floating*math.cos(t*1.4+entry.index)*.16)
+                    local turn=isTreadmill and (math.pi+math.pi*2*smooth((t-2.75)/1.1))
+                        or (entry.yaw+(1-lowering)*(mixed and math.sin(t*1.8+entry.index)*.22 or .16))
+                    entry.model:PivotTo(parcel*CFrame.new(position)
+                        *CFrame.Angles(floating*.035*side,turn,floating*math.sin(t+entry.index)*.045)*entry.correction)
                     end
-                    local visible=t>=2.55 and 1 or 0
+                    local visible=t>=(2.55+(category=='Bundle' and (entry.index-1)*.09 or 0)) and 1 or 0
                     local alpha=math.max(1-visible,fade)
                     if entry.alpha~=alpha then
                         for _,object in ipairs(entry.parts) do object.LocalTransparencyModifier=alpha end
@@ -5682,6 +5720,7 @@ do
                 if not parcelRig then glow.CFrame=parcel*CFrame.new(0,boxHeight*.7,0) end
                 light.Brightness=glowAmount*1.5
                 local portalAmount=smooth((t-.05)/.4)*(1-smooth((t-1.35)/.5))
+                if portalAmount>.001 or portalWasVisible then
                 for _,entry in ipairs(portal) do
                     local angle=entry.angle+t*(entry.band==1 and .8 or -.65)
                     local radius=portalRadius*entry.band*math.max(.05,portalAmount)*(1+.015*math.sin(t*5))
@@ -5698,15 +5737,20 @@ do
                     entry.part.CFrame=base*CFrame.new(entry.x,portalHeight-.15,entry.z)
                     entry.part.Transparency=1-portalAmount*(.32+.10*math.sin(t*1.5+entry.phase))
                 end
+                portalWasVisible=portalAmount>.001
+                end
                 local ufoArrival=smooth((t-6.6)/.35)
                 local ufoExit=smooth((t-7.65)/.3)
                 local ufoPosition=Vector3.new((1-ufoArrival)*saucerWidth*2+ufoExit*saucerWidth*.6,
                     pickupHeight+(1-ufoArrival)*8+ufoExit*24,0)
                 local ufoFrame=base*CFrame.new(ufoPosition)
                 local ufoVisibility=smooth((t-6.6)/.25)*(1-smooth((t-7.9)/.1))
+                if ufoVisibility>.001 or ufoWasVisible then
                 for _,entry in ipairs(ufoParts) do
                     entry.part.CFrame=ufoFrame*entry.offset
                     entry.part.Transparency=1-ufoVisibility
+                end
+                ufoWasVisible=ufoVisibility>.001
                 end
                 beamTop.CFrame=ufoFrame*CFrame.new(0,-.85,0)
                 beamBottom.CFrame=base*CFrame.new(0,.2,0)
@@ -5726,7 +5770,7 @@ do
                 if shipping.Enabled~=labeled then shipping.Enabled=labeled end
                 local slap=1-smooth((t-4.85)/.25)
                 if not parcelRig then
-                    sticker.CFrame=parcel*CFrame.new(0,boxHeight*.38,-halfDepth-.09-slap*1.1)
+                    sticker.CFrame=parcel*CFrame.new(0,boxHeight*.38,-halfDepth-.24-slap*1.1)
                         *CFrame.Angles(0,0,slap*-.12)
                 end
                 local parcelCenter=(parcel*CFrame.new(0,boxHeight*.5,0)).Position
@@ -5738,13 +5782,13 @@ do
                 itemBadge.Transparency=1
                 if badgeGui.Enabled~=labeled then badgeGui.Enabled=labeled end
                 if not parcelRig then
-                itemBadge.CFrame=parcel*CFrame.new(boxWidth*.28,boxHeight*.84,-halfDepth-.13-slap*.7)
+                itemBadge.CFrame=parcel*CFrame.new(boxWidth*.28,boxHeight*.84,-halfDepth-.27-slap*.7)
                     *CFrame.Angles(0,0,math.rad(9)-slap*.12)
                 end
                 fragile.Transparency=labeled and 0 or 1
                 if fragileGui.Enabled~=labeled then fragileGui.Enabled=labeled end
                 if not parcelRig then
-                fragile.CFrame=parcel*CFrame.new(-boxWidth*.23,boxHeight*.84,-halfDepth-.14-slap*.7)
+                fragile.CFrame=parcel*CFrame.new(-boxWidth*.23,boxHeight*.84,-halfDepth-.28-slap*.7)
                     *CFrame.Angles(0,0,math.rad(-4)*slap)
                 end
                 if t>=5.3 and not parcelRig then
@@ -5755,6 +5799,12 @@ do
                     for _,entry in ipairs(contents) do entry.model.Parent=parcelRig end
                     sticker.Parent=parcelRig itemBadge.Parent=parcelRig fragile.Parent=parcelRig glow.Parent=parcelRig
                     parcelRig.WorldPivot=parcel
+                    for _,part in ipairs(parcelRig:GetDescendants()) do
+                        if part:IsA('BasePart') then
+                            rigidParts[#rigidParts+1]=part
+                            rigidOffsets[#rigidOffsets+1]=parcel:ToObjectSpace(part.CFrame)
+                        end
+                    end
                 end
                 local arrivalFocus=parcelCenter+Vector3.new(0,2*(1-flight),0)
                 local arrival=CFrame.lookAt(floor+base.LookVector*arrivalDistance
@@ -5771,6 +5821,15 @@ do
                 local portraitZoom=smooth((t-5.15)/.35)*(1-smooth((t-6.2)/.45))
                 local labelShot=labelWide:Lerp(labelClose,portraitZoom)
                 local shot=arrival:Lerp(revealShot,smooth((t-2.3)/.55))
+                if category=='Bundle' then
+                    -- A complete camera orbit shows the independently floating and packing items.
+                    local orbit=smooth((t-2.9)/1.8)*math.pi*2
+                    local lowering=smooth((t-3.25)/1.13)
+                    local displayHeight=boxHeight+(1-lowering)*(1.4+itemBounds.Y)
+                    local mixedShot=frameParcel(base,floor,boxWidth,displayHeight,boxDepth,aspect,48,orbit)
+                    local blend=smooth((t-2.7)/.2)*(1-smooth((t-4.7)/.15))
+                    shot=shot:Lerp(mixedShot,blend)
+                end
                 if category=='Pets' then
                     -- A close tracking shot makes the enlarged front pet clearly readable.
                     local lowering=smooth((t-(3.55+(request.quantity-1)*.12))/.5)
@@ -5783,7 +5842,7 @@ do
                     local petZoom=smooth((t-3.05)/.25)*(1-smooth((t-4.25)/.3))
                     shot=shot:Lerp(petShot,petZoom)
                 end
-                shot=shot:Lerp(labelShot,smooth((t-4.5)/.55))
+                shot=shot:Lerp(labelShot,smooth((t-(category=='Bundle' and 4.75 or 4.5))/(category=='Bundle' and .35 or .55)))
                 -- Pull back to show the whole saucer and its beam from the ground.
                 local exitFocus=floor+Vector3.new(0,pickupHeight*.55+ufoExit*10,0)
                 local exitDistance=math.max(saucerWidth*2.5,pickupHeight*1.7)
