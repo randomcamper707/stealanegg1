@@ -3493,13 +3493,15 @@ end
 local shortcuts={
     "/announcements", "/givetreadmill", "/giveeggs", "/givepets", "/givestars", "/giveps"
 }
-local itemNames={
-    "Mecha Scrambler", "Octophant", "Unicorn", "Kitsune", "Nightflame",
-    "ArchAngel", "World Burner", "Luminous Cthulhu", "Skeletal Sabertooth"
-}
 local branchItems={
-    ["/givepets"]=itemNames,
-    ["/giveeggs"]=itemNames,
+    ["/givepets"]={
+        "Mecha Scrambler", "Octophant", "Unicorn", "Kitsune",
+        "ArchAngel", "World Burner", "Skeletal Sabertooth"
+    },
+    ["/giveeggs"]={
+        "Mecha Scrambler", "Unicorn", "Kitsune", "Nightflame",
+        "ArchAngel", "Luminous Cthulhu", "Skeletal Sabertooth"
+    },
     ["/givetreadmill"]={"Ben's Treadmill","Brockodile Treadmill"}
 }
 local remoteActions={
@@ -3545,7 +3547,7 @@ local function resolveRecipient(value,raw)
         errorInput=raw
         ci.Text=raw
         ci.TextColor3=C.red promptMark.TextColor3=C.red
-        line(timedOut and "Username check timed out. Try again or press Ctrl." or "Username not found. Check it and try again.",C.red)
+        line(timedOut and "Username check timed out. Try again or clear the command." or "Username not found. Check it and try again.",C.red)
         ci:CaptureFocus()
         ci.CursorPosition=#ci.Text+1
         return nil
@@ -3612,14 +3614,6 @@ showCommands=function()
         end)
     end
 end
--- Ctrl returns to the command list without adding another button to the panel.
-local resetConnection=UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode==Enum.KeyCode.LeftControl or input.KeyCode==Enum.KeyCode.RightControl then
-        showCommands()
-        if Console.Visible then ci:CaptureFocus() end
-    end
-end)
-Gui.Destroying:Connect(function() resetConnection:Disconnect() end)
 local function canonicalItem(cmd,value)
     for _,item in ipairs(branchItems[cmd] or {}) do
         if item:lower()==value:lower() then return item end
@@ -3709,7 +3703,7 @@ local function submit(raw)
         showCommands()
         errorInput=raw
         ci.Text=raw ci.TextColor3=C.red promptMark.TextColor3=C.red
-        line("Command could not finish. Try again or press Ctrl.",C.red)
+        line("Command could not finish. Try again or clear the command.",C.red)
         ci:CaptureFocus()
         warn("[SAE] Console command: "..tostring(err))
     end
@@ -4989,7 +4983,6 @@ do
     local TS=game:GetService('TweenService')
     local Run=game:GetService('RunService')
     local Debris=game:GetService('Debris')
-    local Input=game:GetService('UserInputService')
     local purple=Color3.fromRGB(48,20,72)
     local cardboard=Color3.fromRGB(171,119,65)
     local function clamp01(value) return math.clamp(value,0,1) end
@@ -5058,7 +5051,7 @@ do
         if state.scene then state.scene:Destroy() end
         if state.finished then state.finished:Fire() end
     end
-    -- Control cancels queued and in-flight preparation as well as the active shot.
+    -- Reset queued and active preparation when the runtime is destroyed.
     function runtime:Reset()
         self.generation+=1
         table.clear(self.queue)
@@ -5082,18 +5075,12 @@ do
         if self.dead then return end
         self.dead=true
         self:Reset()
-        if self.inputConnection then self.inputConnection:Disconnect() end
         if self.guiConnection then self.guiConnection:Disconnect() end
         if E.SAE_PACKAGE_RUNTIME==self then
             E.SAE_PACKAGE_DELIVERY=nil E.SAE_PACKAGE_RUNTIME=nil
         end
     end
     runtime.guiConnection=Gui.Destroying:Connect(function() runtime:Destroy() end)
-    runtime.inputConnection=Input.InputBegan:Connect(function(input)
-        if input.KeyCode==Enum.KeyCode.LeftControl or input.KeyCode==Enum.KeyCode.RightControl then
-            runtime:Reset()
-        end
-    end)
     local function dispatchCaption()
         local sg=Instance.new('ScreenGui')
         sg.Name='SAE_PACKAGE_DISPATCH' sg.ResetOnSpawn=false sg.IgnoreGuiInset=true
