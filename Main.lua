@@ -4828,6 +4828,7 @@ do
         if state.connection then state.connection:Disconnect() end
         restoreCamera(state,force)
         if state.console and state.console.Parent then state.console.Visible=state.consoleVisible end
+        if state.stopPreview then state.stopPreview(); state.stopPreview=nil end
         if state.itemStickerGui then state.itemStickerGui:Destroy() end
         if state.scene then state.scene:Destroy() end
         if state.finished then state.finished:Fire() end
@@ -4930,6 +4931,7 @@ do
         local camera=workspace.CurrentCamera
         if not root or not camera then error('Character or camera is unavailable') end
         local category,name=resolveModel(request.cmd,request.item)
+        local isTreadmill=request.cmd=='/givetreadmill'
         local template=model(category,name)
         if runtime.dead or request.generation~=runtime.generation then
             if template then template:Destroy() end
@@ -4963,7 +4965,8 @@ do
         else
             displayFactor=(request.quantity==1 and 3.8 or 3.5)/maxSize
         end
-        template:ScaleTo(template:GetScale()*displayFactor)
+        local nativeScale=template:GetScale()
+        template:ScaleTo(nativeScale*displayFactor)
         local itemBounds=template:GetExtentsSize()
         local slotWidth=itemBounds.X+.25
         local slotDepth=itemBounds.Z+.25
@@ -4985,17 +4988,42 @@ do
             recipientId=id
         end
         if runtime.dead or request.generation~=runtime.generation then template:Destroy(); return end
+        local previewAvatar,previewMachine
+        local function discardPreparedPreview()
+            if previewAvatar then previewAvatar:Destroy() end
+            if previewMachine then previewMachine:Destroy() end
+        end
+        if isTreadmill then
+            local ok,avatar=pcall(function() return Players:CreateHumanoidModelFromUserIdAsync(recipientId) end)
+            if runtime.dead or request.generation~=runtime.generation then
+                if ok and avatar then avatar:Destroy() end
+                template:Destroy(); return
+            end
+            if not ok or not avatar then template:Destroy(); error('Recipient avatar could not be prepared') end
+            previewAvatar=avatar
+            previewAvatar.Name='RecipientRunner'
+            previewMachine=template:Clone() previewMachine.Name='TreadmillRunningPreview'
+            previewMachine:ScaleTo(nativeScale)
+            for _,object in ipairs(previewAvatar:GetDescendants()) do
+                if object:IsA('LuaSourceContainer') or object:IsA('Sound') then object:Destroy()
+                elseif object:IsA('BasePart') then
+                    object.Anchored=false object.CanCollide=false object.CanTouch=false object.CanQuery=false
+                end
+            end
+        end
         -- Fetch meshes, textures, portal particles and the portrait before the camera takes over.
         local portrait=Instance.new('ImageLabel')
         portrait.Image='rbxthumb://type=AvatarHeadShot&id='..recipientId..'&w=150&h=150'
         local preloadOk,preloadError=pcall(function()
-            game:GetService('ContentProvider'):PreloadAsync({template,portrait,
+            local assets={template,portrait,
                 'rbxasset://textures/particles/sparkles_main.dds',
-                'rbxasset://textures/particles/smoke_main.dds'})
+                'rbxasset://textures/particles/smoke_main.dds'}
+            if previewAvatar then assets[#assets+1]=previewAvatar end
+            game:GetService('ContentProvider'):PreloadAsync(assets)
         end)
         portrait:Destroy()
-        if runtime.dead or request.generation~=runtime.generation then template:Destroy(); return end
-        if not preloadOk then template:Destroy(); error('Parcel assets could not be prepared: '..tostring(preloadError)) end
+        if runtime.dead or request.generation~=runtime.generation then discardPreparedPreview(); template:Destroy(); return end
+        if not preloadOk then discardPreparedPreview(); template:Destroy(); error('Parcel assets could not be prepared: '..tostring(preloadError)) end
         -- Place the scene on the floor in front of the sender, excluding their character.
         local forward=Vector3.new(root.CFrame.LookVector.X,0,root.CFrame.LookVector.Z)
         if forward.Magnitude<.01 then forward=Vector3.new(0,0,-1) else forward=forward.Unit end
@@ -5006,7 +5034,7 @@ do
         if treadmill then floorIgnore[#floorIgnore+1]=treadmill end
         params.FilterDescendantsInstances=floorIgnore
         local hit=workspace:Raycast(point+Vector3.new(0,20,0),Vector3.new(0,-128,0),params)
-        if not hit then template:Destroy(); error('No floor found for parcel landing') end
+        if not hit then discardPreparedPreview(); template:Destroy(); error('No floor found for parcel landing') end
         local floor=hit.Position+Vector3.new(0,.06,0)
         local base=CFrame.lookAt(floor,floor-forward)
         local scene=Instance.new('Model') scene.Name='SAE_DELIVERY_PARCEL' scene.Parent=workspace
@@ -5015,6 +5043,7 @@ do
             console=Console,consoleVisible=Console.Visible,hidden={},visibilityConnections={},
             finished=Instance.new('BindableEvent')}
         runtime.active=state
+        if previewAvatar then previewAvatar.Parent=scene previewMachine.Parent=scene end
         concealTree(state,character,true)
         concealTree(state,treadmill,true)
         for _,object in ipairs(PG:GetDescendants()) do
@@ -5117,7 +5146,7 @@ do
             return part
         end
         local metal=Color3.fromRGB(37,40,49)
-        local green=Color3.fromRGB(115,255,153)
+        local green=Color3.fromRGB(38,145,55)
         saucerPart('UFOHull',Vector3.new(1.25,saucerWidth,saucerWidth),
             CFrame.Angles(0,0,math.pi*.5),metal,Enum.Material.Metal,Enum.PartType.Cylinder)
         saucerPart('UFORim',Vector3.new(.16,saucerWidth*1.02,saucerWidth*1.02),
@@ -5160,11 +5189,11 @@ do
         local tractor=Instance.new('Beam')
         tractor.Name='GreenTractorBeam' tractor.Attachment0=topAttachment tractor.Attachment1=bottomAttachment
         tractor.FaceCamera=true tractor.Width0=2.8 tractor.Width1=math.max(boxWidth,boxDepth)+2
-        tractor.Color=ColorSequence.new(green,Color3.fromRGB(178,255,205))
-        tractor.Transparency=NumberSequence.new(.62,.92)
-        tractor.LightEmission=.8 tractor.LightInfluence=0 tractor.Enabled=false tractor.Parent=beamTop
+        tractor.Color=ColorSequence.new(Color3.fromRGB(23,116,35),Color3.fromRGB(42,157,50))
+        tractor.Transparency=NumberSequence.new(.38,.76)
+        tractor.LightEmission=.35 tractor.LightInfluence=0 tractor.Enabled=false tractor.Parent=beamTop
         local tractorLight=Instance.new('PointLight')
-        tractorLight.Color=green tractorLight.Range=pickupHeight+5 tractorLight.Brightness=0 tractorLight.Parent=beamTop
+        tractorLight.Color=Color3.fromRGB(32,134,42) tractorLight.Range=pickupHeight+5 tractorLight.Brightness=0 tractorLight.Parent=beamTop
         local portalLight=Instance.new('PointLight')
         portalLight.Color=purple portalLight.Range=15 portalLight.Brightness=.7 portalLight.Parent=portal[1].part
         local tape=piece('YellowSealTape',Vector3.new(1.25,.06,boxDepth+.08),CFrame.new(0,boxHeight+.07,0),Color3.fromRGB(255,208,48))
@@ -5191,7 +5220,7 @@ do
         local badgeWidth=math.min(1.7,boxWidth*.20)
         local itemBadge=makePart(scene,'ItemPictureSticker',Vector3.new(badgeWidth,badgeWidth,.035),
             Color3.fromRGB(255,246,223))
-        itemBadge.Transparency=1
+        itemBadge.Transparency=1 -- Invisible carrier: only the item picture is drawn.
         local badgeGui=Instance.new('SurfaceGui')
         badgeGui.Name='ItemPictureLabel' badgeGui.Adornee=itemBadge
         badgeGui.Face=Enum.NormalId.Front badgeGui.CanvasSize=Vector2.new(192,192)
@@ -5207,7 +5236,7 @@ do
         local stickerBounds=stickerModel:GetExtentsSize()
         local boundsFrame=stickerModel:GetBoundingBox()
         local correction=stickerModel:GetPivot():ToObjectSpace(boundsFrame):Inverse()
-        stickerModel:PivotTo(CFrame.new()*correction)
+        stickerModel:PivotTo(CFrame.Angles(0,isTreadmill and math.pi or 0,0)*correction)
         local pictureCamera=Instance.new('Camera')
         pictureCamera.FieldOfView=32
         local pictureDistance=math.max(stickerBounds.X,stickerBounds.Y,stickerBounds.Z)*2.25
@@ -5215,9 +5244,45 @@ do
         pictureCamera.Parent=viewport viewport.CurrentCamera=pictureCamera
         local parcelParts={}
         for _,object in ipairs(scene:GetDescendants()) do
-            if object:IsA('BasePart') and not portalEffects[object] and object~=glow then
+            if object:IsA('BasePart') and not portalEffects[object] and object~=glow
+                and not (previewAvatar and object:IsDescendantOf(previewAvatar))
+                and not (previewMachine and object:IsDescendantOf(previewMachine)) then
                 parcelParts[#parcelParts+1]=object
             end
+        end
+        local previewDuration=isTreadmill and 2.6 or 0
+        local previewFocus,previewRadius,previewHidden
+        local sequenceStart=state.cframe
+        if previewAvatar then
+            local machineBounds=previewMachine:GetExtentsSize()
+            local machineBox=previewMachine:GetBoundingBox()
+            local correction=previewMachine:GetPivot():ToObjectSpace(machineBox):Inverse()
+            previewMachine:PivotTo(base*CFrame.new(0,machineBounds.Y*.5,0)*CFrame.Angles(0,math.pi,0)*correction)
+            local belt=previewMachine:FindFirstChild('RunningBelt',true)
+            local previewRoot=previewAvatar:FindFirstChild('HumanoidRootPart')
+            local humanoid=previewAvatar:FindFirstChildOfClass('Humanoid')
+            if not belt or not previewRoot or not humanoid then error('Recipient treadmill preview is unavailable') end
+            previewAvatar.PrimaryPart=previewRoot
+            local leg=humanoid.RigType==Enum.HumanoidRigType.R6 and previewAvatar:FindFirstChild('Left Leg')
+            local standing=humanoid.HipHeight+previewRoot.Size.Y*.5+(leg and leg.Size.Y or 0)
+            local position=belt.Position+Vector3.new(0,belt.Size.Y*.5+standing,0)
+            previewAvatar:PivotTo(CFrame.lookAt(position,position+belt.CFrame.LookVector))
+            previewRoot.Anchored=true humanoid.AutoRotate=false humanoid.WalkSpeed=0
+            humanoid.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
+            if runner and type(runner.StartPreview)=='function' then
+                state.stopPreview=runner:StartPreview(previewAvatar,humanoid,previewMachine,belt)
+            else error('Treadmill preview animator is unavailable') end
+            previewFocus=belt.Position+Vector3.new(0,standing*.7,0)
+            previewRadius=math.max(machineBounds.X,machineBounds.Y,machineBounds.Z,standing*2)*1.35
+            previewHidden={}
+            for _,object in ipairs(scene:GetDescendants()) do
+                if object:IsA('BasePart') and not object:IsDescendantOf(previewAvatar)
+                    and not object:IsDescendantOf(previewMachine) then
+                    previewHidden[object]=object.LocalTransparencyModifier
+                    object.LocalTransparencyModifier=1
+                end
+            end
+            sparks.Enabled=false mist.Enabled=false portalLight.Brightness=0
         end
         local started=os.clock()
         local dispatched=false
@@ -5232,6 +5297,33 @@ do
                     cleanup(state) return
                 end
                 local t=os.clock()-started
+                if previewAvatar then
+                    if t<previewDuration then
+                        local angle=-.55+t*.18
+                        local aspect=camera.ViewportSize.X/math.max(1,camera.ViewportSize.Y)
+                        local distance=previewRadius*math.max(1,1/math.max(.45,aspect))
+                        local previewShot=CFrame.lookAt(previewFocus
+                            +base.LookVector*(distance*math.cos(angle))
+                            +base.RightVector*(distance*math.sin(angle))
+                            +Vector3.new(0,distance*.32,0),previewFocus)
+                        camera.CFrame=state.cframe:Lerp(previewShot,smooth(t/.35))
+                        camera.FieldOfView=state.fov+(48-state.fov)*smooth(t/.35)
+                        camera.Focus=CFrame.new(previewFocus)
+                        sequenceStart=camera.CFrame
+                        clearView(state,scene,character,treadmill,{
+                            previewFocus,previewFocus+Vector3.new(0,2,0),
+                            previewFocus+base.RightVector*3,previewFocus-base.RightVector*3
+                        })
+                        return
+                    end
+                    if state.stopPreview then state.stopPreview(); state.stopPreview=nil end
+                    previewAvatar:Destroy() previewMachine:Destroy()
+                    previewAvatar=nil previewMachine=nil
+                    for object,value in pairs(previewHidden) do
+                        if object.Parent then object.LocalTransparencyModifier=value end
+                    end
+                    previewHidden=nil
+                end
                 -- Film a long vertical fall from below, then settle before opening.
                 local flight=clamp01((t-.55)/1.4)
                 local roll=math.sin(flight*math.pi)*.12
@@ -5264,13 +5356,14 @@ do
                 end
                 for _,entry in ipairs(contents) do
                     -- Hold each item fully above the opening, then lower it into the parcel.
-                    local lowering=smooth((t-(3.55+(entry.index-1)*.12))/.5)
+                    local lowering=smooth((t-((isTreadmill and 3.9 or 3.55)+(entry.index-1)*.12))/.5)
                     local hovering=boxHeight+1.1
                     local approach=smooth((t-(2.55+(entry.index-1)*.08))/.9)
                     local incoming=hovering+math.max(30,entry.size.Y*5)*(1-approach)
                     local bottom=incoming+(.28-incoming)*lowering
                     local position=Vector3.new(entry.x,bottom+entry.size.Y*.5,entry.z)
-                    entry.model:PivotTo(parcel*CFrame.new(position)*CFrame.Angles(0,(1-lowering)*.16,0)*entry.correction)
+                    local turn=isTreadmill and (math.pi+math.pi*2*smooth((t-2.75)/1.1)) or (1-lowering)*.16
+                    entry.model:PivotTo(parcel*CFrame.new(position)*CFrame.Angles(0,turn,0)*entry.correction)
                     local visible=t>=2.55 and 1 or 0
                     for _,object in ipairs(entry.model:GetDescendants()) do
                         if object:IsA('BasePart') then
@@ -5329,7 +5422,7 @@ do
                 local arrivalZoom=smooth((t-.25)/.4)
                 local arrivalDistance=math.max(25,boxWidth*2.8)*math.max(1,.9/math.max(.45,aspect))
                     *(1+.18*arrivalZoom)
-                itemBadge.Transparency=labeled and 0 or 1
+                itemBadge.Transparency=1
                 badgeGui.Enabled=labeled
                 itemBadge.CFrame=parcel*CFrame.new(halfWidth-badgeWidth*.6,boxHeight*.65,-halfDepth-.115-slap*1.1)
                     *CFrame.Angles(0,0,math.rad(9)-slap*.12)
@@ -5365,7 +5458,7 @@ do
                 local exitShot=CFrame.lookAt(floor+base.LookVector*exitDistance
                     +base.RightVector*(boxWidth*.35)+Vector3.new(0,pickupHeight+7,0),exitFocus)
                 shot=shot:Lerp(exitShot,smooth((t-6.55)/.4))
-                camera.CFrame=state.cframe:Lerp(shot,smooth(t/.35))
+                camera.CFrame=sequenceStart:Lerp(shot,smooth((t-previewDuration)/.45))
                 local fov=62+4*arrivalZoom-18*smooth((t-2.3)/.6)+12*smooth((t-6.55)/.4)
                 camera.FieldOfView=state.fov+(fov-state.fov)*smooth(t/.35)
                 local focus=t<2.3 and arrivalFocus or (t>=6.55 and exitFocus or floor+Vector3.new(0,boxHeight*.65,0))
@@ -5777,12 +5870,10 @@ local function createTreadmillRuntime()
     connect(workspace.ChildAdded,watchFolder)
     connect(UIS.JumpRequest,function() if active then stopRunning(true) end end)
     connect(P.CharacterRemoving,function() stopRunning(false) end)
-    connect(Run.PreSimulation,function()
-        local state=active
-        if not state then return end
+    local function poseRunner(state,now)
         if state.track and state.track.IsPlaying and state.track.Length>0 then return end
         -- R6/R15 fallback when the experience does not expose a run Animation.
-        local phase=(os.clock()-state.started)*10
+        local phase=(now-state.started)*10
         for joint in pairs(state.joints) do
             if joint.Parent then
                 local name=joint.Name:lower()
@@ -5799,7 +5890,46 @@ local function createTreadmillRuntime()
                 end
             end
         end
+    end
+    connect(Run.PreSimulation,function()
+        if active then poseRunner(active,os.clock()) end
     end)
+    -- Isolated delivery previews share the normal treadmill's run track and fallback gait.
+    function api:StartPreview(character,humanoid,machine,belt)
+        local state={started=os.clock(),joints={},track=runTrack(character,humanoid)}
+        for _,joint in ipairs(character:GetDescendants()) do
+            if joint:IsA('Motor6D') then state.joints[joint]=joint.Transform end
+        end
+        if state.track then pcall(function() state.track:Play(.18,1,1.35) end) end
+        local marks={}
+        for index=1,9 do
+            local mark=Instance.new('Part')
+            mark.Name='PreviewBeltTread' mark.Size=Vector3.new(belt.Size.X*.87,.016,.055)
+            mark.Color=rgb(82,92,92) mark.Material=MAT
+            mark.Anchored=true mark.CanCollide=false mark.CanTouch=false mark.CanQuery=false
+            mark.Parent=machine marks[#marks+1]=mark
+        end
+        local connection=Run.PreSimulation:Connect(function()
+            if not character.Parent or not machine.Parent then return end
+            local now=os.clock()
+            poseRunner(state,now)
+            for index,mark in ipairs(marks) do
+                local phase=((now-state.started)*.9+index/#marks)%1
+                mark.CFrame=belt.CFrame*CFrame.new(0,belt.Size.Y*.5+.018,(phase-.5)*belt.Size.Z*.94)
+            end
+        end)
+        local stopped=false
+        return function()
+            if stopped then return end stopped=true
+            connection:Disconnect()
+            if state.track then
+                pcall(function() state.track:Stop(0); state.track:Destroy() end)
+                tracks[humanoid]=nil
+            end
+            for joint,transform in pairs(state.joints) do if joint.Parent then joint.Transform=transform end end
+            for _,mark in ipairs(marks) do mark:Destroy() end
+        end
+    end
     local sample=0
     connect(Run.Heartbeat,function(dt)
         if dead then return end
